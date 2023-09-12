@@ -1,0 +1,74 @@
+{
+	"data1": {
+		"subset": "face",
+		"city": "zigong",
+		"start_time": {"year": 1949, "month": 10, "day": 1},
+		"end_time": {"year": 1949, "month": 10, "day": 1},  
+		"rename": {
+			"fid": "face_user", 
+			"time": "face_time", 
+			"longitude": "face_longitude", 
+			"latitude": "face_latitude", 
+			"deviceId": "face_device"
+			}, 
+		"columns": {
+			"user": "face_user", 
+			"time": "face_time", 
+			"longitude": "face_longitude", 
+			"latitude": "face_latitude", 
+			"device": "face_device"
+			}
+		},
+	"data2": {
+		"subset": "imsi",
+		"city": "zigong",
+		"start_time": {"year": 1949, "month": 10, "day": 1},
+		"end_time": {"year": 1949, "month": 10, "day": 1}, 
+		"rename": {
+			"imsi": "imsi_user", 
+			"time": "imsi_time", 
+			"longitude": "imsi_longitude", 
+			"latitude": "imsi_latitude", 
+			"deviceId": "imsi_device"
+			},
+		"columns": {
+			"user": "imsi_user", 
+			"time": "imsi_time", 
+			"longitude": "imsi_longitude", 
+			"latitude": "imsi_latitude", 
+			"device": "imsi_device"
+			}
+		},  
+	"label": {
+		"subset": "face_imsi_car", 
+		"file": "faceImsiZigong20220119", 
+		"rename": {
+			"fid": "face_user", 
+			"imsi": "imsi_user"
+		},
+		"columns": ["face_user", "imsi_user"]
+	},  
+	"task": {
+		"num": 10, 
+		"no_num": [1], 
+		"max_num": 10
+	}, 
+	"pairs": {
+		"into": "device", 
+		"front_time": 400, 
+		"back_time": 400, 
+		"space_distance": 400, 
+		"place_top": 50, 
+		"num_top": 50
+	}, 
+	"feature": {
+		"front_time": 400, 
+		"back_time": 400, 
+		"space_distance": [400]
+	}, 
+	"splitting": {
+		"info": "ratio", 
+		"divide_train": 8, 
+		"divide_test": 2
+	}
+}
