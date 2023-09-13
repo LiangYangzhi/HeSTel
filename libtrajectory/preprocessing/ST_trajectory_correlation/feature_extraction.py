@@ -1,5 +1,7 @@
 import pandas as pd
 from geopy.distance import geodesic
+from pandarallel import pandarallel
+pandarallel.initialize()
 
 from libtrajectory.utils.coordinate import device_distance
 
@@ -34,7 +36,10 @@ class FeatureExtraction(object):
         self.space_distance = None
         self.deduplication_seq1 = None
         self.deduplication_seq2 = None
-        
+        self.cache = [0, 0, 0]
+        self.cache_sequence1 = None
+        self.cache_feature1 = None
+
     def _create_device_distance_table(self, index=False):
         if index:
             device1_col = [self.col1['device'], self.col1['longitude'], self.col1['latitude']]
@@ -75,32 +80,32 @@ class FeatureExtraction(object):
         :return:
         """
         length1 = sequence1.shape[0]
-        device1_num = len(sequence1[self.col1['device']].unique())
+        device1_num = sequence1[self.col1['device']].unique().__len__()
         time1_diff = sequence1[self.col1['time']].max() - sequence1[self.col1['time']].min()
 
         device_list = sequence1[self.col1['device']].tolist()
         longitude = sequence1[self.col1['latitude']].tolist()
         latitude = sequence1[self.col1['latitude']].tolist()
-        if len(device_list) == 1:
+        if device_list.__len__() == 1:
             count_distance1 = 0
         else:
             # [user, time, longitude, latitude, device / None, poi / None]
             distance = [geodesic((latitude[i - 1], longitude[i - 1]), (latitude[i], longitude[i])).m
-                        for i in range(len(device_list)) if i]
+                        for i in range(device_list.__len__()) if i]
             count_distance1 = sum(distance)
 
         device_unique = list(set(device_list))
-        if len(device_unique) == 1:
+        if device_unique.__len__() == 1:
             max_distance1 = 0
         else:
             distance = []
             for i, d in enumerate(device_unique):
                 index1 = device_list.index(d)
-                for j in range(i + 1, len(device_unique)):
+                for j in range(i + 1, device_unique.__len__()):
                     index2 = device_list.index(device_unique[j])
                     distance.append(geodesic((latitude[index1], longitude[index1]),
                                              (latitude[index2], longitude[index2])).m)
-            max_distance1 = max(distance) if len(distance) > 1 else distance[0]
+            max_distance1 = max(distance) if distance.__len__() > 1 else distance[0]
 
         feature1 = {
             "length1": length1,
@@ -122,31 +127,31 @@ class FeatureExtraction(object):
         :return:
         """
         length2 = sequence2.shape[0]
-        device2_num = len(sequence2[self.col2['device']].unique())
+        device2_num = sequence2[self.col2['device']].unique().__len__()
 
         device_list = sequence2[self.col2['device']].tolist()
         longitude = sequence2[self.col2['latitude']].tolist()
         latitude = sequence2[self.col2['latitude']].tolist()
-        if len(device_list) == 1:
+        if device_list.__len__() == 1:
             count_distance2 = 0
         else:
             # [user, time, longitude, latitude, device / None, poi / None]
             distance = [geodesic((latitude[i - 1], longitude[i - 1]), (latitude[i], longitude[i])).m
-                        for i in range(len(device_list)) if i]
+                        for i in range(device_list.__len__()) if i]
             count_distance2 = sum(distance)
 
         device_unique = list(set(device_list))
-        if len(device_unique) == 1:
+        if device_unique.__len__() == 1:
             max_distance2 = 0
         else:
             distance = []
             for i, d in enumerate(device_unique):
                 index1 = device_list.index(d)
-                for j in range(i + 1, len(device_unique)):
+                for j in range(i + 1, device_unique.__len__()):
                     index2 = device_list.index(device_unique[j])
                     distance.append(geodesic((latitude[index1], longitude[index1]),
                                              (latitude[index2], longitude[index2])).m)
-            max_distance2 = max(distance) if len(distance) > 1 else distance[0]
+            max_distance2 = max(distance) if distance.__len__() > 1 else distance[0]
 
         feature2 = {
             "length2": length2,
@@ -172,9 +177,10 @@ class FeatureExtraction(object):
         """
         feature3 = {}
         for threshold in self.space_distance:
-            sti_col = [self.col2['user'] + str(threshold), self.col2['time'] + str(threshold), self.col2['device'] + str(threshold)]
-            col = {**self.col1, **sti_col}
-            col = [c for c in col.values() if c is not None]
+            sti_col = [self.col2['user'] + str(threshold),
+                       self.col2['time'] + str(threshold),
+                       self.col2['device'] + str(threshold)]
+            col = list(self.col1.values()) + sti_col
             seq_th: pd.DataFrame = sequence3[col]  # sequence3 space threshold
             seq_th = seq_th.dropna(subset=sti_col)
             if not seq_th.shape[0]:
@@ -194,8 +200,8 @@ class FeatureExtraction(object):
                 sti_user1_num = seq_th.drop_duplicates([self.col1['device'], self.col1['time']]).shape[0]
                 sti_user2_num = seq_th.drop_duplicates(
                     [self.col2['device'] + str(threshold), self.col2['time'] + str(threshold)]).shape[0]
-                sti_device1_num = len(seq_th[self.col1['device']].unique())
-                sti_device2_num = len(seq_th[self.col2['device'] + str(threshold)].unique())
+                sti_device1_num = seq_th[self.col1['device']].unique().__len__()
+                sti_device2_num = seq_th[self.col2['device'] + str(threshold)].unique().__len__()
 
                 if seq_th.shape[0] == 1:
                     sti_time1_diff = 0
@@ -205,25 +211,25 @@ class FeatureExtraction(object):
                 device1 = seq_th[self.col1['device']].tolist()
                 longitude = seq_th[self.col1['latitude']].tolist()
                 latitude = seq_th[self.col1['latitude']].tolist()
-                if len(device1) == 1:
+                if device1.__len__() == 1:
                     sti_count_distance1 = 0
                 else:
                     distance = [geodesic((latitude[i - 1], longitude[i - 1]), (latitude[i], longitude[i])).m
-                                for i in range(len(device1)) if i]
+                                for i in range(device1.__len__()) if i]
                     sti_count_distance1 = sum(distance)
 
                 device_unique = list(set(device1))
-                if len(device_unique) == 1:
+                if device_unique.__len__() == 1:
                     sti_max_distance1 = 0
                 else:
                     distance = []
                     for i, d in enumerate(device_unique):
                         index1 = device1.index(d)
-                        for j in range(i + 1, len(device_unique)):
+                        for j in range(i + 1, device_unique.__len__()):
                             index2 = device1.index(device_unique[j])
                             distance.append(geodesic((latitude[index1], longitude[index1]),
                                                      (latitude[index2], longitude[index2])).m)
-                    sti_max_distance1 = max(distance) if len(distance) > 1 else distance[0]
+                    sti_max_distance1 = max(distance) if distance.__len__() > 1 else distance[0]
 
                 dic = {f"sti_length_{str(threshold)}": sti_length,
                        f"sti_user1_num_{str(threshold)}": sti_user1_num,
@@ -254,10 +260,20 @@ class FeatureExtraction(object):
 
     def _extraction(self, user1, user2, start_time, end_time):
         # sequence1: data1 user1 trajectory
-        sequence1: pd.DataFrame = self.data1[(self.data1[self.col1['user']].isin([user1])) &
-                                             (self.data1[self.col1['time']].isin(range(start_time, end_time + 1)))]
-        sequence1.sort_values(self.col1['time'], ascending=True, inplace=True)
-        # Todo sequence1 deduplication
+        if self.cache[0] == user1 and self.cache[1] == start_time and self.cache[2] == end_time:
+            sequence1 = self.cache_sequence1
+            feature1 = self.cache_feature1
+        else:
+            sequence1: pd.DataFrame = self.data1[(self.data1[self.col1['user']].isin([user1])) &
+                                                 (self.data1[self.col1['time']].isin(range(start_time, end_time + 1)))]
+            sequence1.sort_values(self.col1['time'], ascending=True, inplace=True)
+            self.sequence1 = sequence1
+            # Todo sequence1 deduplication
+            feature1 = self._feature1(sequence1)
+
+            self.cache = [user1, start_time, end_time]
+            self.cache_sequence1 = sequence1
+            self.cache_feature1 = feature1
 
         # sequence2: data2 user2 trajectory
         sti_start_time = start_time - self.back_time
@@ -265,6 +281,7 @@ class FeatureExtraction(object):
         sequence2: pd.DataFrame = self.data2[(self.data2[self.col2['user']].isin([user2])) & (
             self.data2[self.col2['time']].isin(range(sti_start_time, sti_end_time + 1)))]
         sequence2.sort_values(self.col2['time'], ascending=True, inplace=True)
+        feature2 = self._feature2(sequence2)
         # Todo sequence deduplication
 
         # sequence3: spatiotemporal intersection sequence
@@ -273,7 +290,8 @@ class FeatureExtraction(object):
 
         pd.set_option('display.max_columns', None)
         sequence3: pd.DataFrame = sequence1.copy()
-        sti_lis_max = [c + str(self.space_distance[-1]) for c in [self.col2['user'], self.col2['time'], self.col2['device']]]
+        sti_lis_max = [c + str(self.space_distance[-1]) for c in
+                       [self.col2['user'], self.col2['time'], self.col2['device']]]
         sequence3[sti_lis_max] = sequence3.apply(
             lambda row: self._device_time_sti(row[self.col1['device']], row[self.col1['time']], sequence2)
             , result_type="expand", axis=1)
@@ -281,11 +299,12 @@ class FeatureExtraction(object):
         sequence3 = sequence3.reset_index(drop=True)
         sequence3 = sequence3.apply(pd.Series.explode)
 
-        if len(self.space_distance) > 1:  # space_distance have many threshold
+        if self.space_distance.__len__() > 1:  # space_distance have many threshold
             sequence3['distance'] = sequence3.apply(
                 lambda row: self.device_distance[
                     (self.device_distance[self.col1['device']].isin([row[self.col1['device']]])) &
-                    (self.device_distance[self.col2['device']].isin([row[self.col2['device'] + str(self.space_distance[-1])]]))
+                    (self.device_distance[self.col2['device']].isin(
+                        [row[self.col2['device'] + str(self.space_distance[-1])]]))
                     ].distance.values[0], axis=1)
             pd.set_option('display.max_columns', None)
 
@@ -294,15 +313,12 @@ class FeatureExtraction(object):
                     sequence3[c + str(threshold)] = sequence3.apply(
                         lambda row: row[c + str(self.space_distance[-1])] if row['distance'] <= threshold else None,
                         axis=1)
-
-        # feature
-        feature1 = self._feature1(sequence1)
-        feature2 = self._feature2(sequence2)
         feature3 = self._feature3(sequence3)
+
         feature = {**feature1, **feature2, **feature3}
         return feature
 
-    def sequence(self,pairs: pd.DataFrame, col_pairs: list,
+    def sequence(self, pairs: pd.DataFrame, col_pairs: dict,
                  front_time: int, back_time: int, space_distance: list,
                  deduplication_seq1=None, deduplication_seq2=None):
         """
@@ -315,8 +331,13 @@ class FeatureExtraction(object):
             Trajectory points where user1 trajectory sequence and user2 trajectory sequence generate spatiotemporal intersection
         :param pairs: pd.DataFrame
             需要提取特征的候选关系对
-        :param col_pairs: list
-            The columns names corresponding to trajectory pair, in order [user1, user2, task, start_time, end_time]
+        :param col_pairs: dict
+            The columns names corresponding to trajectory pair,
+            {user1: pairs column name,
+            user2: pairs column name,
+            segment: pairs column name,
+            start_time: pairs column name,
+            end_time: pairs column name, ...}
         :param front_time: int, unit is second
             时空交集的时间阈值, data1的轨迹点时间为t，在进行时间交集时，寻找data2在[t-back_time, t+front_time]时间内的轨迹点。
         :param back_time: int, unit is second
@@ -330,7 +351,7 @@ class FeatureExtraction(object):
         :param deduplication_seq2: None or int, unit second
             None: sequence2 does not undergo time deduplication
             int: sequence2 time deduplication  Todo
-        :return: pd.DataFrame,  columns is [user1, user2, task, start_time, end_time, feature1, feature2, ...]
+        :return: pd.DataFrame,  columns is [user1, user2, segment, start_time, end_time, feature1, feature2, ...]
         """
         self.front_time = front_time
         self.back_time = back_time
@@ -342,14 +363,223 @@ class FeatureExtraction(object):
             self.device_distance = self._create_device_distance_table()
 
             # col_pair = [user1, user2, pair, start_time, end_time]
-            pairs["feature"] = pairs.apply(lambda row: self._extraction(
+            pairs["feature"] = pairs.parallel_apply(lambda row: self._extraction(
+                row[col_pairs[0]], row[col_pairs[1]], row[col_pairs[3]], row[col_pairs[4]]), axis=1)
+            pairs.reset_index(drop=True, inplace=True)
+            feature = pd.concat([pairs, pairs['feature'].apply(pd.Series)], axis=1).drop('feature', axis=1)
+
+            return feature, feature.columns
+
+    def _feature1_index(self, sequence1: pd.DataFrame):
+        """
+        :param sequence1:
+           length1: sequence1 length, 代表用户有多少的轨迹点
+           device1_num: sequence1 device number, 代表用户被多少个设备采集到
+           time1_diff: sequence1首末次时间差
+           count_distance1: 总移动空间距离（按时间线计算相邻device的空间距离，并对其求和）
+           max_distance1: 最大移动空间距离（计算sequence1内device之间距离，取最大值）
+        :return:
+        """
+        time1_values = sequence1.index.get_level_values(self.col1['time'])
+        device1_values = sequence1.index.get_level_values(self.col1['device'])
+
+        length1 = sequence1.shape[0]
+        device1_num = device1_values.unique().__len__()
+        time1_diff = time1_values.max() - time1_values.min()
+
+        device1_list = device1_values.tolist()
+        longitude = sequence1[self.col1['latitude']].tolist()
+        latitude = sequence1[self.col1['latitude']].tolist()
+        if device1_list.__len__() == 1:
+            count_distance1 = 0
+        else:
+            # [user, time, longitude, latitude, device / None, poi / None]
+            distance = [geodesic((latitude[i - 1], longitude[i - 1]), (latitude[i], longitude[i])).m
+                        for i in range(device1_list.__len__()) if i]
+            count_distance1 = sum(distance)
+
+        device_unique = list(set(device1_list))
+        if device_unique.__len__() == 1:
+            max_distance1 = 0
+        else:
+            distance = []
+            for i, d in enumerate(device_unique):
+                index1 = device1_list.index(d)
+                for j in range(i + 1, device_unique.__len__()):
+                    index2 = device1_list.index(device_unique[j])
+                    distance.append(geodesic((latitude[index1], longitude[index1]),
+                                             (latitude[index2], longitude[index2])).m)
+            max_distance1 = max(distance) if distance.__len__() > 1 else distance[0]
+
+        feature1 = {
+            "length1": length1,
+            "device1_num": device1_num,
+            "time1_diff": time1_diff,
+            "count_distance1": count_distance1,
+            "max_distance1": max_distance1
+        }
+
+        return feature1
+
+    def _feature2_index(self, sequence2: pd.DataFrame):
+        """
+        :param sequence2:
+           length2: sequence1 length, 代表用户有多少的轨迹点
+           device2_num: sequence2 device number, 代表用户被多少个设备采集到
+           count_distance2: 总移动空间距离（按时间线计算相邻device的空间距离，并对其求和）
+           max_distance2: 最大移动空间距离（计算sequence2内device之间距离，取最大值）
+        :return:
+        """
+        device2_values = sequence2.index.get_level_values(self.col2['device'])
+
+        length2 = sequence2.shape[0]
+        device2_num = device2_values.unique().__len__()
+
+        device_list = device2_values.tolist()
+        longitude = sequence2[self.col2['latitude']].tolist()
+        latitude = sequence2[self.col2['latitude']].tolist()
+        if device_list.__len__() == 1:
+            count_distance2 = 0
+        else:
+            distance = [geodesic((latitude[i - 1], longitude[i - 1]), (latitude[i], longitude[i])).m
+                        for i in range(device_list.__len__()) if i]
+            count_distance2 = sum(distance)
+
+        device_unique = list(set(device_list))
+        if device_unique.__len__() == 1:
+            max_distance2 = 0
+        else:
+            distance = []
+            for i, d in enumerate(device_unique):
+                index1 = device_list.index(d)
+                for j in range(i + 1, device_unique.__len__()):
+                    index2 = device_list.index(device_unique[j])
+                    distance.append(geodesic((latitude[index1], longitude[index1]),
+                                             (latitude[index2], longitude[index2])).m)
+            max_distance2 = max(distance) if distance.__len__() > 1 else distance[0]
+
+        feature2 = {
+            "length2": length2,
+            "device2_num": device2_num,
+            "count_distance2": count_distance2,
+            "max_distance2": max_distance2
+        }
+
+        return feature2
+
+    def _extraction_index(self, user1, user2, start_time, end_time):
+        # sequence1: data1 user1 trajectory
+        if self.cache[0] == user1 and self.cache[1] == start_time and self.cache[2] == end_time:
+            sequence1 = self.cache_sequence1
+            feature1 = self.cache_feature1
+        else:
+            sequence1 = self.data1.query(
+                f"({self.col1['user']} == '{user1}') & "
+                f"({end_time} >= {self.col1['time']}) & ({self.col1['time']} >= {start_time})"
+            )
+            self.sequence1 = sequence1
+            # Todo sequence1 deduplication
+            feature1 = self._feature1_index(sequence1)
+
+            self.cache = [user1, start_time, end_time]
+            self.cache_sequence1 = sequence1
+            self.cache_feature1 = feature1
+
+        # sequence2: data2 user2 trajectory
+        sti_start_time = start_time - self.back_time
+        sti_end_time = end_time + self.front_time
+        sequence2 = self.data2.query(
+            f"({self.col2['user']} == '{user2}') & "
+            f"({sti_end_time}) >= {self.col2['time']} & ({self.col2['time']} >= {sti_start_time})"
+        )
+        feature2 = self._feature2_index(sequence2)
+        # Todo sequence deduplication
+
+        # sequence3: spatiotemporal intersection sequence
+        pd.set_option('display.max_rows', None)
+        pd.set_option('display.max_columns', None)
+
+        pd.set_option('display.max_columns', None)
+        sequence3: pd.DataFrame = sequence1.copy()
+        sti_lis_max = [c + str(self.space_distance[-1]) for c in
+                       [self.col2['user'], self.col2['time'], self.col2['device']]]
+        sequence3[sti_lis_max] = sequence3.apply(
+            lambda row: self._device_time_sti(row[self.col1['device']], row[self.col1['time']], sequence2)
+            , result_type="expand", axis=1)
+        sequence3 = sequence3.dropna()
+        sequence3 = sequence3.reset_index(drop=True)
+        sequence3 = sequence3.apply(pd.Series.explode)
+
+        if self.space_distance.__len__() > 1:  # space_distance have many threshold
+            sequence3['distance'] = sequence3.apply(
+                lambda row: self.device_distance[
+                    (self.device_distance[self.col1['device']].isin([row[self.col1['device']]])) &
+                    (self.device_distance[self.col2['device']].isin(
+                        [row[self.col2['device'] + str(self.space_distance[-1])]]))
+                    ].distance.values[0], axis=1)
+            pd.set_option('display.max_columns', None)
+
+            for threshold in self.space_distance[:-1]:
+                for c in [self.col2['user'], self.col2['time'], self.col2['device']]:
+                    sequence3[c + str(threshold)] = sequence3.apply(
+                        lambda row: row[c + str(self.space_distance[-1])] if row['distance'] <= threshold else None,
+                        axis=1)
+        feature3 = self._feature3(sequence3)
+
+        feature = {**feature1, **feature2, **feature3}
+        return feature
+
+    def sequence_index(self, pairs: pd.DataFrame, col_pairs: dict,
+                       front_time: int, back_time: int, space_distance: list,
+                       deduplication_seq1=None, deduplication_seq2=None):
+        """
+        通过sequence来提取特征
+        sequence1: user1 trajectory sequence,
+            if type(deduplication_seq1) is int, sequence1 time deduplication
+        sequence2: user2 trajectory sequence
+            if type(deduplication_seq2) is int, sequence1 time deduplication
+        sequence3: spatiotemporal intersection sequence,
+            Trajectory points where user1 trajectory sequence and user2 trajectory sequence generate spatiotemporal intersection
+        :param pairs: pd.DataFrame
+            需要提取特征的候选关系对
+        :param col_pairs: dict
+            The columns names corresponding to trajectory pair,
+            {user1: pairs column name,
+            user2: pairs column name,
+            segment: pairs column name,
+            start_time: pairs column name,
+            end_time: pairs column name, ...}
+        :param front_time: int, unit is second
+            时空交集的时间阈值, data1的轨迹点时间为t，在进行时间交集时，寻找data2在[t-back_time, t+front_time]时间内的轨迹点。
+        :param back_time: int, unit is second
+            时空交集的时间阈值, data1的轨迹点时间为t，在进行时间交集时，寻找data2在[t-back_time, t+front_time]时间内的轨迹点。
+        :param space_distance: list, unit is meter
+            [空间阈值1, 空间阈值2, ...] 由小到大
+            时空交集的空间阈值, data1的轨迹点地理位置为p，在进行空间交集时，寻找data2在[p-space, p+space]距离内的轨迹点。
+        :param deduplication_seq1: None or int, unit second
+            None: sequence1 does not undergo time deduplication
+            int: sequence1 time deduplication  Todo
+        :param deduplication_seq2: None or int, unit second
+            None: sequence2 does not undergo time deduplication
+            int: sequence2 time deduplication  Todo
+        :return: pd.DataFrame,  columns is [user1, user2, segment, start_time, end_time, feature1, feature2, ...]
+        """
+        self.front_time = front_time
+        self.back_time = back_time
+        self.space_distance = space_distance
+        self.deduplication_seq1 = deduplication_seq1
+        self.deduplication_seq2 = deduplication_seq2
+
+        if self.col1['device'] is not None and self.col1.get("poi", None) is None:
+            self.device_distance = self._create_device_distance_table()
+
+            # col_pair = [user1, user2, pair, start_time, end_time]
+            pairs["feature"] = pairs.apply(lambda row: self._extraction_index(
                 row[col_pairs[0]], row[col_pairs[1]], row[col_pairs[3]], row[col_pairs[4]]), axis=1)
             pairs.reset_index(drop=True, inplace=True)
             feature = pd.concat([pairs, pairs['feature'].apply(pd.Series)], axis=1).drop('feature', axis=1)
 
             col = feature.columns
             feature_col = col_pairs.copy()
-            for c in col:
-                if c not in col_pairs:
-                    feature_col.append(c)
+            feature_col['feature'] = [c for c in col if c not in col_pairs.values()]
             return feature, feature_col

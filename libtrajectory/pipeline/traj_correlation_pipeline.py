@@ -24,8 +24,8 @@ def pipeline(config):
     preprocessor.data_loading()
     print("data cleaning")
     preprocessor.data_cleaning()  # Todo
-    print("triggering mechanism")
-    preprocessor.triggering_mechanism()
+    print("data augmentation")
+    preprocessor.data_augmentation()
     print("feature engineering")
     preprocessor.feature_engineering()
     print("data splitting")
@@ -41,7 +41,7 @@ def pipeline(config):
     pred = pd.DataFrame(data=pred, columns=['probably'])
     data = pd.merge(index, pred, how="outer", left_index=True, right_index=True)
 
-    group_name = [config['preprocessing']['data1']['columns']['user'], 'task']
+    group_name = [config['preprocessing']['data1']['columns']['user'], 'segment']
     df_sort = data.sort_values(by='probably', ascending=False).groupby(group_name)
     # top1 precision
     df1: pd.DataFrame = df_sort.head(1)

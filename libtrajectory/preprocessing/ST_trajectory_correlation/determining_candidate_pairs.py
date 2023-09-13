@@ -1,5 +1,7 @@
 import pandas as pd
 from libtrajectory.utils.coordinate import device_distance
+from pandarallel import pandarallel
+pandarallel.initialize()
 
 
 class DeterminingCandidatePairs(object):
@@ -116,19 +118,19 @@ class DeterminingCandidatePairs(object):
             candidate_user2 = list(set(num_user2 + device_user2))
             return candidate_user2
 
-    def sti_place_num(self, task: pd.DataFrame, col_task: dict, into: str,
+    def sti_place_num(self, segment: pd.DataFrame, col_segment: dict, into: str,
                       front_time: int, back_time: int, space_distance: int,
                       place_top=None, num_top=None):
         """
         通过时空交集(sti: spatio-temporal intersection)的场所数和时空交集的次数来确定候选关系对
-        :param task: pd.DataFrame
-            根据data1轨迹数据生成的任务
-        :param col_task: dict
-            The columns names corresponding to trajectory task, is 
-            {user1: task column name, 
-            task: task column name, 
-            start_time: task column name, 
-            end_time: task column name}
+        :param segment: pd.DataFrame
+            根据data1轨迹数据进行切割的数据
+        :param col_segment: dict
+            The columns names corresponding to trajectory segment, is 
+            {user1: segment column name, 
+            segment: segment column name, 
+            start_time: segment column name, 
+            end_time: segment column name}
         :param into: str
             lon_lat: 时空交集所需距离直接通过经纬度计算距离, longitude and latitude  Todo
             device: 预先计算设备之间的经纬度, 时空交集所需距离通过设备
@@ -145,7 +147,7 @@ class DeterminingCandidatePairs(object):
         :param num_top: None or int
             None: 不进行过滤
             int: data1的user1与data2的user2产生时空交集，根据时空交集的次数对user2进行排序，取前place_top的user2。
-        :return: pd.DataFrame,  columns is [user1, user2, task, start_time, end_time]
+        :return: pd.DataFrame,  columns is [user1, user2, segment, start_time, end_time]
         """
 
         self.into = into
@@ -157,23 +159,26 @@ class DeterminingCandidatePairs(object):
             self.place_top = place_top
             self.num_top = num_top
 
-            task[self.col2['user']] = task.apply(
+            segment[self.col2['user']] = segment.parallel_apply(
                 lambda row: self._candidate_user(
-                    row[col_task['user1']], row[col_task['start_time']], row[col_task['end_time']]), axis=1)
-            pairs = task.explode(self.col2['user'])
+                    row[col_segment['user1']], row[col_segment['start_time']], row[col_segment['end_time']]), axis=1)
+            pairs = segment.explode(self.col2['user'])
             pairs = pairs.dropna()
-            # [user1, user2, task, start_time, end_time]
-            pairs_col = [col_task['user1'], self.col2['user'],
-                         col_task['task'], col_task['start_time'], col_task['end_time']]
+            # [user1, user2, segment, start_time, end_time]
+            pairs_col = [col_segment['user1'], self.col2['user'],
+                         col_segment['segment'], col_segment['start_time'], col_segment['end_time']]
             pairs = pairs[pairs_col]
             return pairs, pairs_col
 
     def _sti_device_index(self, index):
         # [0]: user, [1]: time,  [2]: device
-        sti_start_time = int(index[1] - self.back_time)
-        sti_end_time = int(index[1] + self.front_time)
-        device2 = self.device_distance[
-            self.device_distance[self.col1['device']].isin([index[2]])][self.col2['device']].unique().tolist()
+        sti_start_time = int(index.get_level_values(self.col1['time']) - self.back_time)
+        sti_end_time = int(index.get_level_values(self.col1['time']) + self.front_time)
+        # device2 = self.device_distance[
+        #     self.device_distance[self.col1['device']].isin([index[2]])][self.col2['device']].unique().tolist()
+        device2 = self.device_distance.query(
+            f"({self.col1['device']} == '{index.get_level_values(self.col1['device'])}') & "
+        )[self.col2['device']].unique().tolist()
         if not device2:
             return None
         sti_user = self._candidate_data.query(
@@ -181,7 +186,7 @@ class DeterminingCandidatePairs(object):
                 f"({sti_end_time} >= {self.col2['time']}) & ({self.col2['time']} >= {sti_start_time})"
             )
         if sti_user.shape[0]:
-            return list(set(sti_user.index.get_level_values(0).tolist()))
+            return sti_user.index.get_level_values(self.col2['user']).unique().tolist()
         return None
 
     def _candidate_user_index(self, user1, start_time, end_time):
@@ -225,7 +230,7 @@ class DeterminingCandidatePairs(object):
             candidate_user2 = list(set(num_user2 + device_user2))
             return candidate_user2
 
-    def sti_place_num_index(self, task: pd.DataFrame, col_task: dict, into: str,
+    def sti_place_num_index(self, segment: pd.DataFrame, col_segment: dict, into: str,
                             front_time: int, back_time: int, space_distance: int,
                             place_top=None, num_top=None):
         self.into = into
@@ -237,13 +242,16 @@ class DeterminingCandidatePairs(object):
             self.place_top = place_top
             self.num_top = num_top
 
-            task[self.col2['user']] = task.apply(
+            segment[self.col2['user']] = segment.apply(
                 lambda row: self._candidate_user_index(
-                    row[col_task['user1']], row[col_task['start_time']], row[col_task['end_time']]), axis=1)
-            pairs = task.explode(self.col2['user'])
+                    row[col_segment['user1']], row[col_segment['start_time']], row[col_segment['end_time']]), axis=1)
+            pairs = segment.explode(self.col2['user'])
             pairs = pairs.dropna()
-            # [user1, user2, task, start_time, end_time]
-            pairs_col = [col_task['user1'], self.col2['user'],
-                         col_task['task'], col_task['start_time'], col_task['end_time']]
-            pairs = pairs[pairs_col]
+            # [user1, user2, segment, start_time, end_time]
+            pairs_col = {"user1": col_segment['user1'],
+                         "user2": self.col2['user'],
+                         "segment": col_segment['segment'],
+                         "start_time": col_segment['start_time'],
+                         "end_time": col_segment['end_time']}
+            pairs = pairs[list(pairs_col.values())]
             return pairs, pairs_col

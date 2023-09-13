@@ -7,3 +7,6 @@ if __name__ == "__main__":
     print(df)
 
     print(df.reset_index(level="A"))
+
+    print(df.index.get_level_values("A").unique().__len__())
+

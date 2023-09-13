@@ -1,7 +1,7 @@
 import pandas as pd
 
 from libtrajectory.dataset.dataset_load import DataLoader
-from libtrajectory.preprocessing.ST_trajectory_correlation.TriggeringMechanism import TriggeringMechanism
+from libtrajectory.preprocessing.ST_trajectory_correlation.DataAugmentation import DataAugmentation
 from libtrajectory.preprocessing.ST_trajectory_correlation.determining_candidate_pairs import DeterminingCandidatePairs
 from libtrajectory.preprocessing.ST_trajectory_correlation.feature_extraction import FeatureExtraction
 from libtrajectory.preprocessing.abstract_preprocessor import AbstractPreprocessor
@@ -13,8 +13,8 @@ class Preprocessor(AbstractPreprocessor):
         self.feature = None
         self.col_pairs = None
         self.pairs = None
-        self.task = None
-        self.col_task = None
+        self.segment = None
+        self.col_segment = None
         self.label = None
         self.col_label = None
         self.data2 = None
@@ -45,13 +45,11 @@ class Preprocessor(AbstractPreprocessor):
         self.label: pd.DataFrame
         self.label.dropna(inplace=True)
 
-    def triggering_mechanism(self):
-        print("--create task")  # Todo
-        create_task = TriggeringMechanism()
-        self.task, self.col_task = create_task.appear_num(
-            data=self.data1, col=[self.col1['user'], self.col1['time']],
-            **self.config['task']
-        )
+    def data_augmentation(self):
+        print("--data segmentation")  # Todo
+        data_augmentation = DataAugmentation()
+        self.segment, self.col_segment = data_augmentation.data_segmentation(
+            data=self.data1, col=[self.col1['user'], self.col1['time']], **self.config['segment'])
 
     def _index(self):
         index1 = [self.col1['user'], self.col1['time'], self.col1['device']]  # 决定取值的顺序，index通过位置获取values
@@ -60,12 +58,12 @@ class Preprocessor(AbstractPreprocessor):
         self.data2.set_index(index2, drop=True, inplace=True)
 
     def feature_engineering(self):
-        self._index()  # pairs and feature 使用index后缀的方法
+        # self._index()  # pairs and feature 使用index后缀的方法
         print("--determining candidate pairs")
         determining_candidate_pairs = DeterminingCandidatePairs(
             data1=self.data1, col1=self.col1, data2=self.data2, col2=self.col2)
-        self.pairs, self.col_pairs = determining_candidate_pairs.sti_place_num_index(
-            task=self.task, col_task=self.col_task, **self.config['pairs'])
+        self.pairs, self.col_pairs = determining_candidate_pairs.sti_place_num(
+            segment=self.segment, col_segment=self.col_segment, **self.config['pairs'])
 
         print("--feature extraction")
         feature = FeatureExtraction(data1=self.data1, col1=self.col1, data2=self.data2, col2=self.col2)
