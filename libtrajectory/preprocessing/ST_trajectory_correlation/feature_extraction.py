@@ -4,7 +4,7 @@ from geopy.distance import geodesic
 from libtrajectory.utils.coordinate import device_distance
 from pandarallel import pandarallel
 
-pandarallel.initialize(nb_workers=8, shm_size_mb=24)
+pandarallel.initialize(progress_bar=True)
 
 
 class FeatureExtraction(object):

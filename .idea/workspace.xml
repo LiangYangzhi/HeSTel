@@ -2,28 +2,12 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="cc685d8d-98ab-4980-a227-89e4e239df6f" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/libtrajectory/trained_model/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/libtrajectory/trained_model/abstract_trained_model.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/libtrajectory/trained_model/trained_model.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/config/dataset/FaceZiGong20220119Dataset.json" beforeDir="false" afterPath="$PROJECT_DIR$/libtrajectory/config/dataset/FaceZiGong20220119Dataset.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/config/dataset/ImsiZiGong20220119Dataset.json" beforeDir="false" afterPath="$PROJECT_DIR$/libtrajectory/config/dataset/ImsiZiGong20220119Dataset.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/config/model/lightgbm_model.json" beforeDir="false" afterPath="$PROJECT_DIR$/libtrajectory/config/model/lightgbm_model.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/config/preprocessing/traj_correlation_preprocessing.json" beforeDir="false" afterPath="$PROJECT_DIR$/libtrajectory/config/preprocessing/traj_correlation_preprocessing.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/dataset/dataset_load.py" beforeDir="false" afterPath="$PROJECT_DIR$/libtrajectory/dataset/dataset_load.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/dataset/face/zigong/1949_10_01.csv" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/libtrajectory/evaluator/precision.py" beforeDir="false" afterPath="$PROJECT_DIR$/libtrajectory/evaluator/precision.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/executor/abstract_executor.py" beforeDir="false" afterPath="$PROJECT_DIR$/libtrajectory/executor/abstract_executor.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/executor/correlation_executor.py" beforeDir="false" afterPath="$PROJECT_DIR$/libtrajectory/executor/correlation_executor.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/model/lightgbm_model.py" beforeDir="false" afterPath="$PROJECT_DIR$/libtrajectory/model/lightgbm_model.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/pipeline/traj_correlation_pipeline.py" beforeDir="false" afterPath="$PROJECT_DIR$/libtrajectory/pipeline/traj_correlation_pipeline.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/preprocessing/ST_trajectory_correlation/DataAugmentation.py" beforeDir="false" afterPath="$PROJECT_DIR$/libtrajectory/preprocessing/ST_trajectory_correlation/DataAugmentation.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/libtrajectory/preprocessing/ST_trajectory_correlation/determining_candidate_pairs.py" beforeDir="false" afterPath="$PROJECT_DIR$/libtrajectory/preprocessing/ST_trajectory_correlation/determining_candidate_pairs.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/libtrajectory/preprocessing/ST_trajectory_correlation/feature_extraction.py" beforeDir="false" afterPath="$PROJECT_DIR$/libtrajectory/preprocessing/ST_trajectory_correlation/feature_extraction.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/libtrajectory/preprocessing/ST_trajectory_correlation/preprocessor.py" beforeDir="false" afterPath="$PROJECT_DIR$/libtrajectory/preprocessing/ST_trajectory_correlation/preprocessor.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/main_dataset.py" beforeDir="false" afterPath="$PROJECT_DIR$/main_dataset.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/run.py" beforeDir="false" afterPath="$PROJECT_DIR$/run.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test.py" beforeDir="false" afterPath="$PROJECT_DIR$/test.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/libtrajectory/utils/coordinate.py" beforeDir="false" afterPath="$PROJECT_DIR$/libtrajectory/utils/coordinate.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

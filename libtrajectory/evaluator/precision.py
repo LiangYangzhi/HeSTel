@@ -1,5 +1,4 @@
 import pandas as pd
-from sklearn.metrics import confusion_matrix
 
 
 def evaluation(X_test, index, pred, config):
@@ -10,28 +9,18 @@ def evaluation(X_test, index, pred, config):
     # Todo 评价标准化
     group_name = [config['preprocessing']['data1']['columns']['user'], 'segment']
     df_sort = data.sort_values(by='probably', ascending=False).groupby(group_name)
+    positive_num = data[data["label"] == 1].shape[0]
+    if positive_num == 0:
+        raise print("Test dataset has no positive samples")
+
     # top1 precision
     df1: pd.DataFrame = df_sort.head(1)
-    df1.insert(0, column='pred', value=1)
-    precision1 = precision(df1, ["label", "pred"])
-    print(f"top1: {precision1}")
+    top1 = df1[df1["label"] == 1].shape[0]
+    print(f"top5: {top1}/{positive_num}={top1 / positive_num}")
 
     # top5 precision
     df5: pd.DataFrame = df_sort.head(5)
-    df5.insert(0, column='pred', value=1)
-    precision5 = precision(df5, ["label", "pred"])
-    print(f"top5: {precision5}")
+    top5 = df5[df5["label"] == 1].shape[0] / positive_num
+    print(f"top5: {top5}/{positive_num}={top5 / positive_num}")
+    return top1, top5
 
-
-def precision(data: pd.DataFrame, col: list):
-    """
-    precision = TP / (TP + FP)
-    :param data:
-    :param col: [label, predict]
-    :return:
-    """
-    cm = confusion_matrix(data[col[0]], data[col[1]])
-    tp = cm[1, 1]
-    fp = cm[0, 1]
-    precision_score = tp / (tp + fp)
-    return precision_score

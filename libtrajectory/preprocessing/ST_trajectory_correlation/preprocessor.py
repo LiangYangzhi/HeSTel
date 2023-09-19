@@ -41,7 +41,7 @@ class Preprocessor(AbstractPreprocessor):
         self.label["label"] = 1
         self.col_label = [self.col1["user"], self.col2["user"], "label"]
         self.label = self.label[self.col_label]
-        self.label = self.label.sample(10000, random_state=34078)
+        self.label = self.label.sample(50000, random_state=34078)
 
     def data_cleaning(self):
         self.label: pd.DataFrame

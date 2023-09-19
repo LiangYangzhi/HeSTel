@@ -1,7 +1,8 @@
 import pandas as pd
 from geopy.distance import geodesic
 from pandarallel import pandarallel
-pandarallel.initialize(nb_workers=8, shm_size_mb=24)
+
+pandarallel.initialize(progress_bar=True)
 
 
 def device_distance(device1: pd.DataFrame,
