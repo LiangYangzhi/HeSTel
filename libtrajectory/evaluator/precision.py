@@ -16,11 +16,11 @@ def evaluation(X_test, index, pred, config):
     # top1 precision
     df1: pd.DataFrame = df_sort.head(1)
     top1 = df1[df1["label"] == 1].shape[0]
-    print(f"top5: {top1}/{positive_num}={top1 / positive_num}")
+    print(f"top1: {top1}/{positive_num}={top1 / positive_num}")
 
     # top5 precision
     df5: pd.DataFrame = df_sort.head(5)
-    top5 = df5[df5["label"] == 1].shape[0] / positive_num
+    top5 = df5[df5["label"] == 1].shape[0]
     print(f"top5: {top5}/{positive_num}={top5 / positive_num}")
     return top1, top5
 
