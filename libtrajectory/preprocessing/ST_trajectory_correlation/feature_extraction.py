@@ -528,8 +528,7 @@ class FeatureExtraction(object):
                     }
         return feature3
 
-    def _extraction_index(self, user1, user2, start_time, end_time, index):
-        print(f"{index} / {self.size}")
+    def _extraction_index(self, user1, user2, start_time, end_time):
         # sequence1: data1 user1 trajectory
         data1 = self.data1.query(f"{self.col1['user']} == @user1")
         sequence1 = data1.query(
@@ -627,10 +626,9 @@ class FeatureExtraction(object):
             self._create_index()
 
             pairs.reset_index(drop=True, inplace=True)
-            self.size = pairs.shape[0]
             pairs["feature"] = pairs.parallel_apply(lambda row: self._extraction_index(
                 row[col_pairs['user1']], row[col_pairs['user2']],
-                row[col_pairs['start_time']], row[col_pairs['end_time']], row.name), axis=1)
+                row[col_pairs['start_time']], row[col_pairs['end_time']]), axis=1)
 
             pairs.drop(columns=col_pairs['user2'], inplace=True)
             pairs.reset_index(drop=True, inplace=True)

@@ -175,8 +175,7 @@ class DeterminingCandidatePairs(object):
             return sti_user[self.col2['user']].unique().tolist()
         return None
 
-    def _candidate_user_index(self, user1, start_time, end_time, index):
-        print(f"{index} / {self.size}")
+    def _candidate_user_index(self, user1, start_time, end_time):
         data1 = self.data1.query(f"{self.col1['user']} == @user1").query(
             f"({end_time} >= {self.col1['time']} >= {start_time})"
         )
@@ -242,12 +241,11 @@ class DeterminingCandidatePairs(object):
             self.num_top = num_top
 
             self._create_index()
-            self.size = segment.shape[0]
             segment.reset_index(drop=True, inplace=True)
             segment[self.col2['user']] = segment.parallel_apply(
                 lambda row: self._candidate_user_index(
-                    row[col_segment['user1']], row[col_segment['start_time']], row[col_segment['end_time']],
-                    row.name), axis=1)
+                    row[col_segment['user1']], row[col_segment['start_time']], row[col_segment['end_time']]
+                    ), axis=1)
             pairs = segment.dropna()
             pairs_col = {"user1": col_segment['user1'],
                          "user2": self.col2['user'],  # [user2, user2, ...] all candidate

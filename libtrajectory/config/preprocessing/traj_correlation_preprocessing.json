@@ -3,7 +3,7 @@
 		"subset": "face",
 		"city": "zigong",
 		"start_time": {"year": 2022, "month": 2, "day": 21},
-		"end_time": {"year": 2022, "month": 2, "day": 21},
+		"end_time": {"year": 2022, "month": 2, "day": 27},
 		"rename": {
 			"fid": "face_user", 
 			"time": "face_time", 
@@ -23,7 +23,7 @@
 		"subset": "imsi",
 		"city": "zigong",
 		"start_time": {"year": 2022, "month": 2, "day": 21},
-		"end_time": {"year": 2022, "month": 2, "day": 21},
+		"end_time": {"year": 2022, "month": 2, "day": 27},
 		"rename": {
 			"imsi": "imsi_user", 
 			"time": "imsi_time", 
