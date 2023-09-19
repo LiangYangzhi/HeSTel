@@ -6,6 +6,8 @@ from libtrajectory.pipeline.traj_correlation_pipeline import pipeline
 if __name__ == "__main__":
     config = {
         "preprocessing": parse_config("/preprocessing/traj_correlation_preprocessing"),
-        "model": parse_config("/model/lightgbm_model")
+        "model": parse_config("/model/lightgbm_model"),
+        "save": False,
+        "save_path": f"/trained_model/ST_trajectory_correlation"
     }
     pipeline(config)

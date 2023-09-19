@@ -13,7 +13,16 @@ class LightgbmModel(AbstractModel):
 
     def train(self, X_train, y_train):
         train_data = lgb.Dataset(X_train, label=y_train)
-        self.model = lgb.train(self.model_params, train_data)
+        if self.model:  # model continue training
+            self.model = lgb.train(self.model_params, train_data, init_model=self.model)
+        else:  # first training
+            self.model = lgb.train(self.model_params, train_data)
 
     def predict(self, X_test):
         return self.model.predict(X_test)
+
+    def load_model(self, file):
+        self.model = lgb.Booster(model_file=file)
+
+    def save_model(self, file):
+        self.model.save_model(file)

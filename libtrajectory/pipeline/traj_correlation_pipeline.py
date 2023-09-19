@@ -1,10 +1,8 @@
-import pandas as pd
+from datetime import datetime
 
-from libtrajectory.config.config_parser import ConfigParser
 from libtrajectory.executor.correlation_executor import LightGBMExecutor
-from libtrajectory.model.lightgbm_model import LightgbmModel
 from libtrajectory.preprocessing.ST_trajectory_correlation.preprocessor import Preprocessor
-from libtrajectory.evaluator.precision import precision
+from libtrajectory.evaluator.precision import evaluation
 
 """
 Pipeline:
@@ -19,39 +17,43 @@ Result analysis and visualization
 
 
 def pipeline(config):
+    start = datetime.now()
     preprocessor = Preprocessor(config['preprocessing'])
     print("data loading")
     preprocessor.data_loading()
+    print(f'Running time: {datetime.now() - start} Seconds', '\n')
+
     print("data cleaning")
+    start = datetime.now()
     preprocessor.data_cleaning()  # Todo
+    print(f'Running time: {datetime.now() - start} Seconds', '\n')
+
     print("data augmentation")
+    start = datetime.now()
     preprocessor.data_augmentation()
+    print(f'Running time: {datetime.now() - start} Seconds', '\n')
+
     print("feature engineering")
+    start = datetime.now()
     preprocessor.feature_engineering()
+    print(f'Running time: {datetime.now() - start} Seconds', '\n')
+
     print("data splitting")
-    X_train, y_train, X_test, y_test, index = preprocessor.splitting()
+    start = datetime.now()
+    X_train, y_train, X_test, y_test, index = preprocessor.splitting()  # index 是为了后续evaluate服务
+    print(f'Running time: {datetime.now() - start} Seconds', '\n')
 
-    model = LightgbmModel()
-    model.set_params(**config['model']['params'])
+    print("model")
+    start = datetime.now()
+    executor = LightGBMExecutor(X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test, config=config['model'])
+    pred = executor.run()
+    print(f'Running time: {datetime.now() - start} Seconds', '\n')
 
-    executor = LightGBMExecutor(model)
-    executor.train(X_train, y_train)
-    pred = executor.predict(X_test)
-    pred = pred.reshape((X_test.shape[0], 1))
-    pred = pd.DataFrame(data=pred, columns=['probably'])
-    data = pd.merge(index, pred, how="outer", left_index=True, right_index=True)
+    # Todo 完善评价标准化
+    print("evaluation")
+    start = datetime.now()
+    evaluation(X_test, index, pred, config)
+    print(f'Running time: {datetime.now() - start} Seconds', '\n')
 
-    group_name = [config['preprocessing']['data1']['columns']['user'], 'segment']
-    df_sort = data.sort_values(by='probably', ascending=False).groupby(group_name)
-    # top1 precision
-    df1: pd.DataFrame = df_sort.head(1)
-    df1.insert(0, column='pred', value=1)
-    precision1 = precision(df1, ["label", "pred"])
-    print(precision1)
-
-    # top5 precision
-    df5: pd.DataFrame = df_sort.head(5)
-    df5.insert(0, column='pred', value=1)
-    precision5 = precision(df1, ["label", "pred"])
-    print(precision5)
-
+    if config.get("save", None):
+        pass  # Todo 完善 trained_model模块 (model file, params file, evaluation file)

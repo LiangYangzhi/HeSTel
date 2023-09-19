@@ -1,4 +1,6 @@
 {
+	"model_file": false,
+	"train": true,
 	"params": {
 		"objective": "binary"
 	}

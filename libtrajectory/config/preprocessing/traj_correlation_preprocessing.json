@@ -3,7 +3,7 @@
 		"subset": "face",
 		"city": "zigong",
 		"start_time": {"year": 2022, "month": 2, "day": 21},
-		"end_time": {"year": 2022, "month": 2, "day": 21},  
+		"end_time": {"year": 2022, "month": 2, "day": 21},
 		"rename": {
 			"fid": "face_user", 
 			"time": "face_time", 
@@ -23,7 +23,7 @@
 		"subset": "imsi",
 		"city": "zigong",
 		"start_time": {"year": 2022, "month": 2, "day": 21},
-		"end_time": {"year": 2022, "month": 2, "day": 21}, 
+		"end_time": {"year": 2022, "month": 2, "day": 21},
 		"rename": {
 			"imsi": "imsi_user", 
 			"time": "imsi_time", 
@@ -47,12 +47,7 @@
 			"imsi": "imsi_user"
 		},
 		"columns": ["face_user", "imsi_user"]
-	},  
-	"segment": {
-		"num": 10, 
-		"no_num": [1], 
-		"max_num": 10
-	}, 
+	},
 	"pairs": {
 		"into": "device", 
 		"front_time": 400, 
@@ -64,7 +59,7 @@
 	"feature": {
 		"front_time": 400, 
 		"back_time": 400, 
-		"space_distance": [400]
+		"space_distance": [50, 400]
 	}, 
 	"splitting": {
 		"info": "ratio", 
