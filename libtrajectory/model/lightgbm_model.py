@@ -17,7 +17,6 @@ class LightgbmModel(AbstractModel):
             self.model = lgb.train(self.model_params, train_data, init_model=self.model)
         else:  # first training
             self.model = lgb.train(self.model_params, train_data)
-
     def predict(self, X_test):
         return self.model.predict(X_test)
 

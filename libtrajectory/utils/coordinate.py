@@ -1,8 +1,5 @@
 import pandas as pd
 from geopy.distance import geodesic
-from pandarallel import pandarallel
-
-pandarallel.initialize(progress_bar=True)
 
 
 def device_distance(device1: pd.DataFrame,
@@ -31,7 +28,7 @@ def device_distance(device1: pd.DataFrame,
     device1.index = [0] * len(device1)
     device2.index = [0] * len(device2)
     device = device1.merge(device2, how="outer", left_index=True, right_index=True)
-    device[distance_name] = device.parallel_apply(
+    device[distance_name] = device.apply(
         lambda row: geodesic((row[col1[2]], row[col1[1]]), (row[col2[2]], row[col2[1]])).m
         , axis=1)  # (latitude, longitude)
     # face_latitude

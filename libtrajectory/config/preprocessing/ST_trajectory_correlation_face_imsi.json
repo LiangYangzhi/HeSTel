@@ -1,11 +1,11 @@
 {
 	"train": {
-		"start_time": {"year": 2022, "month": 1, "day": 24},
-		"end_time": {"year": 2022, "month": 1, "day": 30}
+		"start_time": {"year": 2022, "month": 2, "day": 21},
+		"end_time": {"year": 2022, "month": 2, "day": 25}
 		},
 	"test": {
-		"start_time": {"year": 2022, "month": 2, "day": 1},
-		"end_time": {"year": 2022, "month": 2, "day": 3}
+		"start_time": {"year": 2022, "month": 2, "day": 26},
+		"end_time": {"year": 2022, "month": 2, "day": 27}
 		},
 	"data1": {
 		"subset": "face",

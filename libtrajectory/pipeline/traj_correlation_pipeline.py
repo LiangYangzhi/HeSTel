@@ -17,43 +17,32 @@ Result analysis and visualization
 
 
 def pipeline(config):
-    start = datetime.now()
-    preprocessor = Preprocessor(config['preprocessing'])
-    print("data loading")
+    # train
+    print("\ntrain dataset")
+    preprocessor = Preprocessor(config['preprocessing'], info="train")
     preprocessor.data_loading()
-    print(f'Running time: {datetime.now() - start} Seconds', '\n')
-
-    print("data cleaning")
-    start = datetime.now()
+    if config["test"]:
+        preprocessor.label_sample()
     preprocessor.data_cleaning()  # Todo
-    print(f'Running time: {datetime.now() - start} Seconds', '\n')
-
-    print("data augmentation")
-    start = datetime.now()
     preprocessor.data_augmentation()
-    print(f'Running time: {datetime.now() - start} Seconds', '\n')
-
-    print("feature engineering")
-    start = datetime.now()
     preprocessor.feature_engineering()
-    print(f'Running time: {datetime.now() - start} Seconds', '\n')
+    X_train, y_train = preprocessor.get_data()
 
-    print("data splitting")
-    start = datetime.now()
-    X_train, y_train, X_test, y_test, index = preprocessor.splitting()  # index 是为了后续evaluate服务
-    print(f'Running time: {datetime.now() - start} Seconds', '\n')
+    # test
+    print("\ntest dataset")
+    preprocessor = Preprocessor(config['preprocessing'], info="test")
+    preprocessor.data_loading()
+    if config["test"]:
+        preprocessor.label_sample()
+    preprocessor.data_cleaning()  # Todo
+    preprocessor.data_augmentation()
+    preprocessor.feature_engineering()
+    X_test, y_test, index = preprocessor.get_data()  # index 是为了后续evaluate服务
 
-    print("model")
-    start = datetime.now()
-    executor = LightGBMExecutor(X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test, config=config['model'])
+    executor = LightGBMExecutor(X_train=X_train, y_train=y_train, X_test=X_test, config=config['model'])
     pred = executor.run()
-    print(f'Running time: {datetime.now() - start} Seconds', '\n')
 
-    # Todo 完善评价标准化
-    print("evaluation")
-    start = datetime.now()
-    evaluation(X_test, index, pred, config)
-    print(f'Running time: {datetime.now() - start} Seconds', '\n')
+    evaluation(X_test, y_test, index, pred, config)  # Todo 完善评价标准化
 
     if config.get("save", None):
         pass  # Todo 完善 trained_model模块 (model file, params file, evaluation file)

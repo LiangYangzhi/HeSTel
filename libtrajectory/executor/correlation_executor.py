@@ -3,11 +3,10 @@ from libtrajectory.model.lightgbm_model import LightgbmModel
 
 
 class LightGBMExecutor(AbstractExecutor):
-    def __init__(self, X_train=None, y_train=None, X_test=None, y_test=None, config=None):
+    def __init__(self, X_train=None, y_train=None, X_test=None, config=None):
         self.X_train = X_train
         self.y_train = y_train
         self.X_test = X_test
-        self.y_test = y_test
         self.config = config
         self.model = LightgbmModel()
 

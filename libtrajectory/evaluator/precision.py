@@ -1,10 +1,12 @@
 import pandas as pd
 
 
-def evaluation(X_test, index, pred, config):
-    pred = pred.reshape((X_test.shape[0], 1))
-    pred = pd.DataFrame(data=pred, columns=['probably'])
-    data = pd.merge(index, pred, how="outer", left_index=True, right_index=True)
+def evaluation(X_test, y_test, index, predict, config):
+    predict = predict.reshape((X_test.shape[0], 1))
+    predict = pd.DataFrame(data=predict, columns=['probably'])  # predict columns
+    label = pd.DataFrame(data=y_test, columns=['label'])  # label columns
+    data = pd.merge(predict, label, how='outer', left_index=True, right_index=True)  # predict and label columns
+    data = pd.merge(index, data, how="outer", left_index=True, right_index=True)  # predict and label and index columns
 
     # Todo 评价标准化
     group_name = [config['preprocessing']['data1']['columns']['user'], 'segment']
