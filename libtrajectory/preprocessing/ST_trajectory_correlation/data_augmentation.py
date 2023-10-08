@@ -82,11 +82,11 @@ class DataAugmentation(object):
         :param times: columns as a series
         :return: dict
         """
-        # if len(times) > 20:
-        #     seg = {"segment": "max",
-        #            "start_time": times[0],
-        #            "end_time": times[20]}
-        #     return seg
+        if len(times) > 80:
+            seg = {"segment": "max",
+                   "start_time": times[len(times) - 80],
+                   "end_time": times[-1]}
+            return seg
         if len(times) < 1:
             return None
         seg = {"segment": len(times),

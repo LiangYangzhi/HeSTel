@@ -10,8 +10,6 @@ from libtrajectory.utils.time_utils import parse_time
 from libtrajectory.dataset.abstract_dataset import AbstractDataset
 
 
-
-
 class DataLoader(AbstractDataset):
     """
     Load dataset
@@ -19,6 +17,8 @@ class DataLoader(AbstractDataset):
 
     def __init__(self):
         super().__init__()
+        self.device = None
+        self.coverage = None
         self.ignore_error = None
         self.columns = None
         self.rename = None
@@ -37,11 +37,14 @@ class DataLoader(AbstractDataset):
                 raise FileNotFoundError(f"{path} not found.")
         df = pd.read_csv(path)
 
-        if self.rename:
-            df.rename(columns=self.rename, inplace=True)
+        if self.coverage:
+            df = pd.merge(df, self.device, how='left')
+
         return df
 
     def reading_label(self, subset, columns, file=None, rename=None, ignore_error=True):
+        print(f"--load {subset}")
+        self.coverage = None
         self.rename = rename
         self.columns = columns
         self.ignore_error = ignore_error
@@ -51,13 +54,15 @@ class DataLoader(AbstractDataset):
         path = f"./libtrajectory/dataset/{subset}/{file}.csv"
         df = self._read_csv(path)
         if isinstance(df, pd.DataFrame):
+            if self.rename:
+                df.rename(columns=self.rename, inplace=True)
             if self.columns:
                 df = df[self.columns]
             return df
         return None
 
     def reading(self, subset, columns, file=None, city=None, start_time=None, end_time=None,
-                rename=None, ignore_error=True):
+                rename=None, ignore_error=True, coverage=None, device_file=None):
         """
         load face dataset
         :param subset: face/imsi/car
@@ -80,13 +85,31 @@ class DataLoader(AbstractDataset):
         :param rename: columns rename
         :param ignore_error: True or False
             True: ignore path file not exist.
+        :param coverage: None or list
+            None: Do not generate coverage column
+            list: generate coverage column
+        :param device_file: None or str
+            None: not load device file
+            str: device file name
         :return:
         """
+        print(f"--load {subset}")
         self.rename = rename
         self.columns = columns
         self.ignore_error = ignore_error
+        self.coverage = coverage
         if isinstance(self.columns, dict):
             self.columns = list(self.columns.values())
+        if isinstance(self.coverage, list):
+            self.device = pd.read_csv(f"./libtrajectory/dataset/{subset}/{city}/{device_file}.csv")
+            columns = ["deviceId", "deviceModel"]
+            self.device = self.device[columns]
+
+            if len(self.coverage) == 1:
+                self.device["coverage"] = self.coverage[0]
+            if len(self.coverage) == 2:
+                self.device["coverage"] = self.device["deviceModel"].map(
+                    lambda x: self.coverage[1] if "BIG" in str(x) else self.coverage[0])
 
         start_time = parse_time(start_time)
         end_time = parse_time(end_time)
@@ -101,13 +124,16 @@ class DataLoader(AbstractDataset):
             print(f"--load {loop_time_str}")
             path = f"./libtrajectory/dataset/{subset}/{city}/{loop_time_str}.csv"
             df = self._read_csv(path)
+
             if isinstance(df, pd.DataFrame):
+                if self.rename:
+                    df.rename(columns=self.rename, inplace=True)
                 if self.columns:
                     df = df[self.columns]
                 dataset.append(df)
 
-        if len(dataset) > 0:
-            df = pd.concat(dataset)
-            return df
-        else:
+        if len(dataset) == 0:
             return None
+
+        df = pd.concat(dataset)
+        return df

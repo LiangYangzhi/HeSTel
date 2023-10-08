@@ -25,4 +25,3 @@ def evaluation(X_test, y_test, index, predict, config):
     top5 = df5[df5["label"] == 1].shape[0]
     print(f"top5: {top5}/{positive_num}={top5 / positive_num}")
     return top1, top5
-

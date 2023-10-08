@@ -1,11 +1,11 @@
 {
 	"train": {
-		"start_time": {"year": 2022, "month": 2, "day": 21},
-		"end_time": {"year": 2022, "month": 2, "day": 25}
+		"start_time": {"year": 2022, "month": 1, "day": 19},
+		"end_time": {"year": 2022, "month": 1, "day": 20}
 		},
 	"test": {
-		"start_time": {"year": 2022, "month": 2, "day": 26},
-		"end_time": {"year": 2022, "month": 2, "day": 27}
+		"start_time": {"year": 2022, "month": 2, "day": 1},
+		"end_time": {"year": 2022, "month": 2, "day": 3}
 		},
 	"data1": {
 		"subset": "face",
@@ -28,19 +28,23 @@
 	"data2": {
 		"subset": "imsi",
 		"city": "zigong",
+		"coverage": [400],
+		"device_file": "device20220119",
 		"rename": {
 			"imsi": "imsi_user",
 			"time": "imsi_time",
 			"longitude": "imsi_longitude",
 			"latitude": "imsi_latitude",
-			"deviceId": "imsi_device"
+			"deviceId": "imsi_device",
+			"coverage": "imsi_coverage"
 			},
 		"columns": {
 			"user": "imsi_user",
 			"time": "imsi_time",
 			"longitude": "imsi_longitude",
 			"latitude": "imsi_latitude",
-			"device": "imsi_device"
+			"device": "imsi_device",
+			"coverage": "imsi_coverage"
 			}
 		},
 	"label": {
@@ -55,7 +59,6 @@
 	"pairs": {
 		"front_time": 400,
 		"back_time": 400,
-		"space_distance": 400,
 		"place_top": 50,
 		"num_top": 50
 	},

@@ -1,16 +1,14 @@
 import json
-
-from libtrajectory.config.config_parser import parse_config
-from libtrajectory.pipeline.traj_correlation_pipeline import pipeline
 import argparse
 
-# import argparse  Todo
+from libtrajectory.config.config_parser import parse_config
+from libtrajectory.pipeline.traj_correlation_supervised_pipeline import pipeline
 from libtrajectory.utils.judge_type import str2bool
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # 命令行传参
-    parser.add_argument('--preprocessing_file', type=str, default="traj_correlation_preprocessing")
+    parser.add_argument('--preprocessing_file', type=str, default="ST_trajectory_correlation_face_imsi")
     parser.add_argument('--test', type=str2bool, default=False, help='testing with small datasets')
     parser.add_argument('--save', type=str2bool, default=False, help='the name of task')
     args = parser.parse_args()

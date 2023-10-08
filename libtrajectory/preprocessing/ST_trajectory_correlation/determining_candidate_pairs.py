@@ -3,12 +3,12 @@ import pandas as pd
 from libtrajectory.utils.coordinate import device_distance
 from pandarallel import pandarallel
 
-pandarallel.initialize(progress_bar=True)
+pandarallel.initialize(shm_size_mb=10240, progress_bar=True)
 
 
 class DeterminingCandidatePairs(object):
     def __init__(self, data1: pd.DataFrame, col1: dict, data2: pd.DataFrame, col2: dict,
-                 front_time: int, back_time: int, space_distance: int):
+                 front_time: int, back_time: int):
         """
         :param data1: pd.DataFrame
             trajectory data, data1在data2内寻找关系对
@@ -30,8 +30,6 @@ class DeterminingCandidatePairs(object):
             时空交集的时间阈值, data1的轨迹点时间为t，在进行时间交集时，寻找data2在[t-back_time, t+front_time]时间内的轨迹点。
         :param back_time: int, unit is second
             时空交集的时间阈值, data1的轨迹点时间为t，在进行时间交集时，寻找data2在[t-back_time, t+front_time]时间内的轨迹点。
-        :param space_distance: int, unit is meter
-            时空交集的空间阈值, data1的轨迹点地理位置为p，在进行空间交集时，寻找data2在[p-space, p+space]距离内的轨迹点。
         """
         self.data1 = data1
         self.col1 = col1
@@ -39,7 +37,6 @@ class DeterminingCandidatePairs(object):
         self.col2 = col2
         self.front_time = front_time
         self.back_time = back_time
-        self.space_distance = space_distance
 
         self.device_distance = None
         self.place_top = None
@@ -68,16 +65,8 @@ class DeterminingCandidatePairs(object):
         return pairs, pairs_col
 
     def _create_device_distance_table(self):
-        device1_col = [self.col1['device'], self.col1['longitude'], self.col1['latitude']]
-        device1 = self.data1[device1_col]
-        device1 = device1.drop_duplicates(subset=device1_col)
-        device2_col = [self.col2['device'], self.col2['longitude'], self.col2['latitude']]
-        device2 = self.data2[device2_col]
-        device2 = device2.drop_duplicates(subset=device2_col)
         distance_name = "distance"  # distance between devices
-        df = device_distance(
-            device1, device1_col, device2, device2_col, self.space_distance, distance_name
-        )
+        df = device_distance(self.data1, self.col1, self.data2, self.col2, distance_name)
         index_col = [self.col1['device']]  # 决定取值的顺序，index通过位置获取values
         df.set_index(index_col, drop=True, inplace=True)
         return df

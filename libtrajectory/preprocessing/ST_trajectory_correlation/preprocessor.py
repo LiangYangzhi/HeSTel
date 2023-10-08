@@ -52,7 +52,7 @@ class Preprocessor(AbstractPreprocessor):
         self.label = data_loader.reading_label(**self.config['label'])
         self.label["label"] = 1
         self.col_label = [self.col1["user"], self.col2["user"], "label"]
-        print(self.label.info())
+        print(f"label number : {self.label.shape}")
         print(f'Running time: {datetime.now() - start} Seconds', '\n')
 
     def data_cleaning(self):
@@ -71,6 +71,8 @@ class Preprocessor(AbstractPreprocessor):
         self.data1[self.col1["longitude"]] = self.data1[self.col1["longitude"]].astype('category')
         self.data1[self.col1["latitude"]] = self.data1[self.col1["latitude"]].astype('category')
         self.data1[self.col1["device"]] = self.data1[self.col1["device"]].astype('category')
+        if self.col1.get("coverage", None):
+            self.data1[self.col1['coverage']] = self.data1[self.col1['coverage']].astype('category')
         # self.data1 keep only label data
         label_user1 = self.label[self.col_label[0]].unique().tolist()
         self.data1 = self.data1[self.data1[self.col1['user']].isin(label_user1)]
@@ -82,16 +84,18 @@ class Preprocessor(AbstractPreprocessor):
         self.data2[self.col2["longitude"]] = self.data2[self.col2["longitude"]].astype('category')
         self.data2[self.col2["latitude"]] = self.data2[self.col2["latitude"]].astype('category')
         self.data2[self.col2["device"]] = self.data2[self.col2["device"]].astype('category')
+        if self.col2.get("coverage", None):
+            self.data2[self.col2['coverage']] = self.data2[self.col2['coverage']].astype('category')
 
         print(f'Running time: {datetime.now() - start} Seconds', '\n')
 
     def data_augmentation(self):
         print("data augmentation")
         start = datetime.now()
-        Augmenter = DataAugmentation(
+        augmenter = DataAugmentation(
             data=self.data1[[self.col1['user'], self.col1['time']]],
             col={"user": self.col1['user'], "time": self.col1['time']})
-        self.segment, self.col_segment = Augmenter.max_length()
+        self.segment, self.col_segment = augmenter.max_length()
         print(f'Running time: {datetime.now() - start} Seconds', '\n')
 
     def feature_engineering(self):
@@ -102,7 +106,7 @@ class Preprocessor(AbstractPreprocessor):
         config = self.config['pairs']
         pairs_class = DeterminingCandidatePairs(
             data1=self.data1, col1=self.col1, data2=self.data2, col2=self.col2,
-            front_time=config['front_time'], back_time=config['back_time'], space_distance=config['space_distance'])
+            front_time=config['front_time'], back_time=config['back_time'])
 
         self.pairs, self.col_pairs = pairs_class.sti_place_num(
             segment=self.segment, col_segment=self.col_segment,

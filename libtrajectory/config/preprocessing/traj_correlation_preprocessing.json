@@ -1,7 +1,7 @@
 {
 	"train": {
-		"start_time": {"year": 2022, "month": 1, "day": 24},
-		"end_time": {"year": 2022, "month": 1, "day": 30}
+		"start_time": {"year": 2022, "month": 1, "day": 19},
+		"end_time": {"year": 2022, "month": 1, "day": 31}
 		},
 	"test": {
 		"start_time": {"year": 2022, "month": 2, "day": 1},

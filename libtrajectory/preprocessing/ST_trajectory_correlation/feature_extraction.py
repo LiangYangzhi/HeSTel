@@ -4,7 +4,7 @@ from geopy.distance import geodesic
 from libtrajectory.utils.coordinate import device_distance
 from pandarallel import pandarallel
 
-pandarallel.initialize(progress_bar=True)
+pandarallel.initialize(shm_size_mb=10240, progress_bar=True)
 
 
 class FeatureExtraction(object):
@@ -84,16 +84,8 @@ class FeatureExtraction(object):
         return feature, feature_col
 
     def _create_device_distance_table(self):
-        device1_col = [self.col1['device'], self.col1['longitude'], self.col1['latitude']]
-        device1 = self.data1[device1_col]
-        device1 = device1.drop_duplicates(subset=device1_col)
-        device2_col = [self.col2['device'], self.col2['longitude'], self.col2['latitude']]
-        device2 = self.data2[device2_col]
-        device2 = device2.drop_duplicates(subset=device2_col)
         distance_name = "distance"  # distance between devices
-        df = device_distance(
-            device1, device1_col, device2, device2_col, self.space_distance[-1], distance_name
-        )
+        df = device_distance(self.data1, self.col1, self.data2, self.col2, distance_name)
         return df
 
     def _set_index(self):
@@ -135,12 +127,10 @@ class FeatureExtraction(object):
             # sequence3: spatiotemporal intersection sequence
             sequence3: pd.DataFrame = sequence1.copy()
             sequence3 = sequence3.reset_index()
-            pd.set_option('display.max_columns', None)
             sequence3["candidate"] = sequence3.apply(
                 lambda row: self._device_time_sti(row[self.col1['device']], row[self.col1['time']], sequence2)
                 , axis=1)
             sequence3 = sequence3.explode('candidate')
-            pd.set_option('display.max_columns', None)
             sequence3 = pd.concat([sequence3, sequence3['candidate'].apply(pd.Series)],
                                   axis=1).drop('candidate', axis=1)
             sequence3 = sequence3.merge(self.device_distance, how='left')

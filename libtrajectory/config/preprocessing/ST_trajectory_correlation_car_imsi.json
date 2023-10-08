@@ -1,0 +1,70 @@
+{
+	"train": {
+		"start_time": {"year": 2022, "month": 1, "day": 29},
+		"end_time": {"year": 2022, "month": 1, "day": 30}
+		},
+	"test": {
+		"start_time": {"year": 2022, "month": 4, "day": 13},
+		"end_time": {"year": 2022, "month": 4, "day": 19}
+		},
+	"data1": {
+		"subset": "car",
+		"city": "zigong",
+		"rename": {
+			"license": "car_user",
+			"time": "car_time",
+			"longitude": "car_longitude",
+			"latitude": "car_latitude",
+			"deviceId": "car_device"
+			},
+		"columns": {
+			"user": "car_user",
+			"time": "car_time",
+			"longitude": "car_longitude",
+			"latitude": "car_latitude",
+			"device": "car_device"
+			}
+		},
+	"data2": {
+		"subset": "imsi",
+		"city": "zigong",
+		"coverage": [500, 700],
+		"device_file": "device20220119",
+		"rename": {
+			"imsi": "imsi_user",
+			"time": "imsi_time",
+			"longitude": "imsi_longitude",
+			"latitude": "imsi_latitude",
+			"deviceId": "imsi_device",
+			"coverage": "imsi_coverage"
+			},
+		"columns": {
+			"user": "imsi_user",
+			"time": "imsi_time",
+			"longitude": "imsi_longitude",
+			"latitude": "imsi_latitude",
+			"device": "imsi_device",
+			"coverage": "imsi_coverage"
+			}
+		},
+	"label": {
+		"subset": "face_imsi_car",
+		"file": "carImsiZigong20220119",
+		"rename": {
+			"license": "car_user",
+			"imsi": "imsi_user"
+		},
+		"columns": ["car_user", "imsi_user"]
+	},
+	"pairs": {
+		"front_time": 50,
+		"back_time": 50,
+		"place_top": 50,
+		"num_top": 50
+	},
+	"feature": {
+		"front_time": 50,
+		"back_time": 50,
+		"space_distance": [50, 100, 200, 300, 500, 700]
+	}
+}
