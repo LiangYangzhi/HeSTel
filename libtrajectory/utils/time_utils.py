@@ -1,4 +1,5 @@
 import datetime
+import time
 
 
 def parse_time(config: dict) -> datetime.datetime:
@@ -25,3 +26,6 @@ def parse_time(config: dict) -> datetime.datetime:
     t = datetime.datetime(year, month, day, hour, minute, second)
     return t
 
+
+def datetime_to_mktime(t: datetime.datetime):
+    return int(time.mktime(t.timetuple()))

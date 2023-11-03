@@ -10,9 +10,9 @@ if __name__ == "__main__":
     # face.get_data()
 
     # imsi
-    # config = parse_config("dataset/ImsiZiGong20220119Dataset")
-    # imsi = ImsiDataset(config)
-    # imsi.get_data()
+    config = parse_config("dataset/ImsiZiGong20220119Dataset")
+    imsi = ImsiDataset(config)
+    imsi.get_data()
 
     # # car
     # config = parse_config("dataset/CarZiGong20220119Dataset")
@@ -25,6 +25,6 @@ if __name__ == "__main__":
     # face_imsi.get_data()
 
     # car-imsi
-    config = parse_config("dataset/carImsiZiGong20220119Dataset")
-    car_imsi = CarImsiData(config)
-    car_imsi.get_data()
+    # config = parse_config("dataset/carImsiZiGong20220119Dataset")
+    # car_imsi = CarImsiData(config)
+    # car_imsi.get_data()

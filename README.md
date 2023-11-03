@@ -4,8 +4,8 @@ LibTrajectory是一个专门研究时空轨迹数据的实验室，可为研究�
 
 LibTrajectory currently supports the following tasks:
 
-* Trajectory Similar
-* Community Detection
+* STEL: spatiotemporal entity linking
+* STDC: spatiotemporal community detection
 
 ## Overall Framework
 

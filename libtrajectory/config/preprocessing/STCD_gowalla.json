@@ -1,0 +1,61 @@
+{
+	"data": {
+		"path": "gowalla/Gowalla_totalCheckins.txt",
+		"rename": "{0:'userid', 1:'time', 2:'lat', 3:'lon', 4:'placeid'}"
+	},
+	"label": {
+		"path": "gowalla/Gowalla_edges.txt",
+		"rename": "{0:'userid0', 1:'userid1'}"
+	},
+	"clean": {
+		"filter_place": {
+			"min_num": 4,
+			"user_col": "userid",
+			"place_col": "place_col"
+		}
+	},
+	"feature": {
+		"time_col":"time",
+		"lat_col": "lat",
+		"lon_col": "lon"
+	},
+	"pretrain": {
+		"user_place": {
+			"corpus": {
+				"sort_col": "timestamp",
+				"id_col": "userid",
+				"target_col": "placeid",
+				"data_aug": 2,
+				"aug_min_length": 10
+			},
+			"model": {
+				"min_count": 1,
+				"workers": 10,
+				"window": 5,
+				"vector_size": 128,
+				"epochs": 10,
+				"sg": 1
+			}
+		},
+		"place_lon_lat": {
+			"corpus": {
+				"potential_nerghbor": 50,
+				"walk_num": 10,
+				"walk_len": 128
+			},
+			"model": {
+				"min_count": 1,
+				"workers": 10,
+				"window": 5,
+				"vector_size": 128,
+				"epochs": 10,
+				"sg": 1
+			}
+		}
+	},
+	"hypergraph": {
+		"topn": 50,
+		"d_thre": 1000,
+		"t_thre": 3600
+	}
+}

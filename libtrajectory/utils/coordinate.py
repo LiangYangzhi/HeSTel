@@ -2,9 +2,9 @@ import pandas as pd
 from geopy.distance import geodesic
 
 
-def device_distance(device1: pd.DataFrame, col1: dict,
-                    device2: pd.DataFrame, col2: dict,
-                    distance_name="distance"):
+def calculate_device_distance(device1: pd.DataFrame, col1: dict,
+                              device2: pd.DataFrame, col2: dict,
+                              distance_name="distance"):
     """
     计算device1与device2之间的距离
     :param device1: pd.DataFrame
@@ -25,12 +25,14 @@ def device_distance(device1: pd.DataFrame, col1: dict,
         col.append(col1['coverage'])
     device1 = device1[col]
     device1 = device1.drop_duplicates(subset=col)
+    device1 = device1.dropna(subset=col)
 
     col = [col2['device'], col2['longitude'], col2['latitude']]
     if col2.get("coverage", None):
         col.append(col2['coverage'])
     device2 = device2[col]
     device2 = device2.drop_duplicates(subset=col)
+    device2 = device2.dropna(subset=col)
 
     device1.index = [0] * len(device1)
     device2.index = [0] * len(device2)

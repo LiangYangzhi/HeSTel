@@ -1,3 +1,5 @@
+from functools import reduce
+
 import pymongo
 import lightgbm as lgb
 import pandas as pd

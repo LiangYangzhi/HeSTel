@@ -1,0 +1,53 @@
+{
+	"time": {
+		"start_time": {"year": 2022, "month": 1, "day": 19},
+		"end_time": {"year": 2022, "month": 4, "day": 19}
+		},
+	"data1": {
+		"subset": "imsi",
+		"city": "zigong",
+		"coverage": [500, 700],
+		"device_file": "device20220119",
+		"rename": {
+			"imsi": "imsi_user",
+			"time": "imsi_time",
+			"longitude": "imsi_longitude",
+			"latitude": "imsi_latitude",
+			"deviceId": "imsi_device",
+			"coverage": "imsi_coverage"
+			},
+		"columns": {
+			"user": "imsi_user",
+			"time": "imsi_time",
+			"longitude": "imsi_longitude",
+			"latitude": "imsi_latitude",
+			"device": "imsi_device",
+			"coverage": "imsi_coverage"
+			}
+		},
+	"data2": {
+		"subset": "car",
+		"city": "zigong",
+		"rename": {
+			"license": "car_user",
+			"time": "car_time",
+			"longitude": "car_longitude",
+			"latitude": "car_latitude",
+			"deviceId": "car_device"
+			},
+		"columns": {
+			"user": "car_user",
+			"time": "car_time",
+			"longitude": "car_longitude",
+			"latitude": "car_latitude",
+			"device": "car_device"
+			}
+		},
+	"batch_size": 20000,
+	"pairs": {
+		"front_time": 50,
+		"back_time": 50,
+		"place_top": 50,
+		"num_top": 50
+	}
+}

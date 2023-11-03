@@ -1,0 +1,20 @@
+{
+	"batch_size": 256,
+	"num_workers": 2,
+	"select_label": 0.2,
+	"input_dim": 640,
+	"output_dim": 48,
+	"lr": 0.001,
+	"log_dir": "./logs/STCD",
+	"gpu_id": 0,
+	"heads": 2,
+	"epoch_num": 10,
+	"check_point_interval": 1,
+	"weighted_remove": true,
+	"weighted_add": true,
+	"spatial_add_prob": 0,
+	"topn_select": 3,
+	"embedding_selector": 0,
+	"user_embedding_init": 0,
+	"aug_num": 10
+}
