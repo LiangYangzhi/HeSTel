@@ -2,13 +2,13 @@ import json
 import argparse
 
 from libtrajectory.config.config_parser import parse_config
-from libtrajectory.pipeline.STEL_binary_classification import pipeline
+from libtrajectory.pipeline.STEL_binary import pipeline
 from libtrajectory.utils.judge_type import str2bool, str2int
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # 命令行传参
-    parser.add_argument('--preprocessing_file', type=str, default="STEL_binary_classification_car_imsi")
+    parser.add_argument('--preprocessing_file', type=str, default="STEL_binary_car_imsi")
     parser.add_argument('--sample', type=str2int, default=0, help='testing with small datasets')
     args = parser.parse_args()
 

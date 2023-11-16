@@ -54,13 +54,14 @@ class DeterminingCandidatePairs(object):
             list_df = [pd.DataFrame(sub_df) for sub_df in np.array_split(segment, len(segment) // self.batch_size)]
             for i, sub_df in enumerate(list_df):
                 print(f"{i}/{len(list_df)}")
-                pandarallel.initialize(progress_bar=False)
+                pandarallel.initialize()
                 sub_df['feature'] = sub_df.parallel_apply(
                     lambda row: self._candidate_user(
                         row[col_segment['user1']], row[col_segment['start_time']], row[col_segment['end_time']]
                     ), axis=1)
             segment = pd.concat(list_df)
         else:
+            pandarallel.initialize()
             segment['feature'] = segment.parallel_apply(
                 lambda row: self._candidate_user(
                     row[col_segment['user1']], row[col_segment['start_time']], row[col_segment['end_time']]
@@ -156,6 +157,7 @@ class DeterminingCandidatePairs(object):
         sti = sti.query(f"{self.col2['user']} in {candidate_user2}")
         feature = [{self.col2['user']: user2,
                     num_name: sti.query(f"{self.col2['user']} == @user2")[num_name].values[0],
-                    device_name: sti.query(f"{self.col2['user']} == @user2")[device_name].values[0]}
+                    device_name: sti.query(f"{self.col2['user']} == @user2")[device_name].values[0],
+                    device_num_name: sti.query(f"{self.col2['user']} == @user2")[device_num_name].values[0]}
                    for user2 in candidate_user2]
         return feature

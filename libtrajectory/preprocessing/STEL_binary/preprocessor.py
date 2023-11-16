@@ -1,10 +1,10 @@
 import pandas as pd
 from datetime import datetime
 
-from libtrajectory.preprocessing.STEL_binary_classification.dataset_load import DataLoader
-from libtrajectory.preprocessing.STEL_binary_classification.data_augmentation import DataAugmentation
-from libtrajectory.preprocessing.STEL_binary_classification.determining_candidate_pairs import DeterminingCandidatePairs
-from libtrajectory.preprocessing.STEL_binary_classification.feature_extraction import FeatureExtraction
+from libtrajectory.preprocessing.STEL_binary.dataset_load import DataLoader
+from libtrajectory.preprocessing.STEL_binary.data_augmentation import DataAugmentation
+from libtrajectory.preprocessing.STEL_binary.determining_candidate_pairs import DeterminingCandidatePairs
+from libtrajectory.preprocessing.STEL_binary.feature_extraction import FeatureExtraction
 from libtrajectory.preprocessing.abstract_preprocessor import AbstractPreprocessor
 from libtrajectory.utils.coordinate import calculate_device_distance
 

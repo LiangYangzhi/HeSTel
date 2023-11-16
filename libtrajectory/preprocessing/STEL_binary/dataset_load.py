@@ -133,7 +133,7 @@ class DataLoader(object):
         if self.columns:
             col = list(self.columns.values())
             df = df[col]
-            df.dropna(inplace=True)
+            df = df.dropna()
         return df
 
     def _load_csv(self, path):

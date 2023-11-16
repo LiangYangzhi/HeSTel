@@ -15,13 +15,13 @@ class Logs(object):
 
     def _create_dir(self):
         dir_name = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-        path = f"./libtrajectory/logs/STEL_label_generation/{dir_name}"
+        path = f"./libtrajectory/logs/STEL_STIntersection/{dir_name}"
         os.makedirs(path)
         self.path = path
 
     def save_params(self):
-        if os.path.exists('./STEL_label_generation_run.logs'):
-            shutil.copy('./STEL_label_generation_run.logs', f"{self.path}/STEL_label_generation_run.logs")
+        if os.path.exists('./STEL_STIntersection_run.logs'):
+            shutil.copy('./STEL_STIntersection_run.logs', f"{self.path}/STEL_STIntersection_run.logs")
 
     def save_feature(self, data: pd.DataFrame, start_time, end_time):
         name = self._naming(start_time, end_time)

@@ -1,8 +1,8 @@
 from datetime import datetime
 
 from libtrajectory.executor.STEL_executor import LightGBMExecutor
-from libtrajectory.logs.STEL_binary_classification.logs import Logs
-from libtrajectory.preprocessing.STEL_binary_classification.preprocessor import Preprocessor
+from libtrajectory.logs.STEL_binary.logs import Logs
+from libtrajectory.preprocessing.STEL_binary.preprocessor import Preprocessor
 from libtrajectory.evaluator.precision import evaluation
 
 """
