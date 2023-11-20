@@ -1,31 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
   <component name="ChangeListManager">
     <list default="true" id="cc685d8d-98ab-4980-a227-89e4e239df6f" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/csv_to_mongo.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/libtrajectory/config/dataset/CarImsiZiGong20220119Dataset.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/libtrajectory/config/preprocessing/ST_trajectory_correlation_car_imsi.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/libtrajectory/pipeline/traj_correlation_supervised_pipeline.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/libtrajectory/paper/ash_STEL.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/lib-trajectory-master.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/lib-trajectory-master.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/config/dataset/CarZiGong20220119Dataset.json" beforeDir="false" afterPath="$PROJECT_DIR$/libtrajectory/config/dataset/CarZiGong20220119Dataset.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/config/dataset/FaceZiGong20220119Dataset.json" beforeDir="false" afterPath="$PROJECT_DIR$/libtrajectory/config/dataset/FaceZiGong20220119Dataset.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/config/dataset/ImsiZiGong20220119Dataset.json" beforeDir="false" afterPath="$PROJECT_DIR$/libtrajectory/config/dataset/ImsiZiGong20220119Dataset.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/config/dataset/faceImsiZiGong20220119Dataset.json" beforeDir="false" afterPath="$PROJECT_DIR$/libtrajectory/config/dataset/FaceImsiZiGong20220119Dataset.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/config/preprocessing/ST_trajectory_correlation_face_imsi.json" beforeDir="false" afterPath="$PROJECT_DIR$/libtrajectory/config/preprocessing/ST_trajectory_correlation_face_imsi.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/config/preprocessing/traj_correlation_preprocessing.json" beforeDir="false" afterPath="$PROJECT_DIR$/libtrajectory/config/preprocessing/traj_correlation_preprocessing.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/dataset/dataset_load.py" beforeDir="false" afterPath="$PROJECT_DIR$/libtrajectory/dataset/dataset_load.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/dataset/face_imsi_car/face_imsi_dataset.py" beforeDir="false" afterPath="$PROJECT_DIR$/libtrajectory/dataset/face_imsi_car/face_imsi_car_dataset.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/evaluator/precision.py" beforeDir="false" afterPath="$PROJECT_DIR$/libtrajectory/evaluator/precision.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/pipeline/traj_correlation_pipeline.py" beforeDir="false" afterPath="$PROJECT_DIR$/libtrajectory/pipeline/traj_correlation_semi-supervised_pipeline.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/preprocessing/ST_trajectory_correlation/DataAugmentation.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/preprocessing/ST_trajectory_correlation/data_augmentation.py" beforeDir="false" afterPath="$PROJECT_DIR$/libtrajectory/preprocessing/ST_trajectory_correlation/data_augmentation.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/preprocessing/ST_trajectory_correlation/determining_candidate_pairs.py" beforeDir="false" afterPath="$PROJECT_DIR$/libtrajectory/preprocessing/ST_trajectory_correlation/determining_candidate_pairs.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/preprocessing/ST_trajectory_correlation/feature_extraction.py" beforeDir="false" afterPath="$PROJECT_DIR$/libtrajectory/preprocessing/ST_trajectory_correlation/feature_extraction.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/preprocessing/ST_trajectory_correlation/preprocessor.py" beforeDir="false" afterPath="$PROJECT_DIR$/libtrajectory/preprocessing/ST_trajectory_correlation/preprocessor.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/utils/coordinate.py" beforeDir="false" afterPath="$PROJECT_DIR$/libtrajectory/utils/coordinate.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/main_dataset.py" beforeDir="false" afterPath="$PROJECT_DIR$/main_dataset.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/run.py" beforeDir="false" afterPath="$PROJECT_DIR$/run.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test.py" beforeDir="false" afterPath="$PROJECT_DIR$/test.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/libtrajectory/paper/STEL_1.py" beforeDir="false" afterPath="$PROJECT_DIR$/libtrajectory/paper/STEL_1.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -50,6 +34,10 @@
   <component name="MarkdownSettingsMigration">
     <option name="stateVersion" value="1" />
   </component>
+  <component name="ProjectColorInfo"><![CDATA[{
+  "customColor": "",
+  "associatedIndex": 6
+}]]></component>
   <component name="ProjectId" id="2TSyybnW37XlLYZgFSNCHQe20hF" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
@@ -60,7 +48,8 @@
     "RunOnceActivity.OpenProjectViewOnStart": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "SHARE_PROJECT_CONFIGURATION_FILES": "true",
-    "last_opened_file_path": "E:/lib-trajectory-mater/libtrajectory/config/dataset",
+    "git-widget-placeholder": "master",
+    "last_opened_file_path": "E:/trajectoryCommunityDetection",
     "settings.editor.selected.configurable": "preferences.pluginManager"
   }
 }]]></component>
@@ -80,8 +69,8 @@
       <recent name="E:\lib-trajectory-master\libtrajectory\dataset\face_imsi_car" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.main_dataset">
-    <configuration name="coordinate (1)" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+  <component name="RunManager" selected="Python.ash_STEL">
+    <configuration name="ash_STEL" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="lib-trajectory-master" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
@@ -89,11 +78,11 @@
         <env name="PYTHONUNBUFFERED" value="1" />
       </envs>
       <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/libtrajectory/utils" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/libtrajectory/paper" />
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/libtrajectory/utils/coordinate.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/libtrajectory/paper/ash_STEL.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -187,7 +176,7 @@
       <method v="2" />
     </configuration>
     <list>
-      <item itemvalue="Python.coordinate (1)" />
+      <item itemvalue="Python.ash_STEL" />
       <item itemvalue="Python.debug_data" />
       <item itemvalue="Python.main_dataset" />
       <item itemvalue="Python.run" />
@@ -195,11 +184,11 @@
     </list>
     <recent_temporary>
       <list>
+        <item itemvalue="Python.ash_STEL" />
         <item itemvalue="Python.main_dataset" />
         <item itemvalue="Python.test" />
         <item itemvalue="Python.run" />
         <item itemvalue="Python.debug_data" />
-        <item itemvalue="Python.coordinate (1)" />
       </list>
     </recent_temporary>
   </component>

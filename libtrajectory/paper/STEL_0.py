@@ -29,18 +29,20 @@ from sklearn.preprocessing import normalize
 from nltk import ngrams
 from sklearn.neighbors import KNeighborsRegressor
 from datetime import datetime
-# from pandarallel import pandarallel
+
+
+from pandarallel import pandarallel
 
 
 def load_data():
     print("data loading...")
-    data9001 = pd.read_csv("../dataset/MTAD/9001_test.csv")
+    data9001 = pd.read_csv("../dataset/MTAD/9001.csv")
     data9001['userid'] = data9001['userid'].map(lambda u: u + '_9001')
     data9001.sort_values("time", inplace=True)
     print(f"data9001 number: {len(data9001.userid.unique())}")
     print(f"data9001 shape: {data9001.shape}")
 
-    data9002 = pd.read_csv("../dataset/MTAD/9002_test.csv")
+    data9002 = pd.read_csv("../dataset/MTAD/9002.csv")
     data9002['userid'] = data9002['userid'].map(lambda u: u + '_9002')
     data9002.sort_values("time", inplace=True)
     print(f"data9002 number: {len(data9002.userid.unique())}")
@@ -56,8 +58,9 @@ def data_split(data, name):
     feature9002 = data.query("userid.str.contains('_9002')", engine='python')
     feature9002.reset_index(drop=True, inplace=True)
 
-    user9001 = feature9001[['userid']]
-    user9002 = feature9002[['userid']]
+    user9001 = {i: u for i, u in enumerate(feature9001.userid.tolist())}
+    user9002 = {i: u for i, u in enumerate(feature9002.userid.tolist())}
+
     vector9001 = np.concatenate(feature9001[name], axis=0)
     vector9002 = np.concatenate(feature9002[name], axis=0)
 
@@ -81,11 +84,35 @@ def emd_distance(vector1, vector2):
     return distance
 
 
+def result_format(userid9001, userid9002, distances, indices, k):
+    indices = pd.DataFrame(indices)
+    indices.rename(columns={i: f"user9001_rank{i}" for i in range(k)}, inplace=True)
+    print(f"indices shape: {indices.shape}")
+    distances = pd.DataFrame(distances)
+    distances.rename(columns={i: f"distance_rank{i}" for i in range(k)}, inplace=True)
+    print(f"distances shape: {distances.shape}")
+    result = indices.join(distances, how="inner")
+    result['userid9002'] = result.index
+    print(f"result(indices join distances) shape: {result.shape}")
+
+    result["result"] = result.apply(
+        lambda row: [{"userid9001": row[f"user9001_rank{i}"],
+                      "distance": row[f"distance_rank{i}"],
+                      "rank": i + 1} for i in range(k)], axis=1)
+    result = result[['userid9002', 'result']]
+    result = result.explode('result')
+    print(f"result explode shape: {result.shape}")
+    result.reset_index(drop=True, inplace=True)
+    result = pd.concat([result, result['result'].apply(pd.Series)], axis=1).drop('result', axis=1)
+    result['userid9002'] = result['userid9002'].map(userid9002)
+    result['userid9001'] = result['userid9001'].map(userid9001)
+    result['label'] = result.apply(lambda row: 1 if row.userid9001[:-2] == row.userid9002[:-2] else 0, axis=1)
+    return result
+
+
 def knn_query(data, name):
     user9001, user9002, vector9001, vector9002 = data_split(data, name)
-    user9001_dict = {i: u for i, u in enumerate(user9001.userid.tolist())}
-    user9002_dict = {i: u for i, u in enumerate(user9002.userid.tolist())}
-    distance = {"sequential": dot_distance, 
+    distance = {"sequential": dot_distance,
                 "temporal": emd_distance,
                 "spatial": dot_distance,
                 "spatiotemporal": dot_distance}
@@ -93,44 +120,11 @@ def knn_query(data, name):
     k = 5
     print(f"k = {k}")
     knn_model = KNeighborsRegressor(n_neighbors=k, metric=distance[name])
-    user_labels = np.arange(len(user9001_dict))
+    user_labels = np.arange(len(user9001))
     knn_model.fit(vector9001, user_labels)
+    distances, indices = knn_model.kneighbors(vector9002, return_distance=True)
 
-    # result = {"userid9001": [], "userid9002": [], "distance": [], "rank": []}
-    # for i_9002, u_9002 in user9002.items():
-    #     query_vector = np.array([vector9002[i_9002]])
-    #     distances, indices = knn_model.kneighbors(query_vector, return_distance=True)
-    #     for rank, i_9001 in enumerate(indices[0]):
-    #         result['userid9001'].append(user9001[i_9001])
-    #         result["userid9002"].append(u_9002)
-    #         result['distance'].append(distances[0][rank])
-    #         result['rank'].append(rank + 1)
-    #
-    #     print("\r", end="")
-    #     print(f"file number: {i_9002}/{len(user9002)}", end="")
-    #     sys.stdout.flush()
-    # print()
-    # result = pd.DataFrame(result)
-
-    def kneighbors(i_9002):
-        query_vector = np.array(vector9002[i_9002])
-        distances, indices = knn_model.kneighbors(query_vector, return_distance=True)
-        print(distances)
-        print(indices)
-        result = [{"userid9002": user9002_dict[int(i_9002)],
-                  "userid9001": user9001_dict[indices[0][site]],
-                   "distance": distances[0][site],
-                   "rank": site + 1
-                   }
-                  for site in range(k)]
-        return result
-
-    user9002['result'] = user9002.apply(lambda row: kneighbors(row.index), axis=0)
-
-    result = user9002.result.values.tolist()
-    result = sum(result, [])
-    result = pd.DataFrame(result)
-    result['label'] = result.apply(lambda row: 1 if row.vector9001[:-2] == row.userid9002[:-2] else 0, axis=1)
+    result = result_format(user9001, user9002, distances, indices, k)
     return result
 
 
@@ -153,8 +147,8 @@ class Signature(object):
         self.data.reset_index(drop=True, inplace=True)
 
     def sequential(self):
-        # pandarallel.initialize()  parallel_apply
-        self.data['sequential'] = self.data.apply(lambda row: (row.time, row.lat, row.lon), axis=1)
+        pandarallel.initialize()
+        self.data['sequential'] = self.data.parallel_apply(lambda row: (row.time, row.lat, row.lon), axis=1)
         group_user = self.data.groupby("userid", as_index=False).agg({"sequential": list})
         group_user['sequential'] = group_user['sequential'].map(lambda lis: list(ngrams(lis, 2)))
         group_user['sequential'] = group_user['sequential'].map(lambda s: str(s))
@@ -176,8 +170,8 @@ class Signature(object):
     def temporal(self):
         interval = 60 * 60  # 1h = 60 * 60 s
         print(f"time interval: {interval / 60 / 60}h")
-        # pandarallel.initialize()  parallel_map
-        self.data['temporal'] = self.data['time'].map(lambda t: t // interval)
+        pandarallel.initialize()
+        self.data['temporal'] = self.data['time'].parallel_map(lambda t: t // interval)
         self.data['temporal'] = self.data['temporal'].astype(int)
         group_user = self.data.groupby("userid", as_index=False).agg({"temporal": list})
 
@@ -194,8 +188,8 @@ class Signature(object):
         return data
 
     def spatial(self):
-        # pandarallel.initialize()  parallel_apply
-        self.data['point'] = self.data.apply(lambda row: (row.lat, row.lon), axis=1)
+        pandarallel.initialize()
+        self.data['point'] = self.data.parallel_apply(lambda row: (row.lat, row.lon), axis=1)
         group_user = self.data.groupby("userid", as_index=False).agg({"point": list})
         group_user['point'] = group_user['point'].map(lambda s: str(s))
         group_user.reset_index(drop=True, inplace=True)
@@ -213,8 +207,8 @@ class Signature(object):
         return data
 
     def spatiotemporal(self):
-        # pandarallel.initialize()
-        self.data['spatiotemporal'] = self.data.apply(lambda row: (row.temporal, row.lat, row.lon), axis=1)
+        pandarallel.initialize()
+        self.data['spatiotemporal'] = self.data.parallel_apply(lambda row: (row.temporal, row.lat, row.lon), axis=1)
         group_user = self.data.groupby("userid", as_index=False).agg({"spatiotemporal": list})
         group_user['spatiotemporal'] = group_user['spatiotemporal'].map(lambda s: str(s))
         group_user.reset_index(drop=True, inplace=True)
@@ -226,7 +220,7 @@ class Signature(object):
         svd = TruncatedSVD(n_components=100)
         reduced_matrix = svd.fit_transform(matrix)
         print(f"perform SVD dimensionality reduction after data shape: {reduced_matrix.shape}")
-        
+
         group_user['spatiotemporal'] = group_user.index.map(lambda i: normalize([reduced_matrix[i]], 'l2'))
         data = group_user[['userid', 'spatiotemporal']]
         return data
@@ -240,36 +234,36 @@ def pipeline():
     t0 = datetime.now()
     signature = Signature(load_data())
 
-    print("sequential...")
-    feature = signature.sequential()
-    result = knn_query(feature, "sequential")
-    result.to_csv(f"{logs_path}/sequential_result.csv", index=False)
-    evaluator(result)
-    print(f'Running time: {datetime.now() - t0} Seconds', '\n')
-    
-    print("temporal...")
+    print("\ntemporal...")
     feature = signature.temporal()
     result = knn_query(feature, "temporal")
     result.to_csv(f"{logs_path}/temporal_result.csv", index=False)
     evaluator(result)
     print(f'Running time: {datetime.now() - t0} Seconds', '\n')
-    
-    print("spatial...")
+
+    print("\nspatial...")
     feature = signature.spatial()
     result = knn_query(feature, "spatial")
     result.to_csv(f"{logs_path}/spatial_result.csv", index=False)
     evaluator(result)
     print(f'Running time: {datetime.now() - t0} Seconds', '\n')
 
-    print("spatiotemporal...")
+    print("\nspatiotemporal...")
     feature = signature.spatiotemporal()
     result = knn_query(feature, "spatiotemporal")
     result.to_csv(f"{logs_path}/spatiotemporal_result.csv", index=False)
     evaluator(result)
     print(f'Running time: {datetime.now() - t0} Seconds', '\n')
 
-    if os.path.exists('./STEL_1.logs'):
-        shutil.copy('./STEL_1.logs', f"{logs_path}/STEL_1.logs")
+    print("\nsequential...")
+    feature = signature.sequential()
+    result = knn_query(feature, "sequential")
+    result.to_csv(f"{logs_path}/sequential_result.csv", index=False)
+    evaluator(result)
+    print(f'Running time: {datetime.now() - t0} Seconds', '\n')
+
+    if os.path.exists('./STEL_0.logs'):
+        shutil.copy('./STEL_0.logs', f"{logs_path}/STEL_0.logs")
 
 
 if __name__ == "__main__":
