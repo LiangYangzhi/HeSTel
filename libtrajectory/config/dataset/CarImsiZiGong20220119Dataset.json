@@ -1,9 +1,0 @@
-{
-  "client": "mongodb://192.168.31.149:27020/admin", 
-  "db": "label",
-  "collection": "car_imsi_zg",
-  "condition": {}, 
-  "city": "zigong",
-  "name": "carImsiZigong20220119",
-  "inplace": false 
-}
