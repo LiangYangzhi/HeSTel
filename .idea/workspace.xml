@@ -5,15 +5,9 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="a198ba9f-9f6c-49b0-87eb-86af35df8fde" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/stTrajectory.iml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/lib-stTrajectory/executor/STEL.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/lib-stTrajectory/model/STEL.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/lib-trajectory.iml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/stTrajectory.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/stTrajectory.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib-stTrajectory/STEL_run.py" beforeDir="false" afterPath="$PROJECT_DIR$/lib-stTrajectory/STEL_run.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib-stTrajectory/executor/STCD_executor.py" beforeDir="false" afterPath="$PROJECT_DIR$/lib-stTrajectory/executor/STCD.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib-stTrajectory/model/STCD_model.py" beforeDir="false" afterPath="$PROJECT_DIR$/lib-stTrajectory/model/STCD.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lib-stTrajectory/preprocessing/STEL/example.log" beforeDir="false" afterPath="$PROJECT_DIR$/lib-stTrajectory/preprocessing/STEL/example.log" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lib-stTrajectory/preprocessing/STEL/preprocessor.py" beforeDir="false" afterPath="$PROJECT_DIR$/lib-stTrajectory/preprocessing/STEL/preprocessor.py" afterDir="false" />
     </list>
@@ -35,23 +29,23 @@
   <component name="MarkdownSettingsMigration">
     <option name="stateVersion" value="1" />
   </component>
-  <component name="ProjectColorInfo"><![CDATA[{
-  "customColor": "",
-  "associatedIndex": 6
-}]]></component>
+  <component name="ProjectColorInfo">{
+  &quot;customColor&quot;: &quot;&quot;,
+  &quot;associatedIndex&quot;: 6
+}</component>
   <component name="ProjectId" id="2bWDm27zw0Lc06pEy5SIGh5BIlU" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "RunOnceActivity.OpenProjectViewOnStart": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
-    "git-widget-placeholder": "master"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;master&quot;
   }
-}]]></component>
+}</component>
   <component name="RunManager">
     <configuration name="preprocessor" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="stTrajectory" />
