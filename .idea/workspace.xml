@@ -4,105 +4,18 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="1949ba30-cd1e-4bee-bb33-0dcacc6e5f63" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/libtrajectory/STEL_run.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/libtrajectory/dataset/AIS/data.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/libtrajectory/logs/STEL/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/libtrajectory/preprocessing/STEL/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/libtrajectory/preprocessing/STEL/preprocessor.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/inspectionProfiles/profiles_settings.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/lib-trajectory-master.iml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/STEL_STIntersection_run.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/STEL_binary_run.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/STEL_label_generation_run.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/STEL_unsupervised_run.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/config/dataset/CarImsiZiGong20220119Dataset.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/config/dataset/CarZiGong20220119Dataset.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/config/dataset/FaceImsiZiGong20220119Dataset.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/config/dataset/FaceZiGong20220119Dataset.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/config/dataset/ImsiZiGong20220119Dataset.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/config/dataset/LoadFaceDataset.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/config/dataset/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/config/model/STCD_gowalla.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/config/model/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/config/model/lightgbm_model.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/config/preprocessing/STCD_gowalla.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/config/preprocessing/STEL_STIntersection_car_imsi.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/config/preprocessing/STEL_binary.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/config/preprocessing/STEL_binary_car_imsi.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/config/preprocessing/STEL_binary_face_imsi.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/config/preprocessing/STEL_label_generation_imsi_car.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/config/preprocessing/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/dataset/MTAD/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/dataset/MTAD/deal.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/dataset/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/dataset/car/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/dataset/car/car_dataset.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/dataset/car/zigong/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/dataset/face/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/dataset/face/face_dataset.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/dataset/face/zigong/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/dataset/face_imsi_car/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/dataset/face_imsi_car/face_imsi_car_create.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/dataset/face_imsi_car/face_imsi_car_dataset.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/dataset/gowalla/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/dataset/imsi/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/dataset/imsi/imsi_dataset.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/dataset/imsi/zigong/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/evaluator/precision.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/executor/STCD_executor.py" beforeDir="false" afterPath="$PROJECT_DIR$/libtrajectory/executor/STCD_executor.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/executor/STEL_executor.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/logs/STEL_STIntersection/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/logs/STEL_STIntersection/logs.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/logs/STEL_binary/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/logs/STEL_binary/logs.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/logs/STEL_label_generation/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/logs/STEL_label_generation/logs.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/model/lightgbm_model.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/model/loss.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/paper/STEL_0.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/paper/STEL_1.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/paper/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/paper/ash_STEL.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/pipeline/STEL_STIntersection.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/pipeline/STEL_binary.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/pipeline/STEL_label_generation.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/pipeline/STEL_unsupervised.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/preprocessing/STEL_STIntersection/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/preprocessing/STEL_STIntersection/preprocessor.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/preprocessing/STEL_binary/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/preprocessing/STEL_binary/data_augmentation.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/preprocessing/STEL_binary/data_cleaning.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/preprocessing/STEL_binary/dataset_load.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/preprocessing/STEL_binary/determining_candidate_pairs.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/preprocessing/STEL_binary/feature_extraction.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/preprocessing/STEL_binary/preprocessor.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/preprocessing/STEL_label_generation/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/preprocessing/STEL_label_generation/data_augmentation.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/preprocessing/STEL_label_generation/dataset_load.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/preprocessing/STEL_label_generation/determining_candidate_pairs.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/preprocessing/STEL_label_generation/preprocessor.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/preprocessing/STEL_unsupervised/DataLoader.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/preprocessing/STEL_unsupervised/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/utils/coordinate.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/utils/csv_to_mongo.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/utils/generateLabel.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/utils/generateLabel3.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/utils/judge_type.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/utils/matrix/highSame.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/utils/matrix/highThre.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/utils/matrix/lowSame.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/utils/matrix/lowThre.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/utils/matrix/middleSame.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/utils/matrix/middleThre.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/libtrajectory/utils/mongo.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/main_dataset.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/test.py" beforeDir="false" />
+    <list default="true" id="a198ba9f-9f6c-49b0-87eb-86af35df8fde" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/.idea/stTrajectory.iml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/lib-stTrajectory/executor/STEL.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/lib-stTrajectory/model/STEL.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/lib-trajectory.iml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib-stTrajectory/STEL_run.py" beforeDir="false" afterPath="$PROJECT_DIR$/lib-stTrajectory/STEL_run.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib-stTrajectory/executor/STCD_executor.py" beforeDir="false" afterPath="$PROJECT_DIR$/lib-stTrajectory/executor/STCD.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib-stTrajectory/model/STCD_model.py" beforeDir="false" afterPath="$PROJECT_DIR$/lib-stTrajectory/model/STCD.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib-stTrajectory/preprocessing/STEL/example.log" beforeDir="false" afterPath="$PROJECT_DIR$/lib-stTrajectory/preprocessing/STEL/example.log" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib-stTrajectory/preprocessing/STEL/preprocessor.py" beforeDir="false" afterPath="$PROJECT_DIR$/lib-stTrajectory/preprocessing/STEL/preprocessor.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -123,9 +36,10 @@
     <option name="stateVersion" value="1" />
   </component>
   <component name="ProjectColorInfo"><![CDATA[{
+  "customColor": "",
   "associatedIndex": 6
 }]]></component>
-  <component name="ProjectId" id="2b1IrI6zLyhNMv1oDfnOANWMqhB" />
+  <component name="ProjectId" id="2bWDm27zw0Lc06pEy5SIGh5BIlU" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
@@ -134,44 +48,24 @@
   "keyToString": {
     "RunOnceActivity.OpenProjectViewOnStart": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
+    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
     "git-widget-placeholder": "master"
   }
 }]]></component>
-  <component name="RunManager" selected="Python.preprocessor">
-    <configuration name="data" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
-      <module name="lib-trajectory" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/libtrajectory/dataset/AIS" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/libtrajectory/dataset/AIS/data.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
+  <component name="RunManager">
     <configuration name="preprocessor" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
-      <module name="lib-trajectory" />
+      <module name="stTrajectory" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
       <envs>
         <env name="PYTHONUNBUFFERED" value="1" />
       </envs>
       <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/libtrajectory/preprocessing/STEL" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/lib-stTrajectory/preprocessing/STEL" />
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/libtrajectory/preprocessing/STEL/preprocessor.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/lib-stTrajectory/preprocessing/STEL/preprocessor.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -183,18 +77,17 @@
     <recent_temporary>
       <list>
         <item itemvalue="Python.preprocessor" />
-        <item itemvalue="Python.data" />
       </list>
     </recent_temporary>
   </component>
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
-      <changelist id="1949ba30-cd1e-4bee-bb33-0dcacc6e5f63" name="Changes" comment="" />
-      <created>1705376355725</created>
+      <changelist id="a198ba9f-9f6c-49b0-87eb-86af35df8fde" name="Changes" comment="" />
+      <created>1706322097905</created>
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
-      <updated>1705376355725</updated>
+      <updated>1706322097905</updated>
     </task>
     <servers />
   </component>

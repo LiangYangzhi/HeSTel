@@ -317,6 +317,16 @@ class Preprocessor(object):
         lonv0[lonf] = 1
         return np.concatenate((latv0, lonv0))
 
+    def node_edge(self):
+        logging.info("trajectory points as nodes...")
+        dim1 = len(self.data1.tsvec[0])
+        dim2 = len(self.data2.stvec[0])
+        dim = dim1 if dim1 > dim2 else dim2
+        logging.info(f"dimension1={dim1}, dimension2={dim2}, node dimension={dim}")
+        self.data1['node'] = self.data1['tsvec'].map(lambda v: np.pad(v, (0, dim - len(v)), 'constant'))
+        self.data2['node'] = self.data1['stvec'].map(lambda v: np.pad(v, (0, dim - len(v)), 'constant'))
+
+
     def run(self):
         self.loader()
         self.cleaner()
@@ -335,5 +345,6 @@ class Preprocessor(object):
 
 
 if __name__ == "__main__":
-    preprocessor = Preprocessor("../../dataset/AIS/test10.csv")
-    preprocessor.run()
+    # preprocessor = Preprocessor("../../dataset/AIS/test10.csv")
+    # preprocessor.run()
+
