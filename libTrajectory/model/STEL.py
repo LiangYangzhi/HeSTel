@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 
 class TowerGCN(torch.nn.Module):
-    def __int__(self, in_dim, out_dim):
+    def __init__(self, in_dim, out_dim):
         super(TowerGCN, self).__init__()
         self.conv1 = pyg_nn.GCNConv(in_channels=in_dim, out_channels=out_dim)
         self.conv2 = pyg_nn.GCNConv(in_channels=in_dim, out_channels=out_dim)
@@ -21,10 +21,10 @@ class TowerGCN(torch.nn.Module):
 
 
 class DualTowerGCN(torch.nn.Module):
-    def __int__(self, in_dim, out_dim):
+    def __init__(self, in_dim1, out_dim1, in_dim2, out_dim2):
         super(DualTowerGCN, self).__init__()
-        self.tower1 = TowerGCN(in_dim, out_dim)
-        self.tower2 = TowerGCN(in_dim, out_dim)
+        self.tower1 = TowerGCN(in_dim1, out_dim1)
+        self.tower2 = TowerGCN(in_dim2, out_dim2)
 
     def forward(self, x1, edge_index1, edge_weight1, x2, edge_index2, edge_weight2):
         # x1, x2: [num_nodes, num_node_features]
