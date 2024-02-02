@@ -38,8 +38,6 @@ class Preprocessor(object):
         self.sseg()  # space segment
         self.tcoor()  # time coordinate
         self.st2vector()  # to vector
-        # create graph
-        self.create_graph()
 
     def loader(self):
         logging.info("data loading...")
@@ -275,22 +273,27 @@ class Preprocessor(object):
 
     def ts2vector(self):
         logging.info("time segment and space coordinate --> vector...")
-        tv0 = [0] * (self.data1.tseg.max() + 1)  # 初始vector，+1:tseg从0开始
-        logging.info(f"time vector length: {len(tv0)}")
-        self.data1["tv"] = self.data1['tseg'].map(lambda tseg: self._tseg2v(tseg, tv0))
+        self.data1["tsid"] = self.data1.apply(lambda row: f"{row.tseg}_{row.scoor}", axis=1)
+        self.ts_vec = self.data1[['tseg', 'scoor']].copy()
+        self.ts_vec.drop_duplicates(inplace=True)
 
-        self.data1["sv"] = self.data1['scoor'].map(lambda scoor: ''.join(map(self._coor2v, str(scoor))))
-        svlen = max([len(str(i)) for i in self.data1.scoor.unique().tolist()]) * 4  # sv max length
+        tv0 = [0] * (self.ts_vec.tseg.max() + 1)  # 初始vector，+1:tseg从0开始
+        logging.info(f"time vector length: {len(tv0)}")
+        self.ts_vec["tv"] = self.ts_vec['tseg'].map(lambda tseg: self._tseg2v(tseg, tv0))
+
+        self.ts_vec["sv"] = self.ts_vec['scoor'].map(lambda scoor: ''.join(map(self._coor2v, str(scoor))))
+        svlen = max([len(str(i)) for i in self.ts_vec.scoor.unique().tolist()]) * 4  # sv max length
         logging.info(f"space vector length: {svlen}")
-        self.data1["sv"] = self.data1["sv"].map(lambda sv: sv.ljust(svlen, '0'))
-        self.data1["sv"] = self.data1["sv"].map(lambda sv: [int(i) for i in sv])
+        self.ts_vec["sv"] = self.ts_vec["sv"].map(lambda sv: sv.ljust(svlen, '0'))
+        self.ts_vec["sv"] = self.ts_vec["sv"].map(lambda sv: [int(i) for i in sv])
 
         logging.info(f"time space vector length: {len(tv0) + svlen}")
-        self.data1["tsvec"] = self.data1.apply(lambda row: row.tv + row.sv, axis=1)
+        self.ts_vec["vector"] = self.ts_vec.apply(lambda row: row.tv + row.sv, axis=1)
+        self.ts_vec["tsid"] = self.ts_vec.apply(lambda row: f"{row.tseg}_{row.scoor}", axis=1)
 
         buffer = io.StringIO()
-        self.data1.info(buf=buffer)
-        logging.info(f"data1 info after time segment: {buffer.getvalue()}")
+        self.ts_vec.info(buf=buffer)
+        logging.info(f"ts_vec info: {buffer.getvalue()}")
         logging.info("vector completed")
 
     def _tseg2v(self, tseg, tv0):
@@ -308,25 +311,30 @@ class Preprocessor(object):
 
     def st2vector(self):
         logging.info("space segment and time coordinate --> vector...")
-        sseg = self.data2.sseg.unique().tolist()
+        self.data2["stid"] = self.data2.apply(lambda row: f"{row.sseg}_{row.tcoor}", axis=1)
+        self.st_vec = self.data2[['sseg', 'tcoor']].copy()
+        self.st_vec.drop_duplicates(inplace=True)
+
+        sseg = self.st_vec.sseg.unique().tolist()
         # 初始vector
         latv0 = [0] * (max([int(s.split("-")[0]) for s in sseg]) + 1)  # 从0开始标记(max + 1)
         lonv0 = [0] * (max([int(s.split("-")[1]) for s in sseg]) + 1)  # 从0开始标记
         logging.info(f"lat vector length: {len(latv0)}, lon vector length: {len(lonv0)}, space vector length: {len(latv0) + len(lonv0)}")
-        self.data2["sv"] = self.data2['sseg'].map(lambda sseg: self._sseg2v(sseg, latv0, lonv0))
+        self.st_vec["sv"] = self.st_vec['sseg'].map(lambda sseg: self._sseg2v(sseg, latv0, lonv0))
 
-        self.data2['tv'] = self.data2['tcoor'].map(lambda tcoor: ''.join(map(self._coor2v, str(tcoor))))
-        tvlen = max([len(str(i)) for i in self.data2.tcoor.unique().tolist()]) * 4  # tv max length
+        self.st_vec['tv'] = self.st_vec['tcoor'].map(lambda tcoor: ''.join(map(self._coor2v, str(tcoor))))
+        tvlen = max([len(str(i)) for i in self.st_vec.tcoor.unique().tolist()]) * 4  # tv max length
         logging.info(f"time vector length: {tvlen}")
-        self.data2["tv"] = self.data2["tv"].map(lambda tv: tv.ljust(tvlen, '0'))
-        self.data2["tv"] = self.data2["tv"].map(lambda tv: [int(i) for i in tv])
+        self.st_vec["tv"] = self.st_vec["tv"].map(lambda tv: tv.ljust(tvlen, '0'))
+        self.st_vec["tv"] = self.st_vec["tv"].map(lambda tv: [int(i) for i in tv])
 
         logging.info(f"space time vector length: {len(latv0) + len(lonv0) + tvlen}")
-        self.data2["stvec"] = self.data2.apply(lambda row: row.sv + row.tv, axis=1)
+        self.st_vec["vector"] = self.st_vec.apply(lambda row: row.sv + row.tv, axis=1)
+        self.st_vec["stid"] = self.st_vec.apply(lambda row: f"{row.sseg}_{row.tcoor}", axis=1)
 
         buffer = io.StringIO()
-        self.data2.info(buf=buffer)
-        logging.info(f"data2 info after time coordinate: {buffer.getvalue()}")
+        self.st_vec.info(buf=buffer)
+        logging.info(f"st_vec info: {buffer.getvalue()}")
         logging.info("vector completed")
 
     def _sseg2v(self, sseg, latv0, lonv0):
@@ -336,17 +344,6 @@ class Preprocessor(object):
         lonv0[lonf] = 1
         v = latv0 + lonv0
         return v
-
-    def ts2graph(self):
-        logging.info("time segment and space coordinate --> graph...")
-        self.graph1 = pd.DataFrame(data=self.data1.tid.unique().tolist(), columns=['tid'])
-        self.graph1.info()
-        from pandarallel import pandarallel
-        pandarallel.initialize(nb_workers=12, progress_bar=True)
-        self.graph1['node_edge'] = self.graph1['tid'].parallel_map(lambda tid: self._ts2ne(tid))
-        self.tid1 = self.graph1.tid.tolist()
-        self.graph1 = self.graph1.node_edge.tolist()
-        logging.info("time segment and space coordinate graph completed")
 
     def _ts2ne(self, tid):
         dft = self.data1.query(f"tid == '{tid}'").copy()
@@ -381,16 +378,6 @@ class Preprocessor(object):
 
         return [torch.tensor(node), torch.tensor(edge_ind), torch.tensor(edge_attr)]
         # return Data(x=torch.tensor(node), edge_index=torch.tensor(edge_ind), edge_attr=torch.tensor(edge_attr))
-
-    def st2graph(self):
-        logging.info("space segment and time coordinate --> graph")
-        self.graph2 = pd.DataFrame(data=self.data2.tid.unique().tolist(), columns=['tid'])
-        from pandarallel import pandarallel
-        pandarallel.initialize(nb_workers=12, progress_bar=True)
-        self.graph2['node_edge'] = self.graph2['tid'].parallel_map(lambda tid: self._st2ne(tid))
-        self.tid2 = self.graph2.tid.tolist()
-        self.graph2 = self.graph2.node_edge.tolist()
-        logging.info("time segment and space coordinate graph completed")
         
     def _st2ne(self, tid):
         dft = self.data2.query(f"tid == '{tid}'").copy()
@@ -429,45 +416,9 @@ class Preprocessor(object):
         return [torch.tensor(node), torch.tensor(edge_ind), torch.tensor(edge_attr)]
         # return Data(x=torch.tensor(node), edge_index=torch.tensor(edge_ind), edge_attr=torch.tensor(edge_attr))
 
-    def create_graph(self):
-        logging.info("trajectory points as nodes...")
-        dim1 = len(self.data1.tsvec[0])
-        dim2 = len(self.data2.stvec[0])
-        dim = dim1 if dim1 > dim2 else dim2
-        logging.info(f"dimension1={dim1}, dimension2={dim2}")
-        fill_1 = dim - dim1
-        if fill_1:
-            self.data1['tsvec'] = self.data1['tsvec'].map(lambda v: v + [0] * fill_1)
-            logging.info(f"dimension1={len(self.data1.tsvec[0])}, fill 0 length={fill_1}")
-        fill_2 = dim - dim2
-        if fill_2:
-            self.data2['stvec'] = self.data2['stvec'].map(lambda v: v + [0] * fill_2)
-            logging.info(f"dimension2={len(self.data2.stvec[0])} , fill 0 length={fill_2}")
-
-        logging.info("time segment and space coordinate --> graph...")
-        self.graph1 = pd.DataFrame(data=self.data1.tid.unique().tolist(), columns=['tid'])
-        from pandarallel import pandarallel
-        pandarallel.initialize(nb_workers=24, progress_bar=True)
-        self.graph1['node_edge'] = self.graph1['tid'].parallel_map(lambda tid: self._ts2ne(tid))
-        self.tid1 = self.graph1.tid.tolist()
-        self.graph1 = self.graph1.node_edge.tolist()
-        logging.info(f"node1 shape={self.graph1[0][0].shape}")
-        logging.info("time segment and space coordinate graph completed")
-
-        logging.info("space segment and time coordinate --> graph")
-        self.graph2 = pd.DataFrame(data=self.data2.tid.unique().tolist(), columns=['tid'])
-        from pandarallel import pandarallel
-        pandarallel.initialize(nb_workers=24, progress_bar=True)
-        self.graph2['node_edge'] = self.graph2['tid'].parallel_map(lambda tid: self._st2ne(tid))
-        self.tid2 = self.graph2.tid.tolist()
-        self.graph2 = self.graph2.node_edge.tolist()
-        logging.info(f"node2 shape={self.graph2[0][0].shape}")
-        logging.info("time segment and space coordinate graph completed")
-
-
     def get(self):
         # active、passive
-        return self.tid1, self.graph1, self.tid2, self.graph2
+        return self.data1, self.ts_vec, self.data2, self.st_vec
 
 
 # if __name__ == "__main__":
