@@ -5,7 +5,7 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 import torch.nn.functional as F
 from libTrajectory.preprocessing.STEL.preprocessor import Preprocessor
-from libTrajectory.model.STEL import DualTowerGCN
+from libTrajectory.model.STEL import TowerGCN
 
 
 class IdDataset(Dataset):
@@ -111,13 +111,6 @@ class GraphDataset(Dataset):
                 edge_attr.append(i[2])
         return node, edge_ind, edge_attr
 
-    def negative_sample(self, tid):
-        while True:
-            id_n = random.randint(0, len(self.tid) - 1)
-            negative_tid = self.tid[id_n]
-            if tid != negative_tid:
-                return negative_tid
-
     def get(self, tid):
         tid_lis = tid
         g1_node = []
@@ -130,16 +123,9 @@ class GraphDataset(Dataset):
         g2_edge_attr = []
         batch2 = []
 
-        g3_node = []
-        g3_edge_ind = [[], []]
-        g3_edge_attr = []
-        batch3 = []
-
         for i, tid in enumerate(tid_lis):
             node1, edge_ind1, edge_attr1 = self.ts_graph(tid)
             node2, edge_ind2, edge_attr2 = self.st_graph(tid)
-            negative_tid = self.negative_sample(tid)
-            node3, edge_ind3, edge_attr3 = self.st_graph(negative_tid)
 
             size = len(g1_node)
             edge_ind1 = [[x+size for x in sub] for sub in edge_ind1]
@@ -159,15 +145,6 @@ class GraphDataset(Dataset):
             for _ in range(len(node2)):
                 batch2.append(i)
 
-            size = len(g3_node)
-            edge_ind3 = [[x + size for x in sub] for sub in edge_ind3]
-            g3_node += node3
-            g3_edge_ind[0] += edge_ind3[0]
-            g3_edge_ind[1] += edge_ind3[1]
-            g3_edge_attr += edge_attr3
-            for _ in range(len(node3)):
-                batch3.append(i)
-
         g1_node = torch.tensor(g1_node, dtype=torch.float32)
         g1_edge_ind = torch.tensor(g1_edge_ind, dtype=torch.long)
         g1_edge_attr = torch.tensor(g1_edge_attr)
@@ -178,14 +155,7 @@ class GraphDataset(Dataset):
         g2_edge_attr = torch.tensor(g2_edge_attr)
         batch2 = torch.tensor(batch2, dtype=torch.long)
 
-        g3_node = torch.tensor(g3_node, dtype=torch.float32)
-        g3_edge_ind = torch.tensor(g3_edge_ind, dtype=torch.long)
-        g3_edge_attr = torch.tensor(g3_edge_attr)
-        batch3 = torch.tensor(batch3, dtype=torch.long)
-
-        return (g1_node, g1_edge_ind, g1_edge_attr, batch1,
-                g2_node, g2_edge_ind, g2_edge_attr, batch2,
-                g3_node, g3_edge_ind, g3_edge_attr, batch3)
+        return g1_node, g1_edge_ind, g1_edge_attr, batch1, g2_node, g2_edge_ind, g2_edge_attr, batch2
 
     def __getitem__(self, tid):
         return self.get(tid)
@@ -197,7 +167,8 @@ if __name__ == "__main__":
     data1, ts_vec, data2, st_vec = preprocessor.get()
     in_dim1 = len(ts_vec.vector[0])
     in_dim2 = len(st_vec.vector[0])
-    logging.info(f"in_dim1={in_dim1}, in_dim2={in_dim2}")
+    out_dim = 64
+    logging.info(f"in_dim1={in_dim1}, in_dim2={in_dim2}, out_dim={out_dim}")
 
     index_set = IdDataset(data1)
     graph_dataset = GraphDataset(data1, ts_vec, data2, st_vec)
@@ -205,24 +176,30 @@ if __name__ == "__main__":
     batch_size = 6
     train_loader = DataLoader(index_set, batch_size=batch_size, shuffle=True)
 
-    model = DualTowerGCN(in_dim1=in_dim1, out_dim1=64, in_dim2=in_dim2, out_dim2=64)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
-    model.train()
+    model1 = TowerGCN(in_dim=in_dim1, out_dim=out_dim)
+    model2 = TowerGCN(in_dim=in_dim2, out_dim=out_dim)
+    optimizer1 = torch.optim.Adam(model1.parameters(), lr=0.01)
+    optimizer2 = torch.optim.Adam(model2.parameters(), lr=0.01)
+    model1.train()
+    model2.train()
     epoch_num = 10
     for epoch in range(epoch_num):  # 每个epoch循环
         print(f'Epoch {epoch + 1}/{epoch_num}')
         for batch_tid in train_loader:  # 每个批次循环
             (g1_node, g1_edge_ind, g1_edge_attr, batch1,
-             g2_node, g2_edge_ind, g2_edge_attr, batch2,
-             g3_node, g3_edge_ind, g3_edge_attr, batch3) = graph_dataset[batch_tid]
+             g2_node, g2_edge_ind, g2_edge_attr, batch2) = graph_dataset[batch_tid]
             # 前向传播
-            pos_sim = model(g1_node, g1_edge_ind, g1_edge_attr, g2_node, g2_edge_ind, g2_edge_attr, batch1, batch2)
-            neg_sim = model(g1_node, g1_edge_ind, g1_edge_attr, g3_node, g3_edge_ind, g3_edge_attr, batch1, batch3)
+            g1 = model1(g1_node, g1_edge_ind, g1_edge_attr, batch1)
+            g2 = model2(g2_node, g2_edge_ind, g2_edge_attr, batch2)
+            labels = torch.arange(len(g1)) != torch.arange(len(g2)).view(-1, 1)
             # 计算损失
-            loss = (F.binary_cross_entropy(pos_sim, torch.ones_like(pos_sim)) +
-                    F.binary_cross_entropy(neg_sim, torch.zeros_like(neg_sim)))
+            cosine_sim = F.cosine_similarity(g1.unsqueeze(1), g2.unsqueeze(0), dim=2)
+            criterion = torch.nn.BCEWithLogitsLoss()
+            loss = criterion(cosine_sim, labels.float())
             # 反向传播
-            optimizer.zero_grad()
+            optimizer1.zero_grad()
+            optimizer2.zero_grad()
             loss.backward()
-            optimizer.step()
+            optimizer1.step()
+            optimizer2.step()
         print(f'Epoch {epoch + 1}: Loss = {loss.item()}')

@@ -1,114 +1,73 @@
-import os.path as osp
+# import torch
+# # 给定的Tensor
+# tensor = torch.tensor([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 2, 3, 3, 3, 3,
+#                        4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+#                        5, 5])
+#
+# # 获取每个数值的第一个和最后一个索引值
+# ind = torch.where(tensor == 1)
+# print(ind)
+# print(ind[0][0], ind[0][-1])
+#
+#
+# print()
+# for i in torch.unique(tensor):
+#     print(i)
+# print(tensor[1: 2])
+#
+# e1 = []
+# for i in torch.unique(batch1):
+#     ind1 = torch.where(batch1)
+#     node = v1[ind1[0][0]: ind1[0][-1], :]
+#     print(node)
+# #
+# #
+# # import torch
+# # import torch.nn as nn
+# #
+# # # 假设你有一个形状为 [27, 64] 的张量 tensor
+# # tensor = torch.randn(27, 64)
+# # print(tensor.shape)
+# #
+# # # 定义一个线性变换层，将输入的维度压缩为 [1, 64]
+# # linear_layer = nn.Linear(64, 64)
+# #
+# # print(tensor)
+# #
+# # m = tensor.mean(dim=0, keepdim=True)
+# # print(m)
+# # print(m.shape)
+# # # 将张量压缩成 [1, 64]
+# # compressed_tensor = linear_layer(tensor)
+# #
+# # # 打印结果
+# # print(compressed_tensor.size())
+# #
+# #
+#
+#
+# # import torch
+# #
+# # # 假设lis是一个包含两个张量的列表
+# # tensor1 = torch.tensor([1, 2, 3])
+# # tensor2 = torch.tensor([4, 5, 6])
+# # lis = [tensor1, tensor2]
+# #
+# # # 使用torch.stack将lis中的张量堆叠成一个新的张量
+# # stacked_tensor = torch.stack(lis)
+# #
+# # print(stacked_tensor)
+#
+
 
 import torch
 import torch.nn.functional as F
-from torch.nn import Linear, ReLU, Sequential
 
-import torch_geometric.transforms as T
-from torch_geometric.datasets import MNISTSuperpixels
-from torch_geometric.loader import DataLoader
-from torch_geometric.nn import (
-    NNConv,
-    global_mean_pool,
-    graclus,
-    max_pool,
-    max_pool_x,
-)
-# from torch_geometric.typing import WITH_TORCH_CLUSTER
-from torch_geometric.utils import normalized_cut
+# 假设有两个tensor v1 和 v2，它们的形状分别为 (m, n) 和 (p, n)
+v1 = torch.randn(3, 5)  # 3行5列的tensor
+v2 = torch.randn(2, 5)  # 2行5列的tensor
 
-# if not WITH_TORCH_CLUSTER:
-#     quit("This example requires 'torch-cluster'")
+# 直接计算余弦距离
+cosine_sim = F.cosine_similarity(v1, v2, dim=1)  # 在第一维度上计算余弦相似度
 
-path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data', 'MNIST')
-transform = T.Cartesian(cat=False)
-train_dataset = MNISTSuperpixels(path, True, transform=transform)
-test_dataset = MNISTSuperpixels(path, False, transform=transform)
-train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
-test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
-d = train_dataset
-
-
-def normalized_cut_2d(edge_index, pos):
-    row, col = edge_index
-    edge_attr = torch.norm(pos[row] - pos[col], p=2, dim=1)
-    return normalized_cut(edge_index, edge_attr, num_nodes=pos.size(0))
-
-
-class Net(torch.nn.Module):
-    def __init__(self):
-        super().__init__()
-        nn1 = Sequential(
-            Linear(2, 25),
-            ReLU(),
-            Linear(25, d.num_features * 32),
-        )
-        self.conv1 = NNConv(d.num_features, 32, nn1, aggr='mean')
-
-        nn2 = Sequential(
-            Linear(2, 25),
-            ReLU(),
-            Linear(25, 32 * 64),
-        )
-        self.conv2 = NNConv(32, 64, nn2, aggr='mean')
-
-        self.fc1 = torch.nn.Linear(64, 128)
-        self.fc2 = torch.nn.Linear(128, d.num_classes)
-
-    def forward(self, data):
-        data.x = F.elu(self.conv1(data.x, data.edge_index, data.edge_attr))
-        weight = normalized_cut_2d(data.edge_index, data.pos)
-        cluster = graclus(data.edge_index, weight, data.x.size(0))
-        data.edge_attr = None
-        data = max_pool(cluster, data, transform=transform)
-
-        data.x = F.elu(self.conv2(data.x, data.edge_index, data.edge_attr))
-        weight = normalized_cut_2d(data.edge_index, data.pos)
-        cluster = graclus(data.edge_index, weight, data.x.size(0))
-        x, batch = max_pool_x(cluster, data.x, data.batch)
-
-        x = global_mean_pool(x, batch)
-        x = F.elu(self.fc1(x))
-        x = F.dropout(x, training=self.training)
-        return F.log_softmax(self.fc2(x), dim=1)
-
-
-device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
-# device = torch.device('cpu')
-model = Net().to(device)
-optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
-
-
-def train(epoch):
-    model.train()
-
-    if epoch == 16:
-        for param_group in optimizer.param_groups:
-            param_group['lr'] = 0.001
-
-    if epoch == 26:
-        for param_group in optimizer.param_groups:
-            param_group['lr'] = 0.0001
-
-    for data in train_loader:
-        data = data.to(device)
-        optimizer.zero_grad()
-        F.nll_loss(model(data), data.y).backward()
-        optimizer.step()
-
-
-def test():
-    model.eval()
-    correct = 0
-
-    for data in test_loader:
-        data = data.to(device)
-        pred = model(data).max(1)[1]
-        correct += pred.eq(data.y).sum().item()
-    return correct / len(test_dataset)
-
-
-for epoch in range(1, 31):
-    train(epoch)
-    test_acc = test()
-    print(f'Epoch: {epoch:02d}, Test: {test_acc:.4f}')
+print(cosine_sim)
