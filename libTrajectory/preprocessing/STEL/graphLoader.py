@@ -3,9 +3,6 @@ import random
 from geopy.distance import geodesic
 import torch
 from torch.utils.data import DataLoader, Dataset
-import torch.nn.functional as F
-from libTrajectory.preprocessing.STEL.preprocessor import Preprocessor
-from libTrajectory.model.STEL import TowerGCN
 
 
 class IdDataset(Dataset):
@@ -160,46 +157,3 @@ class GraphDataset(Dataset):
     def __getitem__(self, tid):
         return self.get(tid)
 
-
-if __name__ == "__main__":
-    preprocessor = Preprocessor("./libTrajectory/dataset/AIS/test10.csv")
-    # tid : 用户标识，tid1与tid2相同则为正样本，否则为负样本
-    data1, ts_vec, data2, st_vec = preprocessor.get()
-    in_dim1 = len(ts_vec.vector[0])
-    in_dim2 = len(st_vec.vector[0])
-    out_dim = 64
-    logging.info(f"in_dim1={in_dim1}, in_dim2={in_dim2}, out_dim={out_dim}")
-
-    index_set = IdDataset(data1)
-    graph_dataset = GraphDataset(data1, ts_vec, data2, st_vec)
-
-    batch_size = 6
-    train_loader = DataLoader(index_set, batch_size=batch_size, shuffle=True)
-
-    model1 = TowerGCN(in_dim=in_dim1, out_dim=out_dim)
-    model2 = TowerGCN(in_dim=in_dim2, out_dim=out_dim)
-    optimizer1 = torch.optim.Adam(model1.parameters(), lr=0.01)
-    optimizer2 = torch.optim.Adam(model2.parameters(), lr=0.01)
-    model1.train()
-    model2.train()
-    epoch_num = 10
-    for epoch in range(epoch_num):  # 每个epoch循环
-        print(f'Epoch {epoch + 1}/{epoch_num}')
-        for batch_tid in train_loader:  # 每个批次循环
-            (g1_node, g1_edge_ind, g1_edge_attr, batch1,
-             g2_node, g2_edge_ind, g2_edge_attr, batch2) = graph_dataset[batch_tid]
-            # 前向传播
-            g1 = model1(g1_node, g1_edge_ind, g1_edge_attr, batch1)
-            g2 = model2(g2_node, g2_edge_ind, g2_edge_attr, batch2)
-            labels = torch.arange(len(g1)) != torch.arange(len(g2)).view(-1, 1)
-            # 计算损失
-            cosine_sim = F.cosine_similarity(g1.unsqueeze(1), g2.unsqueeze(0), dim=2)
-            criterion = torch.nn.BCEWithLogitsLoss()
-            loss = criterion(cosine_sim, labels.float())
-            # 反向传播
-            optimizer1.zero_grad()
-            optimizer2.zero_grad()
-            loss.backward()
-            optimizer1.step()
-            optimizer2.step()
-        print(f'Epoch {epoch + 1}: Loss = {loss.item()}')

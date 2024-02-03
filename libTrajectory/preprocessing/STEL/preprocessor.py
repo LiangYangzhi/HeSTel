@@ -1,16 +1,11 @@
 import logging
 import io
-import numpy as np
 import pandas as pd
 from geopy.distance import geodesic
 import torch
-from torch_geometric.data import Data
 
 # from pandarallel import pandarallel
 # pandarallel.initialize(nb_workers=48)
-
-logging.basicConfig(filename='example.log', format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
-logging.info("-" * 50)
 
 
 class Preprocessor(object):
@@ -377,7 +372,6 @@ class Preprocessor(object):
                 edge_attr.append(attr)
 
         return [torch.tensor(node), torch.tensor(edge_ind), torch.tensor(edge_attr)]
-        # return Data(x=torch.tensor(node), edge_index=torch.tensor(edge_ind), edge_attr=torch.tensor(edge_attr))
         
     def _st2ne(self, tid):
         dft = self.data2.query(f"tid == '{tid}'").copy()
@@ -414,14 +408,7 @@ class Preprocessor(object):
                 edge_attr.append(attr)
 
         return [torch.tensor(node), torch.tensor(edge_ind), torch.tensor(edge_attr)]
-        # return Data(x=torch.tensor(node), edge_index=torch.tensor(edge_ind), edge_attr=torch.tensor(edge_attr))
 
     def get(self):
         # active、passive
         return self.data1, self.ts_vec, self.data2, self.st_vec
-
-
-# if __name__ == "__main__":
-#     preprocessor = Preprocessor("../../dataset/AIS/test10.csv")
-#     preprocessor.run()
-

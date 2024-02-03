@@ -1,4 +1,4 @@
-from libtrajectory.preprocessing.STCD.preprocessor import Preprocessor
+from libTrajectory.preprocessing.STCD.preprocessor import Preprocessor
 
 
 def pipeline(config):
