@@ -1,6 +1,5 @@
 import torch_geometric.nn as pyg_nn
 import torch
-import torch.nn.functional as F
 from torch_geometric.utils import normalized_cut
 
 
@@ -13,6 +12,11 @@ class GCN(torch.nn.Module):
 
     def forward(self, x, edge_index, edge_weight=None, batch=None):
         x = self.conv1(x=x, edge_index=edge_index, edge_weight=edge_weight)
+        x = self.conv2(x=x, edge_index=edge_index, edge_weight=edge_weight)
+        x = self.conv2(x=x, edge_index=edge_index, edge_weight=edge_weight)
+        x = self.conv2(x=x, edge_index=edge_index, edge_weight=edge_weight)
+        x = self.conv2(x=x, edge_index=edge_index, edge_weight=edge_weight)
+        x = self.conv2(x=x, edge_index=edge_index, edge_weight=edge_weight)
         x = self.conv2(x=x, edge_index=edge_index, edge_weight=edge_weight)
         cluster = pyg_nn.graclus(edge_index, edge_weight, x.size(0))
         x, batch = pyg_nn.pool.max_pool_x(cluster, x, batch)

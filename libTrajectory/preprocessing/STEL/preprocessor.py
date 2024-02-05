@@ -2,27 +2,30 @@ import logging
 import io
 import pandas as pd
 from geopy.distance import geodesic
-import torch
 
-# from pandarallel import pandarallel
-# pandarallel.initialize(nb_workers=48)
+from pandarallel import pandarallel
+pandarallel.initialize(nb_workers=48, progress_bar=True)
+
+data_path = "./libTrajectory/dataset/AIS/"
 
 
 class Preprocessor(object):
-    def __init__(self, path):
-        self.path = path
+    def __init__(self, data_path, test_path={}):
+        self.data_path = data_path
+        self.test_path = test_path
         self.data1 = None  # Active
         self.data2 = None  # Passive
 
         self.inter = 60 * 60 * 24  # 时间分割下的时间间隔阈值
-        self.dis = 1000 * 1000  # 空间划分下的空间距离阈值 单位m
-        self.sthre = 100  # 空间坐标系粒度中空间点个数阈值
-        self.tthre = 100  # 时间坐标系粒度中时间点个数阈值
+        self.dis = 100 * 1000  # 空间划分下的空间距离阈值 单位m
+        self.sthre = 1000  # 空间坐标系粒度中空间点个数阈值
+        self.tthre = 1000  # 时间坐标系粒度中时间点个数阈值
 
         logging.basicConfig(filename='example.logs')
-        logging.info(f"self.path = {self.path}, self.inter = {self.inter}, self.dis = {self.dis}, "
+        logging.info(f"self.path = {self.data_path}, self.inter = {self.inter}, self.dis = {self.dis}, "
                      f"self.sthre = {self.sthre}, self.tthre = {self.tthre}")
 
+    def run(self):
         self.loader()
         self.cleaner()
         # Active
@@ -36,7 +39,7 @@ class Preprocessor(object):
 
     def loader(self):
         logging.info("data loading...")
-        data = pd.read_csv(self.path, dtype={
+        data = pd.read_csv(self.data_path, dtype={
             'uid': str, 'tid': str, 'time': int, 'lat': float, 'lon': float, 'did': str,
             'm_time': int, 'm_lat': float, 'm_lon': float, 'm_did': str})
         self.data1 = data[['tid', 'time', 'lat', 'lon', 'did']].copy()
@@ -47,18 +50,27 @@ class Preprocessor(object):
         buffer = io.StringIO()
         self.data1.info(buf=buffer)
         logging.info(f"data1 info: {buffer.getvalue()}")
-
         buffer = io.StringIO()
         self.data2.info(buf=buffer)
         logging.info(f"data2 info: {buffer.getvalue()}")
+
+        self.test = {}
+        for k, v in self.test_path.items():
+            data = pd.read_csv(v, usecols=['tid'], dtype={'tid': str})
+            self.test[k] = data
+
         logging.info("data load completed")
 
     def cleaner(self):
         logging.info("data clean...")
         self.data1.dropna(inplace=True)
         self.data1.drop_duplicates(inplace=True)
+        self.data1['did'] = self.data1['did'].astype('category')
+
         self.data2.dropna(inplace=True)
         self.data2.drop_duplicates(inplace=True)
+        self.data2['did'] = self.data2['did'].astype('category')
+
         logging.info("data clean completed")
 
     def tseg(self):
@@ -68,8 +80,7 @@ class Preprocessor(object):
         t_len = t1 - t0
         t_size = int(t_len / self.inter)
         t_step = int(t_len / t_size)
-        logging.info(f"start time: {t0}, end time: {t1}, time length: {t_len}, "
-                     f"time interval: {self.inter}, num of time segment: {t_size}")
+        logging.info(f"start time: {t0}, end time: {t1}, time length: {t_len}, time interval: {self.inter}, num of time segment: {t_size}")
         t_lis = [t0]
         for _ in range(t_size):
             t_lis.append(int(t_lis[-1] + t_step))
@@ -77,6 +88,7 @@ class Preprocessor(object):
         self.t_lis = t_lis
 
         self.data1['tseg'] = self.data1['time'].map(lambda t: self._tsegf(t))
+        self.data1['tseg'] = self.data1['tseg'].astype('category')
         logging.info(f"data1 tseg unique length: {self.data1.tseg.unique().__len__()}")
 
         buffer = io.StringIO()
@@ -96,6 +108,9 @@ class Preprocessor(object):
     def scoor(self):
         logging.info("space coordinate...")
         tseg = self.data1.tseg.unique().tolist()
+        tseg.reverse()
+
+
 
         df_lis = []
         scoor = []  # [t, s, lat0, lat1, lon0, lon1]
@@ -112,7 +127,12 @@ class Preprocessor(object):
                 # update the cell name to which the point belongs
                 updf = df[df.scoor.isin(list(split_cell))].copy()  # 需要更新的数据
                 noupdf = df[~df.scoor.isin(list(split_cell))].copy()
-                updf['scoor'] = updf.apply(lambda row: self._scell(row.lat, row.lon, row.scoor), axis=1)
+
+                if updf.shape[0] > 2*1000:
+                    updf['scoor'] = updf.parallel_apply(lambda row: self._scell(row.lat, row.lon, row.scoor), axis=1)
+                else:
+                    updf['scoor'] = updf.apply(lambda row: self._scell(row.lat, row.lon, row.scoor), axis=1)
+
                 df = pd.concat([updf, noupdf])
                 # judge the points number of cell
                 split_cell = {cell: num for cell, num in df.scoor.value_counts().to_dict().items() if num > self.sthre}
@@ -124,7 +144,7 @@ class Preprocessor(object):
                 scoor.append([t, s, dic['lat0'], dic['lat1'], dic['lon0'], dic['lon1']])
 
         scoor = pd.DataFrame(data=scoor, columns=['tseg', 'scoor', 'lat0', 'lat1', 'lon0', 'lon1'])
-        scoor.to_csv('scoor.csv', index=False)
+        scoor.to_csv(f"{data_path}scoor.csv", index=False)
 
         self.data1 = pd.concat(df_lis)
         self.data1.sort_values(['time'], inplace=True)
@@ -133,6 +153,8 @@ class Preprocessor(object):
         self.data1.info(buf=buffer)
         logging.info(f"data1 info after space coordinate: {buffer.getvalue()}")
         logging.info("space coordinate completed")
+
+
 
     def _ssub(self, cell, latlon):
         lat = (latlon['lat0'] + latlon['lat1']) / 2
@@ -177,6 +199,7 @@ class Preprocessor(object):
 
         self.lat_lis, self.lon_lis = lat_lis, lon_lis
         self.data2['sseg'] = self.data2.apply(lambda row: self._ssegf(row.lat, row.lon), axis=1)
+        self.data2['sseg'] = self.data2['sseg'].astype('category')
         logging.info(f"data2 sseg unique length: {self.data2.sseg.unique().__len__()}")
 
         buffer = io.StringIO()
@@ -211,6 +234,7 @@ class Preprocessor(object):
     def tcoor(self):
         logging.info("time coordinate system...")
         sseg = self.data2.sseg.unique().tolist()
+        sseg.reverse()
 
         df_lis = []
         tcoor = []  # [s, t, t0, t1]
@@ -227,7 +251,12 @@ class Preprocessor(object):
                 #  update the cell name to which the point belongs
                 updf = df[df.tcoor.isin(list(split_cell))].copy()  # 需要更新的数据
                 noupdf = df[~df.tcoor.isin(list(split_cell))].copy()
-                updf['tcoor'] = updf.apply(lambda row: self._tcell(row.time, row.tcoor), axis=1)
+
+                if updf.shape[0] > 2*1000:
+                    updf['tcoor'] = updf.parallel_apply(lambda row: self._tcell(row.time, row.tcoor), axis=1)
+                else:
+                    updf['tcoor'] = updf.apply(lambda row: self._tcell(row.time, row.tcoor), axis=1)
+
                 df = pd.concat([updf, noupdf])
                 # "judge the points number of cell"
                 split_cell = {cell: num for cell, num in df.tcoor.value_counts().to_dict().items() if num > self.tthre}
@@ -239,7 +268,7 @@ class Preprocessor(object):
                 tcoor.append([s, t, dic['t0'], dic['t1']])
 
         tcoor = pd.DataFrame(data=tcoor, columns=['sseg', 'tcoor', 't0', 't1'])
-        tcoor.to_csv('tcoor.csv', index=False)
+        tcoor.to_csv(f"{data_path}tcoor.csv", index=False)
 
         self.data2 = pd.concat(df_lis)
         buffer = io.StringIO()
@@ -340,75 +369,52 @@ class Preprocessor(object):
         v = latv0 + lonv0
         return v
 
-    def _ts2ne(self, tid):
-        dft = self.data1.query(f"tid == '{tid}'").copy()
-        dft.sort_values(['time'], inplace=True)
-        dft.reset_index(drop=True, inplace=True)
-        # nodel
-        node = dft.tsvec.tolist()
-
-        # edge index and edge attribute
-        edge_ind = []
-        edge_attr = []
-        dfg = dft.groupby('tseg')
-        for _, sub_df in dfg:
-            if sub_df.shape[0] == 1:
-                break
-            # The spatial distance between two nodes
-            sub_df['ind0'] = sub_df.apply(lambda row: row.name, axis=1)
-            sub_df['latlon0'] = sub_df.apply(lambda row: (row.lat, row.lon), axis=1)
-            df0 = sub_df[['ind0', 'latlon0', 'scoor']].copy()
-            df1 = df0.copy()
-            df1.rename(columns={'ind0': 'ind1', 'latlon0': 'latlon1'}, inplace=True)
-            df = df0.merge(df1, how='outer', on='scoor')
-            df.drop_duplicates(subset=['ind0', 'ind1'], inplace=True)
-            if df.shape[0] == 0:
-                break
-            df['edge_ind'] = df.apply(lambda row: [row.ind0, row.ind1], axis=1)
-            for ind in df.edge_ind.tolist():
-                edge_ind.append(ind)
-            df['edge_attr'] = df.apply(lambda row: 1 / (geodesic(row.latlon0, row.latlon1).m + 0.01), axis=1)
-            for attr in df.edge_attr.tolist():
-                edge_attr.append(attr)
-
-        return [torch.tensor(node), torch.tensor(edge_ind), torch.tensor(edge_attr)]
-        
-    def _st2ne(self, tid):
-        dft = self.data2.query(f"tid == '{tid}'").copy()
-        dft.sort_values(['time'], inplace=True)                                                                        
-        dft.reset_index(drop=True, inplace=True)                                                                       
-        # nodel                                                                                                        
-        node = dft.stvec.tolist()
-        logging.info(f"node2={len(node[0])}")
-
-        # edge index and edge attribute
-        edge_ind = []                                                                                                  
-        edge_attr = []                                                                                                  
-        dfg = dft.groupby('sseg')                                                                                      
-        for _, sub_df in dfg:
-            if sub_df.shape[0] == 1:                                                                                   
-                break
-            # The time interval between two nodes
-            sub_df['ind0'] = sub_df.apply(lambda row: row.name, axis=1)
-            sub_df['time0'] = sub_df.apply(lambda row: row.time, axis=1)
-            df0 = sub_df[['ind0', 'time0', 'tcoor']].copy()
-            df1 = df0.copy()                                                                                           
-            df1.rename(columns={'ind0': 'ind1', 'time0': 'time1'}, inplace=True)
-
-            df = df0.merge(df1, how='outer', on='tcoor')
-            df.drop_duplicates(subset=['ind0', 'ind1'], inplace=True)
-            if df.shape[0] == 0:
-                break
-
-            df['edge_ind'] = df.apply(lambda row: [row.ind0, row.ind1], axis=1)
-            for ind in df.edge_ind.tolist():
-                edge_ind.append(ind)
-            df['edge_attr'] = df.apply(lambda row: 1 / (abs(row.time0 - row.time1) + 1), axis=1)
-            for attr in df.edge_attr.tolist():
-                edge_attr.append(attr)
-
-        return [torch.tensor(node), torch.tensor(edge_ind), torch.tensor(edge_attr)]
-
     def get(self):
-        # active、passive
-        return self.data1, self.ts_vec, self.data2, self.st_vec
+        if self.data1 is None:
+            dic1 = {'tid': str, 'time': int, 'lat': float, 'lon': float, 'did': str, 'tseg': int, 'scoor': str}
+            dic2 = {'tid': str, 'time': int, 'lat': float, 'lon': float, 'did': str, 'sseg': str, 'tcoor': str}
+            train_data1 = pd.read_csv(f"{data_path}train_data1.csv", dtype=dic1)
+            train_data2 = pd.read_csv(f"{data_path}train_data2.csv", dtype=dic2)
+            train = [train_data1, train_data2]
+            test_data = {}
+            for k in self.test_path:
+                data1 = pd.read_csv(f"{data_path}{k}_data1.csv", dtype=dic1)
+                data2 = pd.read_csv(f"{data_path}{k}_data2.csv", dtype=dic1)
+                test_data[k] = [data1, data2]
+
+            dicts = {'tseg': int, 'scoor': str, 'tv': str, 'sv': str, 'vector': str, 'tsid': str}
+            ts_vec = pd.read_csv(f"{data_path}ts_vec.csv", dtype=dicts)
+            ts_vec['vector'] = ts_vec['vector'].map(lambda v: eval(v))
+            dicst = {'sseg': str, 'tcoor': str, 'sv': str, 'tv': str, 'vector': str, 'stid': str}
+            st_vec = pd.read_csv(f"{data_path}st_vec.csv", dtype=dicst)
+            st_vec['vector'] = st_vec['vector'].map(lambda v: eval(v))
+            vector = [ts_vec, st_vec]
+
+        else:
+            # active、passive
+            test_tid = []
+            test_data = {}
+            for k, v in self.test.items():
+                tid = v.tid.unique().tolist()
+                test_tid += tid
+                data1 = self.data1.query(f"tid in {tid}").copy()
+                data1.reset_index(drop=True, inplace=True)
+                data1.to_csv(f"{data_path}{k}_data1.csv", index=False)
+                data2 = self.data2.query(f"tid in {tid}").copy()
+                data2.reset_index(drop=True, inplace=True)
+                data2.to_csv(f"{data_path}{k}_data2.csv", index=False)
+                test_data[k] = [data1, data2]
+
+            data1 = self.data1.query(f"tid not in {test_tid}").copy()
+            data1.reset_index(drop=True, inplace=True)
+            data1.to_csv(f"{data_path}train_data1.csv", index=False)
+            data2 = self.data2.query(f"tid not in {test_tid}").copy()
+            data2.reset_index(drop=True, inplace=True)
+            data2.to_csv(f"{data_path}train_data2.csv", index=False)
+            train = [data1, data2]
+
+            vector = [self.ts_vec, self.st_vec]
+            self.ts_vec.to_csv(f"{data_path}ts_vec.csv", index=False)
+            self.st_vec.to_csv(f"{data_path}st_vec.csv", index=False)
+
+        return train, test_data, vector

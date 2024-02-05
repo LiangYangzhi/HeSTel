@@ -18,12 +18,13 @@ class IdDataset(Dataset):
 
 
 class GraphDataset(Dataset):
-    def __init__(self, data1, ts_vec, data2, st_vec):
+    def __init__(self, data1, ts_vec, data2, st_vec, device):
         self.tid = data1.tid.unique().tolist()
         self.data1_group = data1.groupby('tid')
         self.ts_vec = ts_vec
         self.data2_group = data2.groupby('tid')
         self.st_vec = st_vec
+        self.device = device
 
     def __len__(self):
         return self.tid.__len__()
@@ -151,6 +152,16 @@ class GraphDataset(Dataset):
         g2_edge_ind = torch.tensor(g2_edge_ind, dtype=torch.long)
         g2_edge_attr = torch.tensor(g2_edge_attr)
         batch2 = torch.tensor(batch2, dtype=torch.long)
+
+        if 'cuda' in str(self.device):
+            g1_node = g1_node.to(device=self.device)
+            g1_edge_ind = g1_edge_ind.to(device=self.device)
+            g1_edge_attr = g1_edge_attr.to(device=self.device)
+            batch1 = batch1.to(device=self.device)
+            g2_node = g2_node.to(device=self.device)
+            g2_edge_ind = g2_edge_ind.to(device=self.device)
+            g2_edge_attr = g2_edge_attr.to(device=self.device)
+            batch2 = batch2.to(device=self.device)
 
         return g1_node, g1_edge_ind, g1_edge_attr, batch1, g2_node, g2_edge_ind, g2_edge_attr, batch2
 

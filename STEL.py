@@ -1,14 +1,23 @@
 import logging
 from libTrajectory.preprocessing.STEL.preprocessor import Preprocessor
-from libTrajectory.preprocessing.STEL.graphLoader import IdDataset, GraphDataset
 from libTrajectory.executor.STEL import Executor
 
 
+log_path = "./libTrajectory/logs/STEL/"
+data_path = "./libTrajectory/dataset/AIS/"
+
+
 def pipeline():
-    logging.basicConfig(filename='./libTrajectory/logs/STEL/example.log',
-                        format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
-    preprocessor = Preprocessor("./libTrajectory/dataset/AIS/test10.csv")
-    # tid : 用户标识，tid1与tid2相同则为正样本，否则为负样本
-    data1, ts_vec, data2, st_vec = preprocessor.get()
+    logging.basicConfig(filename=f'{log_path}preprocess.log', format='%(asctime)s - %(levelname)s - %(message)s',
+                        level=logging.INFO)
+    preprocessor = Preprocessor(f"{data_path}multiA.csv",
+                                {"test1": f"{data_path}test1K.csv", "test2": f"{data_path}test3K.csv"})
+    preprocessor.run()  #
+    # tid : 轨迹标识，tid1与tid2相同则为正样本，否则为负样本
+    train_data, test_data, vector = preprocessor.get()
     executor = Executor()
-    executor.train(data1, ts_vec, data2, st_vec)
+    executor.train(train_data, vector)
+
+
+if __name__ == "__main__":
+    pipeline()
