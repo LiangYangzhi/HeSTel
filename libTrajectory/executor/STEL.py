@@ -18,7 +18,7 @@ class Executor(object):
         self.device = torch.device(f"cuda:{gpu_id}" if torch.cuda.is_available() else "cpu")
         logging.info(f"device: {self.device}")
 
-    def train(self, train_data, vector, out_dim1=128, out_dim2=128, epoch_num=5, batch_size=64, num_workers=12):
+    def train(self, train_data, vector, out_dim1=128, out_dim2=128, epoch_num=5, batch_size=128, num_workers=12):
         logging.info(f"train")
         logging.info(f"epoch_num={epoch_num}, batch_size={batch_size}, num_workers={num_workers}")
         data1, data2 = train_data

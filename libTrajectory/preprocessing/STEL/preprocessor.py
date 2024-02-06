@@ -9,16 +9,20 @@ pandarallel.initialize(nb_workers=48)
 data_path = "./libTrajectory/dataset/AIS/"
 
 
-class TsegScoor(object):
-    def __init__(self, data, tseg, coor, sthre):
+class Scoor(object):
+    def __init__(self, data, tseg):
         self.data = data
         self.tseg = tseg
-        self.coor = coor
-        self.sthre = sthre
-        self.scoor = []
+        self.sthre = 1000  # 空间坐标系粒度中空间点个数阈值
+
+        logging.info(f"时间分割编号={tseg}, data shape={self.data.shape}, self.sthre = {self.sthre}")
         self.run()
 
     def run(self):
+        self.data.loc[:, 'scoor'] = ''  # 初始化
+        self.coor = {'': {"lat0": self.data.lat.min(), "lat1": self.data.lat.max(),
+                          "lon0": self.data.lon.min(), "lon1": self.data.lon.max()}}
+        self.scoor = []  # 存放最终空间坐标系
         split_cell = ['']
         while True:
             for cell in split_cell:
@@ -27,12 +31,7 @@ class TsegScoor(object):
             # update the cell name to which the point belongs
             updf = self.data[self.data.scoor.isin(list(split_cell))].copy()  # 需要更新的数据
             noupdf = self.data[~self.data.scoor.isin(list(split_cell))].copy()
-
-            if updf.shape[0] > 2 * 1000:
-                updf['scoor'] = updf.parallel_apply(lambda row: self._scell(row.lat, row.lon, row.scoor), axis=1)
-            else:
-                updf['scoor'] = updf.apply(lambda row: self._scell(row.lat, row.lon, row.scoor), axis=1)
-
+            updf['scoor'] = updf.apply(lambda row: self._scell(row.lat, row.lon, row.scoor), axis=1)
             self.data = pd.concat([updf, noupdf])
             # judge the points number of cell
             split_cell = {cell: num for cell, num in self.data.scoor.value_counts().to_dict().items() if num > self.sthre}
@@ -59,19 +58,22 @@ class TsegScoor(object):
         raise logging.critical(f"current cell is {cell}, cell_latlon: {coor}, point={(lat, lon)} no find 4split cell")
 
     def get(self):
-        return self.data, self.scoor
+        return [self.data, self.scoor]
 
 
-class SsegTcoor(object):
-    def __init__(self, data, sseg, coor, tthre):
+class Tcoor(object):
+    def __init__(self, data, sseg):
         self.data = data
         self.sseg = sseg
-        self.coor = coor
-        self.tthre = tthre
-        self.tcoor = []
+        self.tthre = 1000  # 时间坐标系粒度中时间点个数阈值
+
+        logging.info(f"空间分割编号={sseg}, data shape={self.data.shape}, self.tthre = {self.tthre}")
         self.run()
 
     def run(self):
+        self.data.loc[:, 'tcoor'] = ''  # 初始化
+        self.coor = {'': {"t0": self.data.time.min(), "t1": self.data.time.max()}}
+        self.tcoor = []
         split_cell = ['']
         while True:
             for cell in split_cell:
@@ -80,12 +82,7 @@ class SsegTcoor(object):
             #  update the cell name to which the point belongs
             updf = self.data[self.data.tcoor.isin(list(split_cell))].copy()  # 需要更新的数据
             noupdf = self.data[~self.data.tcoor.isin(list(split_cell))].copy()
-
-            if updf.shape[0] > 2 * 1000:
-                updf['tcoor'] = updf.parallel_apply(lambda row: self._tcell(row.time, row.tcoor), axis=1)
-            else:
-                updf['tcoor'] = updf.apply(lambda row: self._tcell(row.time, row.tcoor), axis=1)
-
+            updf['tcoor'] = updf.apply(lambda row: self._tcell(row.time, row.tcoor), axis=1)
             self.data = pd.concat([updf, noupdf])
             # "judge the points number of cell"
             split_cell = {cell: num for cell, num in self.data.tcoor.value_counts().to_dict().items() if num > self.tthre}
@@ -115,7 +112,7 @@ class SsegTcoor(object):
         raise logging.info(f"current cell is {cell}, cell_t01: {t01}, current point t={t} no find 4split cell")
 
     def get(self):
-        return self.data, self.tcoor
+        return [self.data, self.tcoor]
 
 
 class Preprocessor(object):
@@ -124,15 +121,10 @@ class Preprocessor(object):
         self.test_path = test_path
         self.data1 = None  # Active
         self.data2 = None  # Passive
-
         self.inter = 60 * 60 * 24  # 时间分割下的时间间隔阈值
         self.dis = 100 * 1000  # 空间划分下的空间距离阈值 单位m
-        self.sthre = 1000  # 空间坐标系粒度中空间点个数阈值
-        self.tthre = 1000  # 时间坐标系粒度中时间点个数阈值
 
-        logging.basicConfig(filename='example.logs')
-        logging.info(f"self.path = {self.data_path}, self.inter = {self.inter}, self.dis = {self.dis}, "
-                     f"self.sthre = {self.sthre}, self.tthre = {self.tthre}")
+        logging.info(f"self.path = {self.data_path}, self.inter = {self.inter}, self.dis = {self.dis}")
 
     def run(self):
         self.loader()
@@ -174,8 +166,10 @@ class Preprocessor(object):
         logging.info("data clean...")
         self.data1.dropna(inplace=True)
         self.data1.drop_duplicates(inplace=True)
+        self.data1.sort_values(['time'], inplace=True)
         self.data2.dropna(inplace=True)
         self.data2.drop_duplicates(inplace=True)
+        self.data2.sort_values(['time'], inplace=True)
         logging.info("data clean completed")
 
     def tseg(self):
@@ -213,7 +207,8 @@ class Preprocessor(object):
         logging.info("space coordinate...")
         tseg = self.data1[['tseg']].copy()
         tseg.drop_duplicates(inplace=True)
-        tseg['df_scoor'] = tseg['tseg'].parallel_map(lambda t: self._tseg_scoor(t))  # parallel_map
+        tseg['df'] = tseg['tseg'].map(lambda t: self.data1.query(f"tseg == {t}").copy())
+        tseg['df_scoor'] = tseg.parallel_apply(lambda row: Scoor(row.df, row.tseg).get(), axis=1)  # parallel_apply
         tseg['df'] = tseg['df_scoor'].map(lambda i: i[0])
         tseg['scoor'] = tseg['df_scoor'].map(lambda i: i[1])
 
@@ -228,15 +223,6 @@ class Preprocessor(object):
         self.data1.info(buf=buffer)
         logging.info(f"data1 info after space coordinate: {buffer.getvalue()}")
         logging.info("space coordinate completed")
-
-    def _tseg_scoor(self, tseg):
-        df = self.data1.query(f"tseg == {tseg}").copy()
-        logging.info(f"时间分割编号={tseg}, data shape={df.shape}")
-        df.loc[:, 'scoor'] = ''  # 初始化
-        coor = {'': {"lat0": df.lat.min(), "lat1": df.lat.max(), "lon0": df.lon.min(), "lon1": df.lon.max()}}
-        scoorFlag = TsegScoor(df, tseg, coor, self.sthre)
-        df, scoor = scoorFlag.get()
-        return [df, scoor]
 
     def sseg(self):
         logging.info("space segment...")
@@ -299,7 +285,8 @@ class Preprocessor(object):
         logging.info("time coordinate...")
         sseg = self.data2[['sseg']].copy()
         sseg.drop_duplicates(inplace=True)
-        sseg['df_tcoor'] = sseg['sseg'].parallel_map(lambda s: self._sseg_tcoor(s))  # parallel_map
+        sseg['df'] = sseg['sseg'].map(lambda s: self.data2.query(f"sseg == '{s}'").copy())
+        sseg['df_tcoor'] = sseg.parallel_apply(lambda row: Tcoor(row.df, row.sseg).get(), axis=1)  # parallel_apply
         sseg['df'] = sseg['df_tcoor'].map(lambda i: i[0])
         sseg['tcoor'] = sseg['df_tcoor'].map(lambda i: i[1])
 
@@ -312,15 +299,6 @@ class Preprocessor(object):
         self.data2.info(buf=buffer)
         logging.info(f"data2 info after time coordinate: {buffer.getvalue()}")
         logging.info("time coordinate system completed")
-
-    def _sseg_tcoor(self, sseg):
-        df = self.data2.query(f"sseg == '{sseg}'").copy()
-        logging.info(f"空间分割编号={sseg}, data shape={df.shape}")
-        df.loc[:, 'tcoor'] = ''  # 初始化
-        coor = {'': {"t0": df.time.min(), "t1": df.time.max()}}
-        tcoorFlag = SsegTcoor(df, sseg, coor, self.tthre)
-        df, tcoor = tcoorFlag.get()
-        return [df, tcoor]
 
     def ts2vector(self):
         logging.info("time segment and space coordinate --> vector...")
