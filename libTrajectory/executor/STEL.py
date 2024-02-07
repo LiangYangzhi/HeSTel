@@ -18,7 +18,7 @@ class Executor(object):
         self.device = torch.device(f"cuda:{gpu_id}" if torch.cuda.is_available() else "cpu")
         logging.info(f"device: {self.device}")
 
-    def train(self, train_data, vector, out_dim1=128, out_dim2=128, epoch_num=5, batch_size=128, num_workers=12):
+    def train(self, train_data, vector, out_dim1=128, out_dim2=128, epoch_num=5, batch_size=3, num_workers=0):
         logging.info(f"train")
         logging.info(f"epoch_num={epoch_num}, batch_size={batch_size}, num_workers={num_workers}")
         data1, data2 = train_data
@@ -49,9 +49,12 @@ class Executor(object):
             for batch_tid in data_loader:  # 每个批次循环
                 (g1_node, g1_edge_ind, g1_edge_attr, batch1,
                  g2_node, g2_edge_ind, g2_edge_attr, batch2) = graph_data[batch_tid]
+                logging.info('batch data 已经获取')
                 # 前向传播
                 g1 = model1(g1_node, g1_edge_ind, g1_edge_attr, batch1)
+                logging.info('model1 前向传播结束')
                 g2 = model2(g2_node, g2_edge_ind, g2_edge_attr, batch2)
+                logging.info('model2 前向传播结束')
                 # 计算损失
                 labels = torch.arange(len(g1)) != torch.arange(len(g2)).view(-1, 1)
                 cosine_sim = F.cosine_similarity(g1.unsqueeze(1), g2.unsqueeze(0), dim=2)

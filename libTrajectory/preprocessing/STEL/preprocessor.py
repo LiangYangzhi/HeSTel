@@ -384,7 +384,7 @@ class Preprocessor(object):
             test_data = {}
             for k in self.test_path:
                 data1 = pd.read_csv(f"{data_path}{k}_data1.csv", dtype=dic1)
-                data2 = pd.read_csv(f"{data_path}{k}_data2.csv", dtype=dic1)
+                data2 = pd.read_csv(f"{data_path}{k}_data2.csv", dtype=dic2)
                 test_data[k] = [data1, data2]
 
             dicts = {'tseg': int, 'scoor': str, 'tv': str, 'sv': str, 'vector': str, 'tsid': str}
