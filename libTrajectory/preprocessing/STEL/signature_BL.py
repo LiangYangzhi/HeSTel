@@ -76,16 +76,15 @@ class Preprocessor(Pre):
         test_data = {}
         for k, tid in self.test_data.items():
             logging.info(f"{k}, data1--->sequential vector....")
-            test1 = group1[group1['tid'].isin(tid)]
+            test1 = group1[group1['tid'].isin(tid)].copy()
             test1['seq'] = test1.index.map(lambda i: normalize([reduced_matrix[i]], 'l2'))
 
             logging.info(f"{k}, data2--->sequential vector....")
-            test2 = group2[group2['tid'].isin(tid)]
+            test2 = group2[group2['tid'].isin(tid)].copy()
             test2['seq'] = test2.index.map(lambda i: normalize([reduced_matrix[i]], 'l2'))
 
             embedding1, embedding2 = self._vector_format(test1, test2, name='seq')
             test_data[k] = [embedding1, embedding2]
-        print(embedding1)
         return test_data
 
     def _deal_tem(self, data: pd.DataFrame):
@@ -133,6 +132,7 @@ class Preprocessor(Pre):
         group = pd.concat([group1, group2])
         group.reset_index(drop=True, inplace=True)
 
+        logging.info("spatial fit transform...")
         vectorizer = TfidfVectorizer()
         matrix = vectorizer.fit_transform(group['point'])
         logging.info(f"data spatial matrix shape {matrix.shape}")
@@ -142,18 +142,16 @@ class Preprocessor(Pre):
         logging.info(f"perform SVD dimensionality reduction after data shape: {reduced_matrix.shape}")
 
         test_data = {}
-        for k, v in self.test_data.items():
+        for k, tid in self.test_data.items():
             logging.info(f"{k}, data1--->spatial vector....")
-            group1 = self._deal_seq(v[0])
-            group1['spatial'] = group1.index.map(lambda i: normalize([reduced_matrix[i]], 'l2'))
-            vector1 = group1[['tid', 'spatial']]
+            test1 = group1[group1['tid'].isin(tid)].copy()
+            test1['spatial'] = test1.index.map(lambda i: normalize([reduced_matrix[i]], 'l2'))
 
             logging.info(f"{k}, data2--->spatial vector....")
-            group2 = self._deal_seq(v[1])
-            group2['spatial'] = group2.index.map(lambda i: normalize([reduced_matrix[i]], 'l2'))
-            vector2 = group2[['tid', 'spatial']]
+            test2 = group2[group2['tid'].isin(tid)].copy()
+            test2['spatial'] = test2.index.map(lambda i: normalize([reduced_matrix[i]], 'l2'))
 
-            embedding1, embedding2 = self._vector_format(vector1, vector2, name='spatial')
+            embedding1, embedding2 = self._vector_format(test1, test2, name='spatial')
             test_data[k] = [embedding1, embedding2]
         return test_data
 
@@ -183,17 +181,15 @@ class Preprocessor(Pre):
         logging.info(f"perform SVD dimensionality reduction after data shape: {reduced_matrix.shape}")
 
         test_data = {}
-        for k, v in self.test_data.items():
+        for k, tid in self.test_data.items():
             logging.info(f"{k}, data1--->spatiotemporal vector....")
-            group1 = self._deal_seq(v[0])
-            group1['st'] = group1.index.map(lambda i: normalize([reduced_matrix[i]], 'l2'))
-            vector1 = group1[['tid', 'st']]
+            test1 = group1[group1['tid'].isin(tid)].copy()
+            test1['st'] = test1.index.map(lambda i: normalize([reduced_matrix[i]], 'l2'))
 
             logging.info(f"{k}, data2--->spatiotemporal vector....")
-            group2 = self._deal_seq(v[1])
-            group2['st'] = group2.index.map(lambda i: normalize([reduced_matrix[i]], 'l2'))
-            vector2 = group2[['tid', 'st']]
+            test2 = group2[group2['tid'].isin(tid)].copy()
+            test2['st'] = test2.index.map(lambda i: normalize([reduced_matrix[i]], 'l2'))
 
-            embedding1, embedding2 = self._vector_format(vector1, vector2, name='st')
+            embedding1, embedding2 = self._vector_format(test1, test2, name='st')
             test_data[k] = [embedding1, embedding2]
         return test_data

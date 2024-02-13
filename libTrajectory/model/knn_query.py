@@ -1,6 +1,7 @@
 import logging
 
 import numpy as np
+import pandas as pd
 from pyemd import emd
 from sklearn.neighbors import KNeighborsRegressor
 
@@ -25,5 +26,20 @@ def knn_query(vector1, vector2, distance='dot', k=5):
     user_labels = np.arange(len(vector1))
     knn_model.fit(vector1, user_labels)
     distances, indices = knn_model.kneighbors(vector2, return_distance=True)
+    print(indices)
 
+    result = []
+    for i, arr in enumerate(indices):
+        try:
+            result.append(np.where(arr == i)[0][0])
+        except IndexError:
+            result.append(k+1)
+    result = pd.DataFrame(data=result, columns=['rank'])
+    total = len(result)
+    for i in range(k):
+        score = len(result[result['rank'] <= i])
+        logging.info(f"top{i+1}={score}/{total}={round(score/total, 6)}")
+
+    distances = pd.DataFrame(data=distances, columns=[f"dis{i}" for i in range(1, k + 1)])
+    indices = pd.DataFrame(data=indices, columns=[f"rank{i}" for i in range(1, k+1)])
     return distances, indices

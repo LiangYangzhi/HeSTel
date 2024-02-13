@@ -14,10 +14,15 @@ def pipeline():
                                 {"test1": f"{data_path}sample10.csv", "test2": f"{data_path}sample30.csv"})
     test_data = preprocessor.sequential()
     for k, v in test_data.items():
-        print(k)
+        logging.info(f"{k}")
         v1, v2 = v
         distances, indices = knn_query(v1, v2)
-        print(distances, indices)
+
+    test_data = preprocessor.temporal()
+    for k, v in test_data.items():
+        logging.info(f"{k}")
+        v1, v2 = v
+        distances, indices = knn_query(v1, v2)
 
 
 if __name__ == "__main__":
