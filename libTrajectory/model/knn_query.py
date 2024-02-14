@@ -27,6 +27,7 @@ def knn_query(vector1, vector2, distance='dot', k=5):
     knn_model.fit(vector1, user_labels)
     distances, indices = knn_model.kneighbors(vector2, return_distance=True)
     print(indices)
+    print('*'*100)
 
     result = []
     for i, arr in enumerate(indices):

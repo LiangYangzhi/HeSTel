@@ -16,6 +16,8 @@ spatiotemporal similarity: dot product
 base knn query
 """
 import logging
+from datetime import datetime
+
 import numpy as np
 import pandas as pd
 from sklearn.decomposition import TruncatedSVD
@@ -34,7 +36,7 @@ class Preprocessor(Pre):
 
         self.test_data = {}
         for k, v in self.test_path.items():
-            tid = pd.read_csv(f"{v}", dtype={'tid': str}).tid.unique().tolist()
+            tid = pd.read_csv(f"{v}", dtype={'tid': str, 'time': int}).tid.unique().tolist()
             self.test_data[k] = tid
 
     def _vector_format(self, v1, v2, name):
@@ -91,28 +93,28 @@ class Preprocessor(Pre):
         def time_interval(lis):
             v = [0 for _ in range(24)]
             for i in lis:
-                v[i] += 1
+                h = datetime.fromtimestamp(i).hour
+                v[h] += 1
             v = np.array(v, dtype=np.float64)
             v_l1 = normalize([v], 'l1')
             return v_l1
 
-        data['tem'] = data['time'].map(lambda t: t // self.inter)  # parallel_map
-        data['tem'] = data['tem'].astype(int)
-        group = data.groupby("tid", as_index=False).agg({"tem": list})
-        group['tem'] = group['tem'].map(time_interval)  # parallel_map
-        vector = group[['tid', 'tem']]
-        return vector
+        group = data.groupby("tid", as_index=False).agg({"time": list})
+        group['tem'] = group['time'].map(time_interval)  # parallel_map
+        return group
 
     def temporal(self):
         logging.info(f"temporal signature, time interval={self.inter}...")
         test_data = {}
-        for k, v in self.test_data.items():
+        for k, tid in self.test_data.items():
             logging.info(f"{k}, data1--->temporal vector....")
-            vector1 = self._deal_tem(v[0])
+            test1 = self.data1[self.data1['tid'].isin(tid)].copy()
+            test1 = self._deal_tem(test1)
             logging.info(f"{k}, data2--->temporal vector....")
-            vector2 = self._deal_tem(v[1])
+            test2 = self.data2[self.data2['tid'].isin(tid)].copy()
+            test2 = self._deal_tem(test2)
 
-            embedding1, embedding2 = self._vector_format(vector1, vector2, name='tem')
+            embedding1, embedding2 = self._vector_format(test1, test2, name='tem')
             test_data[k] = [embedding1, embedding2]
         return test_data
 
