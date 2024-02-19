@@ -19,15 +19,13 @@ def emd_distance(vector1, vector2):
     return distance
 
 
-def knn_query(vector1, vector2, distance='dot', k=5):
+def knn_query(vector1, vector2, distance='dot', k=10):
     distance_def = {"dot": dot_distance, "emd": emd_distance}
     logging.info(f"k = {k}")
     knn_model = KNeighborsRegressor(n_neighbors=k, metric=distance_def[distance])
     user_labels = np.arange(len(vector1))
     knn_model.fit(vector1, user_labels)
     distances, indices = knn_model.kneighbors(vector2, return_distance=True)
-    print(indices)
-    print('*'*100)
 
     result = []
     for i, arr in enumerate(indices):

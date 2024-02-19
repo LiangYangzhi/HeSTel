@@ -464,18 +464,18 @@ class ProTra(object):
         return {"m_time": 0, "m_lat": center[0], "m_lon": center[1], "m_did": f"{lati}-{lonj}"}
 
     def test_data(self):
-        # df = pd.read_csv("./multiA.csv", dtype={
-        #     'uid': str, 'tid': str, 'time': int, 'lat': float, 'lon': float, 'did': str,
-        #     'm_time': int, 'm_lat': float, 'm_lon': float, 'm_did': str})
-        # tid = random.sample(df.tid.unique().tolist(), 4000)
-        # tid1 = tid[:1000]
-        # print(tid1.__len__())
-        # tid2 = tid[1000:]
-        # print(tid2.__len__())
-        # test1k = df.query(f"tid in {tid1}")
-        # test1k.to_csv("test1K.csv", index=False)
-        # test3k = df.query(f"tid in {tid2}")
-        # test3k.to_csv("test3K.csv", index=False)
+        df = pd.read_csv("./multiA.csv", dtype={
+            'uid': str, 'tid': str, 'time': int, 'lat': float, 'lon': float, 'did': str,
+            'm_time': int, 'm_lat': float, 'm_lon': float, 'm_did': str})
+        tid = random.sample(df.tid.unique().tolist(), 4000)
+        tid1 = tid[:1000]
+        print(tid1.__len__())
+        tid2 = tid[1000:]
+        print(tid2.__len__())
+        test1k = df.query(f"tid in {tid1}")
+        test1k.to_csv("test1K.csv", index=False)
+        test3k = df.query(f"tid in {tid2}")
+        test3k.to_csv("test3K.csv", index=False)
 
         df = pd.read_csv("./test1K.csv", dtype={
             'uid': str, 'tid': str, 'time': int, 'lat': float, 'lon': float, 'did': str,
@@ -484,12 +484,13 @@ class ProTra(object):
         sample = df.query(f"tid in {tid}")
         sample.to_csv("sample100.csv", index=False)
         tid10 = tid[:10]
+        print(tid10.__len__())
         sample10 = df.query(f"tid in {tid10}")
         sample10.to_csv("sample10.csv", index=False)
-        tid30 = tid[10:30]
+        tid30 = tid[10:40]
+        print(tid30.__len__())
         sample30 = df.query(f"tid in {tid30}")
         sample30.to_csv("sample30.csv", index=False)
-
 
     def run(self):
         # self.cols()

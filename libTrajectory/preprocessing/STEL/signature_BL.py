@@ -4,7 +4,7 @@
 signature
 sequential signature：时空点作为词，grams设置为2，进行TF-IDF提取向量并进行L2 normalization
 temporal signature：一天中的1h作为时间间隔，统计在每个时间间隔内出现的频率并进行L1 normalization
-spatial signature：空间点作为词，进行TF-IDF提取向量进行L2 normalization
+spatial signature：空间点作为词，进行TF-IDF提取向量进行L2 normalizations
 spatiotemporal signature：时间间隔+空间点作为词，进行TF-IDF提取向量进行L2 normalization。
 
 similarity
@@ -26,6 +26,8 @@ from sklearn.preprocessing import normalize
 from nltk import ngrams
 from libTrajectory.preprocessing.STEL.preprocessor import Preprocessor as Pre
 
+log_path = "./libTrajectory/logs/STEL_BL/"
+
 
 class Preprocessor(Pre):
     def __init__(self, data_path, test_path={}):
@@ -45,7 +47,7 @@ class Preprocessor(Pre):
         e2 = []
         for i in tid:
             e1.append(v1[v1['tid'] == i][name].values[0][0])
-            e2.append(v2[v1['tid'] == i][name].values[0][0])
+            e2.append(v2[v2['tid'] == i][name].values[0][0])
         e1 = np.array(e1)
         e2 = np.array(e2)
         return e1, e2
@@ -61,10 +63,16 @@ class Preprocessor(Pre):
         logging.info("sequential signature...")
         logging.info("data1 sequential...")
         group1 = self._deal_seq(self.data1)
+        group1['data'] = 'data1'
         logging.info("data2 sequential...")
         group2 = self._deal_seq(self.data2)
+        group2['data'] = 'data2'
         group = pd.concat([group1, group2])
         group.reset_index(drop=True, inplace=True)
+        group1 = group[group['data'] == 'data1']
+        group1 = group1.drop(columns=['data'])
+        group2 = group[group['data'] == 'data2']
+        group2 = group2.drop(columns=['data'])
 
         logging.info("sequential fit transform...")
         vectorizer = TfidfVectorizer()
@@ -86,6 +94,8 @@ class Preprocessor(Pre):
             test2['seq'] = test2.index.map(lambda i: normalize([reduced_matrix[i]], 'l2'))
 
             embedding1, embedding2 = self._vector_format(test1, test2, name='seq')
+            np.save(f'{log_path}/sequential_{self.test_path[k].split("/")[-1]}_embedding1.npy', embedding1)
+            np.save(f'{log_path}/sequential_{self.test_path[k].split("/")[-1]}_embedding2.npy', embedding2)
             test_data[k] = [embedding1, embedding2]
         return test_data
 
@@ -93,8 +103,9 @@ class Preprocessor(Pre):
         def time_interval(lis):
             v = [0 for _ in range(24)]
             for i in lis:
-                h = datetime.fromtimestamp(i).hour
-                v[h] += 1
+                t_tuple = datetime.fromtimestamp(i)
+                hour = t_tuple.hour
+                v[hour] += 1
             v = np.array(v, dtype=np.float64)
             v_l1 = normalize([v], 'l1')
             return v_l1
@@ -105,6 +116,10 @@ class Preprocessor(Pre):
 
     def temporal(self):
         logging.info(f"temporal signature, time interval={self.inter}...")
+        # t0 = min([self.data1.time.min(), self.data2.time.min()])
+        # self.t0 = datetime.fromtimestamp(t0).day
+        # t1 = max([self.data1.time.max(), self.data2.time.max()])
+        # self.t1 = datetime.fromtimestamp(t1).day
         test_data = {}
         for k, tid in self.test_data.items():
             logging.info(f"{k}, data1--->temporal vector....")
@@ -115,6 +130,8 @@ class Preprocessor(Pre):
             test2 = self._deal_tem(test2)
 
             embedding1, embedding2 = self._vector_format(test1, test2, name='tem')
+            np.save(f'{log_path}/temporal_{self.test_path[k].split("/")[-1]}_embedding1.npy', embedding1)
+            np.save(f'{log_path}/temporal_{self.test_path[k].split("/")[-1]}_embedding2.npy', embedding2)
             test_data[k] = [embedding1, embedding2]
         return test_data
 
@@ -129,10 +146,17 @@ class Preprocessor(Pre):
         logging.info(f"spatial signature...")
         logging.info("data1 spatial...")
         group1 = self._deal_spa(self.data1)
+        group1['data'] = 'data1'
         logging.info("data2 spatial...")
         group2 = self._deal_spa(self.data2)
+        group2['data'] = 'data2'
         group = pd.concat([group1, group2])
         group.reset_index(drop=True, inplace=True)
+
+        group1 = group[group['data'] == 'data1']
+        group1 = group1.drop(columns=['data'])
+        group2 = group[group['data'] == 'data2']
+        group2 = group2.drop(columns=['data'])
 
         logging.info("spatial fit transform...")
         vectorizer = TfidfVectorizer()
@@ -154,6 +178,8 @@ class Preprocessor(Pre):
             test2['spatial'] = test2.index.map(lambda i: normalize([reduced_matrix[i]], 'l2'))
 
             embedding1, embedding2 = self._vector_format(test1, test2, name='spatial')
+            np.save(f'{log_path}/spatial_{self.test_path[k].split("/")[-1]}_embedding1.npy', embedding1)
+            np.save(f'{log_path}/spatial_{self.test_path[k].split("/")[-1]}_embedding2.npy', embedding2)
             test_data[k] = [embedding1, embedding2]
         return test_data
 
@@ -169,10 +195,17 @@ class Preprocessor(Pre):
         logging.info(f"spatiotemporal signature...")
         logging.info("data1 spatiotemporal...")
         group1 = self._deal_st(self.data1)
+        group1['data'] = 'data1'
         logging.info("data2 spatiotemporal...")
         group2 = self._deal_st(self.data2)
+        group2['data'] = 'data2'
         group = pd.concat([group1, group2])
         group.reset_index(drop=True, inplace=True)
+
+        group1 = group[group['data'] == 'data1']
+        group1 = group1.drop(columns=['data'])
+        group2 = group[group['data'] == 'data2']
+        group2 = group2.drop(columns=['data'])
 
         vectorizer = TfidfVectorizer()
         matrix = vectorizer.fit_transform(group['st'])
@@ -193,5 +226,7 @@ class Preprocessor(Pre):
             test2['st'] = test2.index.map(lambda i: normalize([reduced_matrix[i]], 'l2'))
 
             embedding1, embedding2 = self._vector_format(test1, test2, name='st')
+            np.save(f'{log_path}/spatiotemporal_{self.test_path[k].split("/")[-1]}_embedding1.npy', embedding1)
+            np.save(f'{log_path}/spatiotemporal_{self.test_path[k].split("/")[-1]}_embedding2.npy', embedding2)
             test_data[k] = [embedding1, embedding2]
         return test_data
