@@ -1,5 +1,3 @@
-import logging
-
 import torch_geometric.nn as pyg_nn
 import torch
 from torch_geometric.utils import normalized_cut
@@ -20,11 +18,8 @@ class GCN(torch.nn.Module):
         x = self.conv2(x=x, edge_index=edge_index, edge_weight=edge_weight)
         x = self.conv2(x=x, edge_index=edge_index, edge_weight=edge_weight)
         x = self.conv2(x=x, edge_index=edge_index, edge_weight=edge_weight)
-        logging.info('1')
         cluster = pyg_nn.pool.graclus(edge_index, edge_weight, x.size(0))
-        logging.info('2')
         x, batch = pyg_nn.pool.max_pool_x(cluster, x, batch)
-        logging.info('3')
 
         entity = []  # 节点平均值作为实体表示
         for i in torch.unique(batch):
@@ -35,5 +30,4 @@ class GCN(torch.nn.Module):
                 node = x[ind[0][0]: ind[0][1], :]
                 node = node.mean(dim=0, keepdim=True)[0]
             entity.append(node)
-        logging.info('4')
         return torch.stack(entity)

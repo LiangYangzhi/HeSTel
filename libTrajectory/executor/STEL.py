@@ -12,17 +12,18 @@ log_path = "./libTrajectory/logs/STEL/"
 
 
 class Executor(object):
-    def __init__(self):
-        logging.info(f"Executor")
+    def __init__(self, tsid_counts, stid_counts):
+        self.tsid_counts = tsid_counts
+        self.stid_counts = stid_counts
+        logging.info(f"Executor...")
         gpu_id = 1
         self.device = torch.device(f"cuda:{gpu_id}" if torch.cuda.is_available() else "cpu")
         logging.info(f"device: {self.device}")
 
-    def train(self, train_data, vector, out_dim1=128, out_dim2=128, epoch_num=5, batch_size=3, num_workers=0):
+    def train(self, train_data, ts_vec, st_vec, out_dim1=128, out_dim2=128, epoch_num=5, batch_size=3, num_workers=0):
         logging.info(f"train")
         logging.info(f"epoch_num={epoch_num}, batch_size={batch_size}, num_workers={num_workers}")
         data1, data2 = train_data
-        ts_vec, st_vec = vector
         index_set = IdDataset(data1)
         graph_data = GraphDataset(data1, ts_vec, data2, st_vec, self.device)
         data_loader = DataLoader(index_set, batch_size=batch_size, shuffle=True, num_workers=num_workers)
@@ -78,9 +79,8 @@ class Executor(object):
         torch.save(model1.state_dict(), f'{log_path}model1_parameter.pth')
         torch.save(model2.state_dict(), f'{log_path}model2_parameter.pth')
 
-    def infer(self, test_data, vector, in_dim1, out_dim1, in_dim2, out_dim2, parameter1, parameter2):
+    def infer(self, test_data, ts_vec, st_vec, in_dim1, out_dim1, in_dim2, out_dim2, parameter1, parameter2):
         logging.info(f"test")
-        ts_vec, st_vec = vector
 
         state_dict1 = torch.load(f'{log_path}{parameter1}')
         model1 = GCN(in_dim=in_dim1, out_dim=out_dim1).to(self.device)

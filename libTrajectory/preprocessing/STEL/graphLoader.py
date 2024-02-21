@@ -1,4 +1,3 @@
-import logging
 from geopy.distance import geodesic
 import torch
 from torch.utils.data import DataLoader, Dataset

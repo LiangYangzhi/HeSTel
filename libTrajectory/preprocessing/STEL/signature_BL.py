@@ -79,23 +79,23 @@ class Preprocessor(Pre):
         matrix = vectorizer.fit_transform(group['seq'])
         logging.info(f"data sequential matrix shape {matrix.shape}")
         # perform SVD dimensionality reduction
-        svd = TruncatedSVD(n_components=100)
-        reduced_matrix = svd.fit_transform(matrix)
-        logging.info(f"perform SVD dimensionality reduction after data shape: {reduced_matrix.shape}")
+        svd = TruncatedSVD(n_components=64, algorithm='arpack')
+        matrix = svd.fit_transform(matrix)
+        logging.info(f"perform SVD dimensionality reduction after data shape: {matrix.shape}")
 
         test_data = {}
         for k, tid in self.test_data.items():
             logging.info(f"{k}, data1--->sequential vector....")
             test1 = group1[group1['tid'].isin(tid)].copy()
-            test1['seq'] = test1.index.map(lambda i: normalize([reduced_matrix[i]], 'l2'))
+            test1['seq'] = test1.index.map(lambda i: normalize([matrix[i]], 'l2'))   # [matrix[i]]  matrix.getrow(i).toarray()
 
             logging.info(f"{k}, data2--->sequential vector....")
             test2 = group2[group2['tid'].isin(tid)].copy()
-            test2['seq'] = test2.index.map(lambda i: normalize([reduced_matrix[i]], 'l2'))
+            test2['seq'] = test2.index.map(lambda i: normalize([matrix[i]], 'l2'))
 
             embedding1, embedding2 = self._vector_format(test1, test2, name='seq')
-            np.save(f'{log_path}/sequential_{self.test_path[k].split("/")[-1]}_embedding1.npy', embedding1)
-            np.save(f'{log_path}/sequential_{self.test_path[k].split("/")[-1]}_embedding2.npy', embedding2)
+            np.save(f'{log_path}sequential_{self.test_path[k].split("/")[-1]}_embedding1.npy', embedding1)
+            np.save(f'{log_path}sequential_{self.test_path[k].split("/")[-1]}_embedding2.npy', embedding2)
             test_data[k] = [embedding1, embedding2]
         return test_data
 
@@ -130,8 +130,8 @@ class Preprocessor(Pre):
             test2 = self._deal_tem(test2)
 
             embedding1, embedding2 = self._vector_format(test1, test2, name='tem')
-            np.save(f'{log_path}/temporal_{self.test_path[k].split("/")[-1]}_embedding1.npy', embedding1)
-            np.save(f'{log_path}/temporal_{self.test_path[k].split("/")[-1]}_embedding2.npy', embedding2)
+            np.save(f'{log_path}temporal_{self.test_path[k].split("/")[-1]}_embedding1.npy', embedding1)
+            np.save(f'{log_path}temporal_{self.test_path[k].split("/")[-1]}_embedding2.npy', embedding2)
             test_data[k] = [embedding1, embedding2]
         return test_data
 
@@ -163,23 +163,23 @@ class Preprocessor(Pre):
         matrix = vectorizer.fit_transform(group['point'])
         logging.info(f"data spatial matrix shape {matrix.shape}")
         # perform SVD dimensionality reduction
-        svd = TruncatedSVD(n_components=100)
-        reduced_matrix = svd.fit_transform(matrix)
-        logging.info(f"perform SVD dimensionality reduction after data shape: {reduced_matrix.shape}")
+        svd = TruncatedSVD(n_components=128, algorithm='arpack')
+        matrix = svd.fit_transform(matrix)
+        logging.info(f"perform SVD dimensionality reduction after data shape: {matrix.shape}")
 
         test_data = {}
         for k, tid in self.test_data.items():
             logging.info(f"{k}, data1--->spatial vector....")
             test1 = group1[group1['tid'].isin(tid)].copy()
-            test1['spatial'] = test1.index.map(lambda i: normalize([reduced_matrix[i]], 'l2'))
+            test1['spatial'] = test1.index.map(lambda i: normalize([matrix[i]], 'l2'))
 
             logging.info(f"{k}, data2--->spatial vector....")
             test2 = group2[group2['tid'].isin(tid)].copy()
-            test2['spatial'] = test2.index.map(lambda i: normalize([reduced_matrix[i]], 'l2'))
+            test2['spatial'] = test2.index.map(lambda i: normalize([matrix[i]], 'l2'))
 
             embedding1, embedding2 = self._vector_format(test1, test2, name='spatial')
-            np.save(f'{log_path}/spatial_{self.test_path[k].split("/")[-1]}_embedding1.npy', embedding1)
-            np.save(f'{log_path}/spatial_{self.test_path[k].split("/")[-1]}_embedding2.npy', embedding2)
+            np.save(f'{log_path}spatial_{self.test_path[k].split("/")[-1]}_embedding1.npy', embedding1)
+            np.save(f'{log_path}spatial_{self.test_path[k].split("/")[-1]}_embedding2.npy', embedding2)
             test_data[k] = [embedding1, embedding2]
         return test_data
 
@@ -211,22 +211,22 @@ class Preprocessor(Pre):
         matrix = vectorizer.fit_transform(group['st'])
         logging.info(f"data spatiotemporal matrix shape {matrix.shape}")
         # perform SVD dimensionality reduction
-        svd = TruncatedSVD(n_components=100)
-        reduced_matrix = svd.fit_transform(matrix)
-        logging.info(f"perform SVD dimensionality reduction after data shape: {reduced_matrix.shape}")
+        svd = TruncatedSVD(n_components=128, algorithm='arpack')
+        matrix = svd.fit_transform(matrix)
+        logging.info(f"perform SVD dimensionality reduction after data shape: {matrix.shape}")
 
         test_data = {}
         for k, tid in self.test_data.items():
             logging.info(f"{k}, data1--->spatiotemporal vector....")
             test1 = group1[group1['tid'].isin(tid)].copy()
-            test1['st'] = test1.index.map(lambda i: normalize([reduced_matrix[i]], 'l2'))
+            test1['st'] = test1.index.map(lambda i: normalize([matrix[i]], 'l2'))
 
             logging.info(f"{k}, data2--->spatiotemporal vector....")
             test2 = group2[group2['tid'].isin(tid)].copy()
-            test2['st'] = test2.index.map(lambda i: normalize([reduced_matrix[i]], 'l2'))
+            test2['st'] = test2.index.map(lambda i: normalize([matrix[i]], 'l2'))
 
             embedding1, embedding2 = self._vector_format(test1, test2, name='st')
-            np.save(f'{log_path}/spatiotemporal_{self.test_path[k].split("/")[-1]}_embedding1.npy', embedding1)
-            np.save(f'{log_path}/spatiotemporal_{self.test_path[k].split("/")[-1]}_embedding2.npy', embedding2)
+            np.save(f'{log_path}spatiotemporal_{self.test_path[k].split("/")[-1]}_embedding1.npy', embedding1)
+            np.save(f'{log_path}spatiotemporal_{self.test_path[k].split("/")[-1]}_embedding2.npy', embedding2)
             test_data[k] = [embedding1, embedding2]
         return test_data

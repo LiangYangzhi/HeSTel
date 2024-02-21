@@ -7,6 +7,7 @@ from pandarallel import pandarallel
 pandarallel.initialize(nb_workers=48)
 
 data_path = "./libTrajectory/dataset/AIS/"
+log_path = "./libTrajectory/logs/STEL/"
 
 
 class Scoor(object):
@@ -214,7 +215,7 @@ class Preprocessor(object):
 
         scoor = sum(tseg.scoor.tolist(), [])
         scoor = pd.DataFrame(data=scoor, columns=['tseg', 'scoor', 'lat0', 'lat1', 'lon0', 'lon1'])
-        scoor.to_csv(f"{data_path}scoor.csv", index=False)
+        scoor.to_csv(f"{log_path}/{self.data_path.split('/')[-1]}_scoor.csv", index=False)
 
         self.data1 = pd.concat(tseg.df.tolist())
         self.data1.sort_values(['time'], inplace=True)
@@ -292,7 +293,7 @@ class Preprocessor(object):
 
         tcoor = sum(sseg.tcoor.tolist(), [])
         tcoor = pd.DataFrame(data=tcoor, columns=['sseg', 'tcoor', 't0', 't1'])
-        tcoor.to_csv(f"{data_path}tcoor.csv", index=False)
+        tcoor.to_csv(f"{log_path}/{self.data_path.split('/')[-1]}_tcoor.csv", index=False)
 
         self.data2 = pd.concat(sseg.df.tolist())
         buffer = io.StringIO()
@@ -378,48 +379,60 @@ class Preprocessor(object):
         if self.data1 is None:
             dic1 = {'tid': str, 'time': int, 'lat': float, 'lon': float, 'did': str, 'tseg': int, 'scoor': str}
             dic2 = {'tid': str, 'time': int, 'lat': float, 'lon': float, 'did': str, 'sseg': str, 'tcoor': str}
-            train_data1 = pd.read_csv(f"{data_path}train_data1.csv", dtype=dic1)
-            train_data2 = pd.read_csv(f"{data_path}train_data2.csv", dtype=dic2)
+            train_data1 = pd.read_csv(f"{log_path}/{self.data_path.split('/')[-1]}_train_data1.csv", dtype=dic1)
+            train_data2 = pd.read_csv(f"{log_path}/{self.data_path.split('/')[-1]}_train_data2.csv", dtype=dic2)
             train = [train_data1, train_data2]
             test_data = {}
-            for k in self.test_path:
-                data1 = pd.read_csv(f"{data_path}{k}_data1.csv", dtype=dic1)
-                data2 = pd.read_csv(f"{data_path}{k}_data2.csv", dtype=dic2)
+            for k, v in self.test_path.items():
+                data1 = pd.read_csv(f"{log_path}/{v.split('/')[-1]}_{k}_data1.csv", dtype=dic1)
+                data2 = pd.read_csv(f"{log_path}/{v.split('/')[-1]}_{k}_data2.csv", dtype=dic2)
                 test_data[k] = [data1, data2]
 
             dicts = {'tseg': int, 'scoor': str, 'tv': str, 'sv': str, 'vector': str, 'tsid': str}
-            ts_vec = pd.read_csv(f"{data_path}ts_vec.csv", dtype=dicts)
+            ts_vec = pd.read_csv(f"{log_path}/{self.data_path.split('/')[-1]}_ts_vec.csv", dtype=dicts)
             ts_vec['vector'] = ts_vec['vector'].map(lambda v: eval(v))
             dicst = {'sseg': str, 'tcoor': str, 'sv': str, 'tv': str, 'vector': str, 'stid': str}
-            st_vec = pd.read_csv(f"{data_path}st_vec.csv", dtype=dicst)
+            st_vec = pd.read_csv(f"{log_path}/{self.data_path.split('/')[-1]}_st_vec.csv", dtype=dicst)
             st_vec['vector'] = st_vec['vector'].map(lambda v: eval(v))
-            vector = [ts_vec, st_vec]
+            self.ts_vec, self.st_vec = ts_vec, st_vec
 
         else:
             # active、passive
             test_tid = []
             test_data = {}
-            for k, v in self.test.items():
-                tid = v.tid.unique().tolist()
+            for k, df in self.test.items():
+                tid = df.tid.unique().tolist()
+                v = self.test_path[k]
                 test_tid += tid
                 data1 = self.data1.query(f"tid in {tid}").copy()
                 data1.reset_index(drop=True, inplace=True)
-                data1.to_csv(f"{data_path}{k}_data1.csv", index=False)
+                data1.to_csv(f"{log_path}/{v.split('/')[-1]}_{k}_data1.csv", index=False)
                 data2 = self.data2.query(f"tid in {tid}").copy()
                 data2.reset_index(drop=True, inplace=True)
-                data2.to_csv(f"{data_path}{k}_data2.csv", index=False)
+                data2.to_csv(f"{log_path}/{v.split('/')[-1]}_{k}_data2.csv", index=False)
                 test_data[k] = [data1, data2]
 
             data1 = self.data1.query(f"tid not in {test_tid}").copy()
             data1.reset_index(drop=True, inplace=True)
-            data1.to_csv(f"{data_path}train_data1.csv", index=False)
+            data1.to_csv(f"{log_path}/{self.data_path.split('/')[-1]}_train_data1.csv", index=False)
             data2 = self.data2.query(f"tid not in {test_tid}").copy()
             data2.reset_index(drop=True, inplace=True)
-            data2.to_csv(f"{data_path}train_data2.csv", index=False)
+            data2.to_csv(f"{log_path}/{self.data_path.split('/')[-1]}_train_data2.csv", index=False)
             train = [data1, data2]
 
-            vector = [self.ts_vec, self.st_vec]
-            self.ts_vec.to_csv(f"{data_path}ts_vec.csv", index=False)
-            self.st_vec.to_csv(f"{data_path}st_vec.csv", index=False)
+            self.ts_vec.to_csv(f"{log_path}/{self.data_path.split('/')[-1]}_ts_vec.csv", index=False)
+            self.st_vec.to_csv(f"{log_path}/{self.data_path.split('/')[-1]}_st_vec.csv", index=False)
 
-        return train, test_data, vector
+        tsid = [train[0][['tsid']]]
+        for lis in test_data.values():
+            tsid.append(lis[0][['tsid']])
+        tsid = pd.concat(tsid)
+        tsid_counts = tsid.tsid.value_counts().to_dict()
+
+        stid = [train[1][['stid']]]
+        for lis in test_data.values():
+            stid.append(lis[1][['stid']])
+        stid = pd.concat(stid)
+        stid_counts = stid.stid.value_counts().to_dict()
+
+        return train, test_data, self.ts_vec, self.st_vec, tsid_counts, stid_counts
