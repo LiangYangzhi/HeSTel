@@ -16,7 +16,7 @@ class Scoor(object):
         self.tseg = tseg
         self.sthre = 1000  # 空间坐标系粒度中空间点个数阈值
 
-        logging.info(f"时间分割编号={tseg}, data shape={self.data.shape}, self.sthre = {self.sthre}")
+        logging.info(f"时间分割编号={tseg}, data shape={self.data.shape}")
         self.run()
 
     def run(self):
@@ -68,7 +68,7 @@ class Tcoor(object):
         self.sseg = sseg
         self.tthre = 1000  # 时间坐标系粒度中时间点个数阈值
 
-        logging.info(f"空间分割编号={sseg}, data shape={self.data.shape}, self.tthre = {self.tthre}")
+        logging.info(f"空间分割编号={sseg}, data shape={self.data.shape}")
         self.run()
 
     def run(self):
