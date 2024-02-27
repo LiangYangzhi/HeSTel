@@ -1,6 +1,6 @@
 import logging
 from libTrajectory.preprocessing.STEL.signature_BL import Preprocessor
-from libTrajectory.evaluator.knn_query import knn_query
+from libTrajectory.evaluator.knn_query import evaluator
 
 
 log_path = "./libTrajectory/logs/STEL_BL/"
@@ -18,28 +18,28 @@ def pipeline():
     for k, v in test_data.items():
         logging.info(f"{k}")
         v1, v2 = v
-        distances, indices = knn_query(v1, v2)
+        distances, indices = evaluator(v1, v2)
 
     # 时间signature
     test_data = preprocessor.temporal()
     for k, v in test_data.items():
         logging.info(f"{k}")
         v1, v2 = v
-        distances, indices = knn_query(v1, v2, distance='emd')
+        distances, indices = evaluator(v1, v2, distance='emd')
 
     # 空间signature
     test_data = preprocessor.spatial()
     for k, v in test_data.items():
         logging.info(f"{k}")
         v1, v2 = v
-        distances, indices = knn_query(v1, v2)
+        distances, indices = evaluator(v1, v2)
 
     # 时空signature
     test_data = preprocessor.spatiotemporal()
     for k, v in test_data.items():
         logging.info(f"{k}")
         v1, v2 = v
-        distances, indices = knn_query(v1, v2)
+        distances, indices = evaluator(v1, v2)
 
 
 if __name__ == "__main__":

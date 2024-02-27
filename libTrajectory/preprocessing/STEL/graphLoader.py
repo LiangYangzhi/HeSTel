@@ -57,9 +57,8 @@ class GraphDataset(Dataset):
         # get node
         user_node = []
         for u in user_lis:
-            u = [ts_vec.query(f"tsid == '{i}'").vector.values[0] for i in u]
-            u = [sum(x) for x in zip(*u)]  # user vector
-            user_node.append(u)
+            u_vec = [ts_vec.query(f"tsid == '{i}'").vector.values[0] for i in u]
+            user_node.append([sum(x) for x in zip(*u_vec)])
         tsid_node = [ts_vec.query(f"tsid == '{i}'").vector.values[0] for i in tsid]
         node = user_node + tsid_node
 
@@ -126,10 +125,9 @@ class GraphDataset(Dataset):
 
         # get node
         user_node = []
-        for i, u in enumerate(user_lis):
-            u = [st_vec.query(f"stid == '{i}'").vector.values[0] for i in u]
-            u = [sum(x) for x in zip(*u)]  # user vector
-            user_node.append(u)
+        for u in user_lis:
+            u_vec = [st_vec.query(f"stid == '{i}'").vector.values[0] for i in u]
+            user_node.append([sum(x) for x in zip(*u_vec)])
         stid_node = [st_vec.query(f"stid == '{i}'").vector.values[0] for i in stid]
         node = user_node + stid_node
 
@@ -176,10 +174,10 @@ class GraphDataset(Dataset):
 
         node1 = torch.tensor(node1, dtype=torch.float32)
         edge_ind1 = torch.tensor(edge_ind1, dtype=torch.long)
-        edge_attr1 = torch.tensor(edge_attr1)
+        edge_attr1 = torch.tensor(edge_attr1, dtype=torch.float32)
         node2 = torch.tensor(node2, dtype=torch.float32)
         edge_ind2 = torch.tensor(edge_ind2, dtype=torch.long)
-        edge_attr2 = torch.tensor(edge_attr2)
+        edge_attr2 = torch.tensor(edge_attr2, dtype=torch.float32)
 
         if 'cuda' in str(self.device):
             node1 = node1.to(device=self.device)

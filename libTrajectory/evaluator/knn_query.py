@@ -19,7 +19,7 @@ def emd_distance(vector1, vector2):
     return distance
 
 
-def knn_query(vector1, vector2, distance='dot', k=10):
+def evaluator(vector1, vector2, distance='dot', k=10):
     distance_def = {"dot": dot_distance, "emd": emd_distance}
     logging.info(f"k = {k}")
     knn_model = KNeighborsRegressor(n_neighbors=k, metric=distance_def[distance])
