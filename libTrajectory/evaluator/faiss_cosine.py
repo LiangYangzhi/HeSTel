@@ -12,7 +12,6 @@ def evaluator(vector1, vector2, k=10):
     faiss.Index
     indexIP.add(vector1)
     distances, indices = indexIP.search(vector2, k)
-    print(distances)
     print(indices)
 
     result = []

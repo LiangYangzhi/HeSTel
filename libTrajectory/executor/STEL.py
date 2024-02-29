@@ -13,9 +13,7 @@ log_path = "./libTrajectory/logs/STEL/"
 
 
 class Executor(object):
-    def __init__(self, ts_vec, tsid_counts, st_vec, stid_counts, batch_size=256, num_workers=16):
-        self.ts_vec = ts_vec
-        self.tsid_counts = tsid_counts
+    def __init__(self, st_vec, stid_counts, batch_size=256, num_workers=2):
         self.st_vec = st_vec
         self.stid_counts = stid_counts
         self.batch_size = batch_size
@@ -25,23 +23,22 @@ class Executor(object):
         self.device = torch.device(f"cuda:{gpu_id}" if torch.cuda.is_available() else "cpu")
         logging.info(f"device={self.device}, batch_size={self.batch_size}, num_workers={self.num_workers}")
 
-    def train(self, train_data, mid_dim=256, out_dim=128, epoch_num=3):
+    def train(self, train_data, mid_dim=256, out_dim=512, epoch_num=3):
         logging.info("train")
         logging.info(f"epoch_num={epoch_num}")
         data1, data2 = train_data
         index_set = IdDataset(data1)
-        graph_data = GraphDataset(data1, self.ts_vec, self.tsid_counts, data2, self.st_vec, self.stid_counts, self.device)
+        graph_data = GraphDataset(data1, data2, self.st_vec, self.stid_counts, self.device)
         data_loader = DataLoader(index_set, batch_size=self.batch_size, shuffle=True, persistent_workers=True, num_workers=self.num_workers)
 
+        in_dim = len(self.st_vec.vec.values[0])
         # net1
-        in_dim1 = len(self.ts_vec.vector.values[0])
-        net1 = GCN(in_dim=in_dim1, out_dim=mid_dim, device=self.device).to(self.device)
+        net1 = GCN(in_dim=in_dim, out_dim=mid_dim, device=self.device).to(self.device)
         lr1 = 0.001
         optimizer1 = torch.optim.Adam(net1.parameters(), lr=lr1)
         net1.train()
         # net2
-        in_dim2 = len(self.st_vec.vector.values[0])
-        net2 = GCN(in_dim=in_dim2, out_dim=mid_dim, device=self.device).to(self.device)
+        net2 = GCN(in_dim=in_dim, out_dim=mid_dim, device=self.device).to(self.device)
         lr2 = 0.001
         optimizer2 = torch.optim.Adam(net2.parameters(), lr=lr2)
         net2.train()
@@ -50,7 +47,7 @@ class Executor(object):
         lr3 = 0.001
         optimizer3 = torch.optim.Adam(net3.parameters(), lr=lr3)
         net3.train()
-        logging.info(f"in_dim1={in_dim1}, lr1={lr1}, in_dim2={in_dim2}, lr2={lr2}, mid_dim={mid_dim}, out_dim={out_dim}, lr3={lr3}")
+        logging.info(f"in_dim={in_dim}, mid_dim={mid_dim}, out_dim={out_dim}, lr1={lr1}, lr2={lr2}, lr3={lr3}")
 
         cost = torch.nn.BCEWithLogitsLoss(pos_weight=torch.tensor([self.batch_size / 2])).to(self.device)
         for epoch in range(epoch_num):  # 每个epoch循环
@@ -115,18 +112,18 @@ class Executor(object):
         torch.save(net2.state_dict(), f'{log_path}net2_parameter.pth')
         torch.save(net3.state_dict(), f'{log_path}net3_parameter.pth')
 
-    def infer(self, test_data, mid_dim=256, out_dim=128, para1='net1_parameter-epoch:1.pth', para2='net2_parameter-epoch:1.pth', para3='net3_parameter-epoch:1.pth'):
+    def infer(self, test_data, mid_dim=256, out_dim=512,
+              para1='net1_parameter-epoch:1.pth', para2='net2_parameter-epoch:1.pth', para3='net3_parameter-epoch:1.pth'):
         logging.info("test")
-        in_dim1 = len(self.ts_vec.vector.values[0])
+        in_dim = len(self.st_vec.vec.values[0])
 
         state_dict1 = torch.load(f'{log_path}{para1}')
-        net1 = GCN(in_dim=in_dim1, out_dim=mid_dim, device=self.device).to(self.device)
+        net1 = GCN(in_dim=in_dim, out_dim=mid_dim, device=self.device).to(self.device)
         net1.load_state_dict(state_dict1)
         net1.eval()
 
-        in_dim2 = len(self.st_vec.vector.values[0])
         state_dict2 = torch.load(f'{log_path}{para2}')
-        net2 = GCN(in_dim=in_dim2, out_dim=mid_dim, device=self.device).to(self.device)
+        net2 = GCN(in_dim=in_dim, out_dim=mid_dim, device=self.device).to(self.device)
         net2.load_state_dict(state_dict2)
         net2.eval()
 
@@ -134,16 +131,16 @@ class Executor(object):
         net3 = GCN(in_dim=mid_dim, out_dim=out_dim, device=self.device).to(self.device)
         net3.load_state_dict(state_dict3)
         net3.eval()
-        logging.info(f"in_dim1={in_dim1}, in_dim2={in_dim2}, out_dim={out_dim}, net1={para1}, net2={para2}, net3={para3}")
+        logging.info(f"in_dim={in_dim}, mid_dim={mid_dim}, out_dim={out_dim}, net1={para1}, net2={para2}, net3={para3}")
 
         for k, v in test_data.items():
             logging.info(f"{k}...")
             data1, data2 = v
-            test_tid = data1.tid[:20].tolist()
-            data1 = data1.query(f"tid in {test_tid}")
-            data2 = data2.query(f"tid in {test_tid}")
+            # test_tid = data1.tid[:20].tolist()
+            # data1 = data1.query(f"tid in {test_tid}")
+            # data2 = data2.query(f"tid in {test_tid}")
             index_set = IdDataset(data1)
-            graph_data = GraphDataset(data1, self.ts_vec, self.tsid_counts, data2, self.st_vec, self.stid_counts, self.device)
+            graph_data = GraphDataset(data1, data2, self.st_vec, self.stid_counts, self.device)
             data_loader = DataLoader(index_set, batch_size=self.batch_size, shuffle=False, persistent_workers=True, num_workers=self.num_workers)
             embedding_1 = []
             embedding_2 = []
@@ -161,6 +158,4 @@ class Executor(object):
                     embedding_2.append(x2[i].detach().numpy())
                 embedding_1 = np.array(embedding_1)
                 embedding_2 = np.array(embedding_2)
-                print(embedding_1)
-                print(embedding_2)
             evaluator(embedding_1, embedding_2)

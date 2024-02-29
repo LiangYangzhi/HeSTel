@@ -460,6 +460,10 @@ class ProTra(object):
         distance = int(geodesic(center, (lat, lon)).m)
         if random.randint(0, distance) <= self.space:
             multi_t = t + random.randint(-self.time, self.time)
+            if multi_t < 1672502400:
+                multi_t = 1672502400
+            if multi_t > 1696089599:
+                multi_t = 1696089599
             return {"m_time": multi_t, "m_lat": center[0], "m_lon": center[1], "m_did": f"{lati}-{lonj}"}
         return {"m_time": 0, "m_lat": center[0], "m_lon": center[1], "m_did": f"{lati}-{lonj}"}
 
@@ -467,6 +471,7 @@ class ProTra(object):
         df = pd.read_csv("./multiA.csv", dtype={
             'uid': str, 'tid': str, 'time': int, 'lat': float, 'lon': float, 'did': str,
             'm_time': int, 'm_lat': float, 'm_lon': float, 'm_did': str})
+
         tid = random.sample(df.tid.unique().tolist(), 4000)
         tid1 = tid[:1000]
         print(tid1.__len__())

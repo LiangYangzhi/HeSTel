@@ -1,164 +1,192 @@
-import logging
-
-import numpy as np
-
-from libTrajectory.model.STEL import GCN
-from libTrajectory.preprocessing.STEL.graphLoader import IdDataset, GraphDataset
-from torch.utils.data import DataLoader
+from geopy.distance import geodesic
 import torch
-import torch.nn.functional as F
-
-log_path = "./libTrajectory/logs/STEL/"
+from torch.utils.data import DataLoader, Dataset
 
 
-class Executor(object):
-    def __init__(self, tsid_counts, stid_counts):
-        self.tsid_counts = tsid_counts
+class IdDataset(Dataset):
+    def __init__(self, data1):
+        self.data1 = data1
+        self.tid = self.data1.tid.unique().tolist()
+
+    def __len__(self):
+        return len(self.tid)
+
+    def __getitem__(self, index):
+        return self.tid[index]
+
+
+class GraphDataset(Dataset):
+    def __init__(self, data1, data2, st_vec, stid_counts, device):
+        self.data1_group = data1.groupby('tid')
+        self.data2_group = data2.groupby('tid')
+        self.st_vec = st_vec
         self.stid_counts = stid_counts
-        logging.info(f"Executor...")
-        gpu_id = 1
-        self.device = torch.device(f"cuda:{gpu_id}" if torch.cuda.is_available() else "cpu")
-        logging.info(f"device: {self.device}")
 
-    def train(self, train_data, ts_vec, st_vec, out_dim=256, epoch_num=10, batch_size=128, num_workers=0):
-        logging.info("train")
-        logging.info(f"epoch_num={epoch_num}, batch_size={batch_size}, num_workers={num_workers}")
-        data1, data2 = train_data
-        index_set = IdDataset(data1)
-        graph_data = GraphDataset(data1, ts_vec, self.tsid_counts, data2, st_vec, self.stid_counts, self.device)
-        data_loader = DataLoader(index_set, batch_size=batch_size, shuffle=True, num_workers=num_workers)
+        self.tid = data1.tid.unique().tolist()
+        self.device = device
+        self.tail = 3  # 取用户到访区域中拥有全量轨迹点最后几名作为用户向量
 
-        # net1
-        in_dim1 = len(ts_vec.vector.values[0])
-        net1 = GCN(in_dim=in_dim1, out_dim=out_dim).to(self.device)
-        lr1 = 0.001
-        optimizer1 = torch.optim.Adam(net1.parameters(), lr=lr1)
-        net1.train()
-        # net2
-        in_dim2 = len(st_vec.vector.values[0])
-        net2 = GCN(in_dim=in_dim2, out_dim=out_dim).to(self.device)
-        lr2 = 0.001
-        optimizer2 = torch.optim.Adam(net2.parameters(), lr=lr2)
-        net2.train()
-        # net3
-        net3 = GCN(in_dim=out_dim, out_dim=out_dim).to(self.device)
-        lr3 = 0.001
-        optimizer3 = torch.optim.Adam(net3.parameters(), lr=lr3)
-        net3.train()
-        logging.info(f"in_dim1={in_dim1}, lr1={lr1}, in_dim2={in_dim2}, lr2={lr2}, lr3={lr3}, out_dim={out_dim}")
+    def __len__(self):
+        return self.tid.__len__()
 
-        cost = torch.nn.BCEWithLogitsLoss().to(self.device)
-        for epoch in range(epoch_num):  # 每个epoch循环
-            logging.info(f'Epoch {epoch + 1}/{epoch_num}')
-            batch_loss = 0
-            for batch_tid in data_loader:  # 每个批次循环
-                node1, edge_ind1, edge_attr1, node2, edge_ind2, edge_attr2 = graph_data[batch_tid]
-                # 前向传播
-                net1_x = net1(node1, edge_ind1, edge_attr1)
-                net2_x = net2(node2, edge_ind2, edge_attr2)
-                x1 = net3(net1_x, edge_ind1, edge_attr1)
-                x2 = net3(net2_x, edge_ind2, edge_attr2)
-                user1 = x1[: batch_size]
-                user2 = x2[: batch_size]
+    def ts_graph(self, tid_lis):
+        # get tsid 、user tsid、 node index
+        tsid_lis = []
+        user_lis = []
+        node_id = {}  # tid or tsid: ind
+        tid_df = {}  # tid: df
+        for i, tid in enumerate(tid_lis):
+            df = self.data1_group.get_group(tid).copy()
+            tsid = df.tsid.unique().tolist()
+            dic = {j: self.tsid_counts[j] for j in tsid}
+            user = sorted(dic, key=lambda x: x[1], reverse=True)[:self.tail]
 
-                # 计算损失
-                labels = torch.arange(len(user1)) == torch.arange(len(user2)).view(-1, 1)
-                cosine_sim1 = F.cosine_similarity(user1.unsqueeze(1), user2.unsqueeze(0), dim=2)
+            tsid_lis.extend(tsid)
+            user_lis.append(user)
+            node_id[tid] = i
+            tid_df[tid] = df
 
-                node1_user = node1[: batch_size]
-                max_len1 = max(user2.shape[1], node1_user.shape[1])
-                node1_user = F.pad(node1_user, (0, max_len1 - node1_user.shape[1]))
-                user2 = F.pad(user2, (0, max_len1 - user2.shape[1]))
-                cosine_sim2 = F.cosine_similarity(user2.unsqueeze(1), node1_user, dim=2)
+        tsid = list(set(tsid_lis))
+        ts_vec = self.ts_vec.query(f"tsid in {tsid}")
+        tid_len = len(tid_lis)
+        for i, j in enumerate(tsid):
+            node_id[j] = i + tid_len
 
-                node2_user = node2[: batch_size]
-                max_len2 = max(user1.shape[1], node2_user.shape[1])
-                node2_user = F.pad(node2_user, (0, max_len2 - node2_user.shape[1]))
-                user1 = F.pad(user1, (0, max_len2 - user1.shape[1]))
-                cosine_sim3 = F.cosine_similarity(user1.unsqueeze(1), node2_user, dim=2)
+        # get node
+        user_node = []
+        for u in user_lis:
+            u_vec = [ts_vec.query(f"tsid == '{i}'").vector.values[0] for i in u]
+            user_node.append([sum(x) for x in zip(*u_vec)])
+        tsid_node = [ts_vec.query(f"tsid == '{i}'").vector.values[0] for i in tsid]
+        node = user_node + tsid_node
 
-                if 'cuda' in str(self.device):
-                    labels = labels.to(device=self.device)
-                    cosine_sim1 = cosine_sim1.to(device=self.device)
-                    cosine_sim2 = cosine_sim2.to(device=self.device)
-                    cosine_sim3 = cosine_sim3.to(device=self.device)
-                loss1 = cost(cosine_sim1, labels.float())
-                loss2 = cost(cosine_sim2, labels.float())
-                loss3 = cost(cosine_sim3, labels.float())
-                loss = loss1 + loss2 + loss3  # + loss2 + loss3
+        # get edge
+        edge_ind = [[], []]
+        edge_attr = []
+        for tid, df in tid_df.items():
+            # user and tsid
+            tsid_counts = df.tsid.value_counts().to_dict()
+            for tsid, count in tsid_counts.items():
+                edge_ind[0].append(node_id[tid])
+                edge_ind[1].append(node_id[tsid])
+                edge_attr.append(count)
+            # tsid and tsid
+            df.sort_values(['time'], inplace=True)
+            df.reset_index(drop=True, inplace=True)
+            df['idts0'] = df.apply(lambda row: (row.tsid, row.lat, row.lon, row.time), axis=1)
+            df['idts1'] = df.groupby('tseg')['idts0'].shift(1)
+            spatio = df[~df['idts1'].isna()].copy()  # 获取每个时间片内的空间点，计算空间点距离
+            temporal = df[df['idts1'].isna()].copy()  # 获取每个时间片内的第一个点，计算时间片间隔
+            temporal['idts1'] = temporal['idts0'].shift(1)
+            temporal = temporal[~temporal['idts1'].isna()]
 
-                # 反向传播
-                optimizer1.zero_grad()
-                optimizer2.zero_grad()
-                optimizer3.zero_grad()
-                loss.backward()
-                optimizer1.step()
-                optimizer2.step()
-                optimizer3.step()
-                logging.info(f"batch loss1(A' 与 B' cosine similarity): {loss1.data.item()}")
-                logging.info(f"batch loss2(A 与 B' cosine similarity): {loss2.data.item()}")
-                logging.info(f"batch loss3(B 与 A' cosine similarity): {loss3.data.item()}")
-                logging.info(f"batch loss(loss1 + loss2 +loss3): {loss.data.item()}")
-                batch_loss += loss.data.item()
+            if spatio.shape[0] > 1:
+                spatio['dis'] = spatio.apply(
+                    lambda row: (row.idts0[0], row.idts1[0], geodesic(row.idts0[1:3], row.idts1[1:3]).km + 0.1), axis=1)
+                for i in spatio.dis.tolist():
+                    edge_ind[0].append(node_id[i[0]])  # i[0] tsid0
+                    edge_ind[1].append(node_id[i[1]])  # i[1] tsid1
+                    edge_attr.append(i[2])
 
-            epoch_loss = batch_loss / len(data_loader)
-            logging.info(f"epoch loss: {epoch_loss}")
-            torch.save(net1.state_dict(), f'{log_path}net1_parameter-epoch:{epoch}.pth')
-            torch.save(net2.state_dict(), f'{log_path}net2_parameter-epoch:{epoch}.pth')
-            torch.save(net3.state_dict(), f'{log_path}net3_parameter-epoch:{epoch}.pth')
-        torch.save(net1.state_dict(), f'{log_path}net1_parameter.pth')
-        torch.save(net2.state_dict(), f'{log_path}net2_parameter.pth')
-        torch.save(net3.state_dict(), f'{log_path}net3_parameter.pth')
+            if temporal.shape[0] > 1:
+                temporal['int'] = temporal.apply(
+                    lambda row: (row.idts0[0], row.idts1[0], (abs(row.idts0[3] - row.idts1[3]) + 0.1) / 1000), axis=1)
+                for i in temporal.int.tolist():
+                    edge_ind[0].append(node_id[i[0]])  # i[0] tsid0
+                    edge_ind[1].append(node_id[i[1]])  # i[1] tsid1
+                    edge_attr.append(i[2])
 
-    def infer(self, test_data, ts_vec, st_vec, in_dim1, out_dim1, in_dim2, out_dim2, parameter1, parameter2):
-        logging.info(f"test")
+        return node, edge_ind, edge_attr
 
-        state_dict1 = torch.load(f'{log_path}{parameter1}')
-        net1 = GCN(in_dim=in_dim1, out_dim=out_dim1).to(self.device)
-        net1.load_state_dict(state_dict1)
-        net1.eval()
+    def st_graph(self, tid_lis):
+        # get stid 、user stid、 node index
+        stid_lis = []
+        user_lis = []
+        node_id = {}  # tid or stid: ind
+        tid_df = {}  # tid: df
+        for i, tid in enumerate(tid_lis):
+            df = self.data2_group.get_group(tid).copy()
+            stid = df.stid.unique().tolist()
+            dic = {j: self.stid_counts[j] for j in stid}
+            user = sorted(dic, key=lambda x: x[1], reverse=True)[:self.tail]
 
-        state_dict2 = torch.load(f'{log_path}{parameter2}')
-        net2 = GCN(in_dim=in_dim2, out_dim=out_dim2).to(self.device)
-        net2.load_state_dict(state_dict2)
-        net2.eval()
+            stid_lis.extend(stid)
+            user_lis.append(user)
+            node_id[tid] = i
+            tid_df[tid] = df
 
-        for k, v in test_data.items():
-            data1, data2 = v
-            graph_data = GraphDataset(data1, ts_vec, data2, st_vec, self.device)
-            tid = data1.tid.unique().tolist()
-            embedding_1 = []
-            embedding_2 = []
-            for i in tid:
-                node1, edge_ind1, edge_attr1 = graph_data.ts_graph(tid)
-                batch1 = []
-                for _ in range(len(node1)):
-                    batch1.append(i)
-                node1 = torch.tensor(node1, dtype=torch.float32)
-                edge_ind1 = torch.tensor(edge_ind1, dtype=torch.long)
-                edge_attr1 = torch.tensor(edge_attr1)
-                batch1 = torch.tensor(batch1, dtype=torch.long)
+        stid = list(set(stid_lis))
+        st_vec = self.st_vec.query(f"stid in {stid}")
+        tid_len = len(tid_lis)
+        for i, j in enumerate(stid):
+            node_id[j] = i + tid_len
 
-                node2, edge_ind2, edge_attr2 = graph_data.st_graph(i)
-                batch2 = []
-                for _ in range(len(node2)):
-                    batch2.append(i)
-                node2 = torch.tensor(node2, dtype=torch.float32)
-                edge_ind2 = torch.tensor(edge_ind2, dtype=torch.long)
-                edge_attr2 = torch.tensor(edge_attr2)
-                batch2 = torch.tensor(batch2, dtype=torch.long)
+        # get node
+        user_node = []
+        for u in user_lis:
+            u_vec = [st_vec.query(f"stid == '{i}'").vector.values[0] for i in u]
+            user_node.append([sum(x) for x in zip(*u_vec)])
+        stid_node = [st_vec.query(f"stid == '{i}'").vector.values[0] for i in stid]
+        node = user_node + stid_node
 
-                if 'cuda' in str(self.device):
-                    node1 = node1.to(device=self.device)
-                    edge_ind1 = edge_ind1.to(device=self.device)
-                    edge_attr1 = edge_attr1.to(device=self.device)
-                    batch1 = torch.tensor(batch1, dtype=torch.long)
-                    node2 = node2.to(device=self.device)
-                    edge_ind2 = edge_ind2.to(device=self.device)
-                    edge_attr2 = edge_attr2.to(device=self.device)
-                    batch2 = torch.tensor(batch2, dtype=torch.long)
+        # get edge
+        edge_ind = [[], []]
+        edge_attr = []
+        for tid, df in tid_df.items():
+            # user and stid
+            stid_counts = df.stid.value_counts().to_dict()
+            for stid, count in stid_counts.items():
+                edge_ind[0].append(node_id[tid])
+                edge_ind[1].append(node_id[stid])
+                edge_attr.append(count)
+            # stid and stid
+            df.sort_values(['time'], inplace=True)
+            df.reset_index(drop=True, inplace=True)
 
-                embedding_1.append(net1(node1, edge_ind1, edge_attr1, batch1).numpy())
-                embedding_2.append(net2(node2, edge_ind2, edge_attr2, batch2).numpy())
-            embedding_1 = np.array(embedding_1)
-            embedding_2 = np.array(embedding_2)
+            df['idst0'] = df.apply(lambda row: (row.stid, row.lat, row.lon, row.time), axis=1)
+            df['idst1'] = df.groupby('sseg')['idst0'].shift(1)
+            temporal = df[~df['idst1'].isna()].copy()  # 获取每个空间片内的时间点，计算时间点间隔
+            spatio = df[df['idst1'].isna()].copy()  # 获取每个空间片内的第一个点，计算空间片距离
+            spatio['idst1'] = spatio['idst0'].shift(1)
+            spatio = spatio[~spatio['idst1'].isna()]
+            if temporal.shape[0] > 1:
+                temporal['inter'] = temporal.apply(
+                    lambda row: (row.idst0[0], row.idst1[0], (abs(row.idst0[3] - row.idst1[3]) + 0.1) / 100), axis=1)
+                for i in temporal.inter.tolist():
+                    edge_ind[0].append(node_id[i[0]])  # i[0] stid0
+                    edge_ind[1].append(node_id[i[1]])  # i[1] stid1
+                    edge_attr.append(i[2])
+            if spatio.shape[0] > 1:
+                spatio['dis'] = spatio.apply(
+                    lambda row: (row.idst0[0], row.idst1[0], geodesic(row.idst0[1:3], row.idst1[1:3]).km + 0.1), axis=1)
+                for i in spatio.dis.tolist():
+                    edge_ind[0].append(node_id[i[0]])  # i[0] stid0
+                    edge_ind[1].append(node_id[i[1]])  # i[1] stid1
+                    edge_attr.append(i[2])
+
+        return node, edge_ind, edge_attr
+
+    def get_sample(self, index):
+        node1, edge_ind1, edge_attr1 = self.ts_graph(index)
+        node2, edge_ind2, edge_attr2 = self.st_graph(index)
+
+        node1 = torch.tensor(node1, dtype=torch.float32)
+        edge_ind1 = torch.tensor(edge_ind1, dtype=torch.long)
+        edge_attr1 = torch.tensor(edge_attr1, dtype=torch.float32)
+        node2 = torch.tensor(node2, dtype=torch.float32)
+        edge_ind2 = torch.tensor(edge_ind2, dtype=torch.long)
+        edge_attr2 = torch.tensor(edge_attr2, dtype=torch.float32)
+
+        if 'cuda' in str(self.device):
+            node1 = node1.to(device=self.device)
+            edge_ind1 = edge_ind1.to(device=self.device)
+            edge_attr1 = edge_attr1.to(device=self.device)
+            node2 = node2.to(device=self.device)
+            edge_ind2 = edge_ind2.to(device=self.device)
+            edge_attr2 = edge_attr2.to(device=self.device)
+
+        return node1, edge_ind1, edge_attr1, node2, edge_ind2, edge_attr2
+
+    def __getitem__(self, index):
+        return self.get_sample(index)
+

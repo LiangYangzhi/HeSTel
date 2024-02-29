@@ -1,143 +1,29 @@
 import logging
 import io
+import math
+import time
+
 import pandas as pd
 from geopy.distance import geodesic
-
-from pandarallel import pandarallel
-pandarallel.initialize(nb_workers=48)
-
-log_path = "./libTrajectory/logs/STEL/"
-
-
-class Scoor(object):
-    def __init__(self, data, tseg):
-        self.data = data
-        self.tseg = tseg
-        self.sthre = 1000  # 空间坐标系粒度中空间点个数阈值
-
-        logging.info(f"时间分割编号={tseg}, data shape={self.data.shape}")
-        self.run()
-
-    def run(self):
-        self.data.loc[:, 'scoor'] = ''  # 初始化
-        self.coor = {'': {"lat0": self.data.lat.min(), "lat1": self.data.lat.max(),
-                          "lon0": self.data.lon.min(), "lon1": self.data.lon.max()}}
-        self.scoor = []  # 存放最终空间坐标系
-        split_cell = ['']
-        while True:
-            for cell in split_cell:
-                latlon = self.coor[cell]
-                self._ssub(cell, latlon)  # split sub cell
-            # update the cell name to which the point belongs
-            updf = self.data[self.data.scoor.isin(list(split_cell))].copy()  # 需要更新的数据
-            noupdf = self.data[~self.data.scoor.isin(list(split_cell))].copy()
-            updf['scoor'] = updf.apply(lambda row: self._scell(row.lat, row.lon, row.scoor), axis=1)
-            self.data = pd.concat([updf, noupdf])
-            # judge the points number of cell
-            split_cell = {cell: num for cell, num in self.data.scoor.value_counts().to_dict().items() if num > self.sthre}
-            if split_cell.__len__() == 0:
-                break
-
-        for s, dic in self.coor.items():
-            self.scoor.append([self.tseg, s, dic['lat0'], dic['lat1'], dic['lon0'], dic['lon1']])
-
-    def _ssub(self, cell, latlon):
-        lat = (latlon['lat0'] + latlon['lat1']) / 2
-        lon = (latlon['lon0'] + latlon['lon1']) / 2
-        self.coor[f'{cell}0'] = {"lat0": lat, "lat1": latlon['lat1'], "lon0": latlon['lon0'], "lon1": lon}
-        self.coor[f'{cell}1'] = {"lat0": lat, "lat1": latlon['lat1'], "lon0": lon, "lon1": latlon['lon1']}
-        self.coor[f'{cell}2'] = {"lat0": latlon['lat0'], "lat1": lat, "lon0": lon, "lon1": latlon['lon1']}
-        self.coor[f'{cell}3'] = {"lat0": latlon['lat0'], "lat1": lat, "lon0": latlon['lon0'], "lon1": lon}
-
-    def _scell(self, lat, lon, cell):
-        coor = 0
-        for i in range(4):
-            coor = self.coor[f"{cell}{i}"]
-            if coor["lat0"] <= lat <= coor["lat1"] and coor["lon0"] <= lon <= coor["lon1"]:
-                return f"{cell}{i}"
-        raise logging.critical(f"current cell is {cell}, cell_latlon: {coor}, point={(lat, lon)} no find 4split cell")
-
-    def get(self):
-        return [self.data, self.scoor]
-
-
-class Tcoor(object):
-    def __init__(self, data, sseg):
-        self.data = data
-        self.sseg = sseg
-        self.tthre = 1000  # 时间坐标系粒度中时间点个数阈值
-
-        logging.info(f"空间分割编号={sseg}, data shape={self.data.shape}")
-        self.run()
-
-    def run(self):
-        self.data.loc[:, 'tcoor'] = ''  # 初始化
-        self.coor = {'': {"t0": self.data.time.min(), "t1": self.data.time.max()}}
-        self.tcoor = []
-        split_cell = ['']
-        while True:
-            for cell in split_cell:
-                t01 = self.coor[cell]
-                self._tsub(cell, t01)
-            #  update the cell name to which the point belongs
-            updf = self.data[self.data.tcoor.isin(list(split_cell))].copy()  # 需要更新的数据
-            noupdf = self.data[~self.data.tcoor.isin(list(split_cell))].copy()
-            updf['tcoor'] = updf.apply(lambda row: self._tcell(row.time, row.tcoor), axis=1)
-            self.data = pd.concat([updf, noupdf])
-            # "judge the points number of cell"
-            split_cell = {cell: num for cell, num in self.data.tcoor.value_counts().to_dict().items() if num > self.tthre}
-            if split_cell.__len__() == 0:
-                break
-
-        for t, dic in self.coor.items():
-            self.tcoor.append([self.sseg, t, dic['t0'], dic['t1']])
-
-    def _tsub(self, cell, t01):
-        sub = 4  # 切分粒度
-        length = t01['t1'] - t01['t0']
-        step = int(length / sub)
-        nodes = [t01['t0']]
-        for _ in range(sub):
-            nodes.append(nodes[-1] + step)
-        nodes[-1] = t01['t1']
-        for i in range(sub):
-            self.coor[f"{cell}{i}"] = {"t0": nodes[i], "t1": nodes[i + 1]}
-
-    def _tcell(self, t, cell):
-        t01 = 0
-        for i in range(4):
-            t01 = self.coor[f"{cell}{i}"]
-            if t01['t0'] <= t <= t01['t1']:
-                return f"{cell}{i}"
-        raise logging.info(f"current cell is {cell}, cell_t01: {t01}, current point t={t} no find 4split cell")
-
-    def get(self):
-        return [self.data, self.tcoor]
+from math import cos, radians
 
 
 class Preprocessor(object):
     def __init__(self, data_path, test_path={}):
         self.data_path = data_path
-        self.file = self.data_path.split('/')[-1].split('.')[0]
         self.test_path = test_path
         self.data1 = None  # Active
         self.data2 = None  # Passive
-        self.inter = 60 * 60 * 24  # 时间分割下的时间间隔阈值
-        self.dis = 100 * 1000  # 空间划分下的空间距离阈值 单位m
-
-        logging.info(f"self.path = {self.data_path}, self.inter = {self.inter}, self.dis = {self.dis}")
+        logging.info(f"self.path={self.data_path}")
 
     def run(self):
         self.loader()
         self.cleaner()
-        # Active
-        self.tseg()  # time segment
-        self.scoor()  # space coordinate
-        self.ts2vector()  # to vector
-        # Passive
-        self.sseg()  # space segment
-        self.tcoor()  # time coordinate
-        self.st2vector()  # to vector
+        self.space2coor()  # 空间建模
+        self.time2coor()  # 时间建模
+        self.space2vector()  # 空间编号转向量
+        self.time2vector()  # 时间编号转向量
+        self.st2vector()  # 时空编号转向量
 
     def loader(self):
         logging.info("data loading...")
@@ -173,73 +59,22 @@ class Preprocessor(object):
         self.data2.sort_values(['time'], inplace=True)
         logging.info("data clean completed")
 
-    def tseg(self):
-        logging.info("time segment...")
-        t0 = self.data1.time.min()
-        t1 = self.data1.time.max()
-        t_len = t1 - t0
-        t_size = int(t_len / self.inter)
-        t_step = int(t_len / t_size)
-        logging.info(f"start time: {t0}, end time: {t1}, time length: {t_len}, time interval: {self.inter}, num of time segment: {t_size}")
-        t_lis = [t0]
-        for _ in range(t_size):
-            t_lis.append(int(t_lis[-1] + t_step))
-        t_lis[-1] = t1
-        self.t_lis = t_lis
-
-        self.data1['tseg'] = self.data1['time'].map(lambda t: self._tsegf(t))
-        logging.info(f"data1 tseg unique length: {self.data1.tseg.unique().__len__()}")
-
-        buffer = io.StringIO()
-        self.data1.info(buf=buffer)
-        logging.info(f"data1 info after time segment: {buffer.getvalue()}")
-        logging.info("time segment completed")
-
-    def _tsegf(self, t):
-        # time segment flag
-        t0 = self.t_lis[0]
-        for i, t1 in enumerate(self.t_lis[1:]):
-            if t0 <= t <= t1:
-                return i
-            t0 = t1
-        logging.critical(f"t={t} 找不到相应的时间分割编号")
-
-    def scoor(self):
+    def space2coor(self):
         logging.info("space coordinate...")
-        tseg = self.data1[['tseg']].copy()
-        tseg.drop_duplicates(inplace=True)
-        tseg['df'] = tseg['tseg'].map(lambda t: self.data1.query(f"tseg == {t}").copy())
-        tseg['df_scoor'] = tseg.parallel_apply(lambda row: Scoor(row.df, row.tseg).get(), axis=1)  # parallel_apply
-        tseg['df'] = tseg['df_scoor'].map(lambda i: i[0])
-        tseg['scoor'] = tseg['df_scoor'].map(lambda i: i[1])
-
-        scoor = sum(tseg.scoor.tolist(), [])
-        scoor = pd.DataFrame(data=scoor, columns=['tseg', 'scoor', 'lat0', 'lat1', 'lon0', 'lon1'])
-        scoor.to_csv(f"{log_path}/{self.file}_scoor.csv", index=False)
-
-        self.data1 = pd.concat(tseg.df.tolist())
-        self.data1.sort_values(['time'], inplace=True)
-        self.data1.reset_index(inplace=True, drop=True)
-        buffer = io.StringIO()
-        self.data1.info(buf=buffer)
-        logging.info(f"data1 info after space coordinate: {buffer.getvalue()}")
-        logging.info("space coordinate completed")
-
-    def sseg(self):
-        logging.info("space segment...")
-        deci = 5  # decimal 小数点后的精度
-        lat0, lat1 = self.data2.lat.min(), self.data2.lat.max()
-        lon0, lon1 = self.data2.lon.min(), self.data2.lon.max()
+        lat0 = min([self.data1.lat.min(), self.data2.lat.min()])
+        lat1 = max([self.data1.lat.max(), self.data2.lat.max()])
+        lon0 = min([self.data1.lon.min(), self.data2.lon.min()])
+        lon1 = max([self.data1.lon.max(), self.data2.lon.max()])
         logging.info(f"lat0: {lat0}, lat1: {lat1}, lon0: {lon0}, lon1: {lon1}")
 
-        # 通过lat、lon距离长度 和 距离阈值 获取 lat、lon分段的数量
-        latdis, londis = geodesic((lat0, 0), (lat1, 0)).m, geodesic((0, lon0), (0, lon1)).m
-        lat_size, lon_size = int(latdis / self.dis), int(londis / self.dis)
-        logging.info(f"lat_size: {lat_size}, lon_size： {lon_size}， distance threshold: {self.dis}")
-
         # 获取区域的lat、lon步长
+        deci = 5  # decimal 小数点后的精度
+        distance = 100 * 1000  # m
+        r = 6371393  # 地球半径 单位m
+        lat_step = (distance / (r * cos(radians(0)))) * (180 / 3.1415926)
+        lon_step = (distance / r) * (180 / 3.1415926)
         lat_len, lon_len = abs(lat0) + abs(lat1), abs(lon0) + abs(lon1)
-        lat_step, lon_step = round(lat_len / lat_size, deci), round(lon_len / lon_size, deci)
+        lat_size, lon_size = math.ceil(lat_len / lat_step), math.ceil(lon_len / lon_step)
         logging.info(f"lat_len: {lat_len}, lon_len： {lon_len}， lat_step: {lat_step}, lon_step: {lon_step}")
 
         # 生成区域节点的lat和lon值
@@ -249,22 +84,21 @@ class Preprocessor(object):
         for _ in range(lon_size):
             lon_lis.append(round(lon_lis[-1] + lon_step, deci))
         lat_lis[-1], lon_lis[-1] = lat1, lon1
-
         self.lat_lis, self.lon_lis = lat_lis, lon_lis
-        self.data2['sseg'] = self.data2.apply(lambda row: self._ssegf(row.lat, row.lon), axis=1)
-        logging.info(f"data2 sseg unique length: {self.data2.sseg.unique().__len__()}")
-        buffer = io.StringIO()
-        self.data2.info(buf=buffer)
-        logging.info(f"data2 info after time segment: {buffer.getvalue()}")
-        logging.info("space segment completed")
 
-    def _ssegf(self, lat, lon):
-        # space segment flag
+        logging.info("data1 space coordinate...")
+        self.data1['spaceid'] = self.data1.apply(lambda row: self._create_spaceid(row.lat, row.lon), axis=1)
+        logging.info("data1 space coordinate completed")
+        logging.info("data2 space coordinate...")
+        self.data2['spaceid'] = self.data2.apply(lambda row: self._create_spaceid(row.lat, row.lon), axis=1)
+        logging.info("data2 space coordinate completed")
+
+    def _create_spaceid(self, lat, lon):
         latf = None
         lat0 = self.lat_lis[0]
         for i, lat1 in enumerate(self.lat_lis[1:]):
             if lat0 <= lat <= lat1:
-                latf = i
+                latf = i + 1
                 break
             lat0 = lat1
         if latf is None:
@@ -274,7 +108,7 @@ class Preprocessor(object):
         lon0 = self.lon_lis[0]
         for j, lon1 in enumerate(self.lon_lis[1:]):
             if lon0 <= lon <= lon1:
-                lonf = j
+                lonf = j + 1
                 break
             lon0 = lon1
         if lonf is None:
@@ -282,159 +116,186 @@ class Preprocessor(object):
 
         return f"{latf}-{lonf}"
 
-    def tcoor(self):
+    def time2coor(self, groupby='month'):
         logging.info("time coordinate...")
-        sseg = self.data2[['sseg']].copy()
-        sseg.drop_duplicates(inplace=True)
-        sseg['df'] = sseg['sseg'].map(lambda s: self.data2.query(f"sseg == '{s}'").copy())
-        sseg['df_tcoor'] = sseg.parallel_apply(lambda row: Tcoor(row.df, row.sseg).get(), axis=1)  # parallel_apply
-        sseg['df'] = sseg['df_tcoor'].map(lambda i: i[0])
-        sseg['tcoor'] = sseg['df_tcoor'].map(lambda i: i[1])
+        interval = 10 * 60
+        logging.info(f"time interval={interval}s")
+        if groupby == 'month':
+            self.data1['tgroup'] = self.data1['time'].map(lambda t: time.localtime(t).tm_mon)
+            self.data2['tgroup'] = self.data2['time'].map(lambda t: time.localtime(t).tm_mon)
+            logging.info("time coordinate group by month")
+        if groupby == 'week':
+            self.data1['tgroup'] = self.data1['time'].map(lambda t: time.localtime(t).tm_wday + 1)
+            self.data2['tgroup'] = self.data2['time'].map(lambda t: time.localtime(t).tm_wday + 1)
+            logging.info("time coordinate group by week")
 
-        tcoor = sum(sseg.tcoor.tolist(), [])
-        tcoor = pd.DataFrame(data=tcoor, columns=['sseg', 'tcoor', 't0', 't1'])
-        tcoor.to_csv(f"{log_path}/{self.file}_tcoor.csv", index=False)
+        df1 = self.data1[['time', 'tgroup']].copy()
+        df2 = self.data2[['time', 'tgroup']].copy()
+        df = pd.concat([df1, df2])
+        group = df.groupby('tgroup')['time'].agg(['min', 'max'])
+        time_dict = {}
 
-        self.data2 = pd.concat(sseg.df.tolist())
-        buffer = io.StringIO()
-        self.data2.info(buf=buffer)
-        logging.info(f"data2 info after time coordinate: {buffer.getvalue()}")
-        logging.info("time coordinate system completed")
+        for flag, v in group.iterrows():
+            t0, t1 = int(v['min']), int(v['max'])
+            size = math.ceil((t1 - t0) / interval)
+            lis = [t0]
+            for _ in range(size):
+                lis.append(lis[-1] + interval)
+            lis[-1] = t1
+            time_dict[flag] = lis
 
-    def ts2vector(self):
-        logging.info("time segment and space coordinate --> vector...")
-        self.data1["tsid"] = self.data1.apply(lambda row: f"{row.tseg}_{row.scoor}", axis=1)
-        self.ts_vec = self.data1[['tseg', 'scoor']].copy()
-        self.ts_vec.drop_duplicates(inplace=True)
+        self.time_dict = time_dict
+        logging.info("data1 time coordinate...")
+        self.data1['timeid'] = self.data1.apply(lambda row: self._create_timeid(row.tgroup, row.time), axis=1)
+        logging.info("data1 time coordinate completed")
+        logging.info("data2 time coordinate...")
+        self.data2['timeid'] = self.data2.apply(lambda row: self._create_timeid(row.tgroup, row.time), axis=1)
+        logging.info("data2 time coordinate completed")
 
-        tv0 = [0] * (self.ts_vec.tseg.max() + 1)  # 初始vector，+1:tseg从0开始
-        logging.info(f"time vector length: {len(tv0)}")
-        self.ts_vec["tv"] = self.ts_vec['tseg'].map(lambda tseg: self._tseg2v(tseg, tv0))
+    def _create_timeid(self, tgroup, t):
+        t_lis = self.time_dict[tgroup]
+        t0 = t_lis[0]
+        for i, t1 in enumerate(t_lis[1:]):
+            if t0 <= t <= t1:
+                return f"{tgroup}-{i + 1}"
+            t0 = t1
+        logging.critical(f"t={t} 找不到相应的时间分割编号")
 
-        self.ts_vec["sv"] = self.ts_vec['scoor'].map(lambda scoor: ''.join(map(self._coor2v, str(scoor))))
-        svlen = max([len(str(i)) for i in self.ts_vec.scoor.unique().tolist()]) * 4  # sv max length
-        logging.info(f"space vector length: {svlen}")
-        self.ts_vec["sv"] = self.ts_vec["sv"].map(lambda sv: sv.ljust(svlen, '0'))
-        self.ts_vec["sv"] = self.ts_vec["sv"].map(lambda sv: [int(i) for i in sv])
+    def space2vector(self):
+        logging.info("space2vector...")
 
-        logging.info(f"time space vector length: {len(tv0) + svlen}")
-        self.ts_vec["vector"] = self.ts_vec.apply(lambda row: row.tv + row.sv, axis=1)
-        self.ts_vec["tsid"] = self.ts_vec.apply(lambda row: f"{row.tseg}_{row.scoor}", axis=1)
+        self.data1['latid'] = self.data1['spaceid'].map(lambda s: int(s.split('-')[0]))
+        self.data2['latid'] = self.data2['spaceid'].map(lambda s: int(s.split('-')[0]))
+        lat_max = int(max([self.data1.latid.max(), self.data2.latid.max()]))
+        lat_len = (lat_max - 1).bit_length() + 4
+        logging.info(f"lat_max={lat_max}, lat_len={lat_len}")
 
-        buffer = io.StringIO()
-        self.ts_vec.info(buf=buffer)
-        logging.info(f"ts_vec info: {buffer.getvalue()}")
-        logging.info("vector completed")
+        self.data1['lonid'] = self.data1['spaceid'].map(lambda s: int(s.split('-')[1]))
+        self.data2['lonid'] = self.data2['spaceid'].map(lambda s: int(s.split('-')[1]))
+        lon_max = int(max([self.data1.lonid.max(), self.data2.lonid.max()]))
+        lon_len = (lon_max - 1).bit_length() + 4
+        logging.info(f"lon_max={lon_max}, lon_len={lon_len}")
 
-    def _tseg2v(self, tseg, tv0):
-        tv0[tseg] = 1
-        return tv0
+        df1 = self.data1[['spaceid', 'latid', 'lonid']].copy()
+        df2 = self.data2[['spaceid', 'latid', 'lonid']].copy()
+        s_vec = pd.concat([df1, df2])
+        s_vec.drop_duplicates(inplace=True)
+        s_vec['vec'] = s_vec.apply(lambda row: self._2binary(row.latid, lat_len, row.lonid, lon_len), axis=1)
+        s_vec.to_csv(f"{self.data_path[: -4]}_space_vec.csv", index=False)
+        self.s_vec = s_vec
+        logging.info("space2vector completed")
 
-    def _coor2v(self, scoor):
-        binary_dict = {
-            '0': '0001',
-            '1': '0010',
-            '2': '0100',
-            '3': '1000'
-        }
-        return binary_dict[scoor]
+    def time2vector(self):
+        logging.info("time2vector...")
+        self.data1['timeid0'] = self.data1['timeid'].map(lambda t: int(t.split("-")[0]))
+        self.data2['timeid0'] = self.data2['timeid'].map(lambda t: int(t.split("-")[0]))
+        timeid0_max = int(max([self.data1.timeid0.max(), self.data2.timeid0.max()]))
+        timeid0_len = (timeid0_max - 1).bit_length() + 4
+        logging.info(f"time group max={timeid0_max}, len={timeid0_len}")
+
+        self.data1['timeid1'] = self.data1['timeid'].map(lambda t: int(t.split("-")[1]))
+        self.data2['timeid1'] = self.data2['timeid'].map(lambda t: int(t.split("-")[1]))
+        timeid1_max = int(max([self.data1.timeid1.max(), self.data2.timeid1.max()]))
+        timeid1_len = (timeid1_max - 1).bit_length() + 4
+        logging.info(f"max value within the time group={timeid1_max}, len={timeid1_len}")
+
+        df1 = self.data1[['timeid', 'timeid0', 'timeid1']].copy()
+        df2 = self.data2[['timeid', 'timeid0', 'timeid1']].copy()
+        t_vec = pd.concat([df1, df2])
+        t_vec.drop_duplicates(inplace=True)
+        t_vec['vec'] = t_vec.apply(lambda row: self._2binary(row.timeid0, timeid0_len, row.timeid1, timeid1_len), axis=1)
+        t_vec.to_csv(f"{self.data_path[: -4]}_time_vec.csv", index=False)
+        self.t_vec = t_vec
+        logging.info("time2vector completed")
 
     def st2vector(self):
-        logging.info("space segment and time coordinate --> vector...")
-        self.data2["stid"] = self.data2.apply(lambda row: f"{row.sseg}_{row.tcoor}", axis=1)
-        self.st_vec = self.data2[['sseg', 'tcoor']].copy()
-        self.st_vec.drop_duplicates(inplace=True)
+        logging.info("spatiotemporal2vector...")
+        self.data1['stid'] = self.data1.apply(lambda row: f"{row.spaceid}_{row.timeid}", axis=1)
+        self.data2['stid'] = self.data2.apply(lambda row: f"{row.spaceid}_{row.timeid}", axis=1)
 
-        sseg = self.st_vec.sseg.unique().tolist()
-        # 初始vector
-        latv0 = [0] * (max([int(s.split("-")[0]) for s in sseg]) + 1)  # 从0开始标记(max + 1)
-        lonv0 = [0] * (max([int(s.split("-")[1]) for s in sseg]) + 1)  # 从0开始标记
-        logging.info(f"lat vector length: {len(latv0)}, lon vector length: {len(lonv0)}, space vector length: {len(latv0) + len(lonv0)}")
-        self.st_vec["sv"] = self.st_vec['sseg'].map(lambda sseg: self._sseg2v(sseg, latv0, lonv0))
+        df1 = self.data1[['stid']].copy()
+        df2 = self.data2[['stid']].copy()
+        stid = pd.concat([df1, df2])
+        stid.to_csv(f"{self.data_path[: -4]}_stid.csv", index=False)
+        self.stid_counts = stid.stid.value_counts().to_dict()
 
-        self.st_vec['tv'] = self.st_vec['tcoor'].map(lambda tcoor: ''.join(map(self._coor2v, str(tcoor))))
-        tvlen = max([len(str(i)) for i in self.st_vec.tcoor.unique().tolist()]) * 4  # tv max length
-        logging.info(f"time vector length: {tvlen}")
-        self.st_vec["tv"] = self.st_vec["tv"].map(lambda tv: tv.ljust(tvlen, '0'))
-        self.st_vec["tv"] = self.st_vec["tv"].map(lambda tv: [int(i) for i in tv])
+        df1 = self.data1[['stid', 'spaceid', 'timeid']].copy()
+        df2 = self.data2[['stid', 'spaceid', 'timeid']].copy()
+        st_vec = pd.concat([df1, df2])
+        st_vec.drop_duplicates(inplace=True)
 
-        logging.info(f"space time vector length: {len(latv0) + len(lonv0) + tvlen}")
-        self.st_vec["vector"] = self.st_vec.apply(lambda row: row.sv + row.tv, axis=1)
-        self.st_vec["stid"] = self.st_vec.apply(lambda row: f"{row.sseg}_{row.tcoor}", axis=1)
+        st_vec = st_vec.merge(self.s_vec, how='left')
+        st_vec.rename(columns={"vec": "s_vec"}, inplace=True)
+        st_vec = st_vec.merge(self.t_vec, how='left')
+        st_vec.rename(columns={"vec": "t_vec"}, inplace=True)
+        st_vec['vec'] = st_vec.apply(lambda x: x.s_vec[0] + x.s_vec[1] + x.t_vec[0] + x.t_vec[1], axis=1)
+        st_vec.to_csv(f"{self.data_path[: -4]}_st_vec.csv", index=False)
+        self.st_vec = st_vec
+        logging.info("spatiotemporal2vector completed")
 
-        buffer = io.StringIO()
-        self.st_vec.info(buf=buffer)
-        logging.info(f"st_vec info: {buffer.getvalue()}")
-        logging.info("vector completed")
+    def _2binary(self, num1, len1, num2=None, len2=None):
+        bin_str1 = bin(num1)[2:]
+        if len(bin_str1) < len1:
+            padding1 = '0' * (len1 - len(bin_str1))
+            bin_str1 = padding1 + bin_str1
+        bin_vec1 = [int(i) for i in bin_str1]
 
-    def _sseg2v(self, sseg, latv0, lonv0):
-        latf = int(sseg.split("-")[0])
-        lonf = int(sseg.split("-")[1])
-        latv0[latf] = 1
-        lonv0[lonf] = 1
-        v = latv0 + lonv0
-        return v
+        if num2 is None:
+            return bin_vec1
+
+        bin_str2 = bin(num2)[2:]
+        if len(bin_str2) < len2:
+            padding2 = '0' * (len2 - len(bin_str2))
+            bin_str2 = padding2 + bin_str2
+        bin_vec2 = [int(i) for i in bin_str2]
+
+        bin_vec = [bin_vec1, bin_vec2]
+        return bin_vec
 
     def get(self):
         if self.data1 is None:
-            dic1 = {'tid': str, 'time': int, 'lat': float, 'lon': float, 'did': str, 'tseg': int, 'scoor': str}
-            dic2 = {'tid': str, 'time': int, 'lat': float, 'lon': float, 'did': str, 'sseg': str, 'tcoor': str}
-            train_data1 = pd.read_csv(f"{log_path}{self.file}_train_data1.csv", dtype=dic1)
-            train_data2 = pd.read_csv(f"{log_path}{self.file}_train_data2.csv", dtype=dic2)
-            train = [train_data1, train_data2]
+            dic = {'tid': str, 'time': int, 'lat': float, 'lon': float, 'did': str, 'spaceid': str, 'timeid': str, 'stid': str}
+            train_data1 = pd.read_csv(f"{self.data_path[: -4]}_train_data1.csv", dtype=dic)
+            train_data2 = pd.read_csv(f"{self.data_path[: -4]}_train_data2.csv", dtype=dic)
+            train_data = [train_data1, train_data2]
             test_data = {}
             for k, v in self.test_path.items():
-                file = v.split('/')[-1].split('.')[0]
-                data1 = pd.read_csv(f"{log_path}{file}_{k}_data1.csv", dtype=dic1)
-                data2 = pd.read_csv(f"{log_path}{file}_{k}_data2.csv", dtype=dic2)
+                data1 = pd.read_csv(f"{self.data_path[: -4]}_{k}_data1.csv", dtype=dic)
+                data2 = pd.read_csv(f"{self.data_path[: -4]}_{k}_data2.csv", dtype=dic)
                 test_data[k] = [data1, data2]
 
-            dicts = {'tseg': int, 'scoor': str, 'tv': str, 'sv': str, 'vector': str, 'tsid': str}
-            ts_vec = pd.read_csv(f"{log_path}{self.file}_ts_vec.csv", dtype=dicts)
-            ts_vec['vector'] = ts_vec['vector'].map(lambda v: eval(v))
-            dicst = {'sseg': str, 'tcoor': str, 'sv': str, 'tv': str, 'vector': str, 'stid': str}
-            st_vec = pd.read_csv(f"{log_path}{self.file}_st_vec.csv", dtype=dicst)
-            st_vec['vector'] = st_vec['vector'].map(lambda v: eval(v))
-            self.ts_vec, self.st_vec = ts_vec, st_vec
+            st_vec = pd.read_csv(f"{self.data_path[: -4]}_st_vec.csv")
+            st_vec['s_vec'] = st_vec['s_vec'].map(lambda x: eval(x))
+            st_vec['t_vec'] = st_vec['t_vec'].map(lambda x: eval(x))
+            st_vec['vec'] = st_vec['vec'].map(lambda x: eval(x))
+            self.st_vec = st_vec
+
+            stid = pd.read_csv(f"{self.data_path[: -4]}_stid.csv")
+            self.stid_counts = stid.stid.value_counts().to_dict()
 
         else:
-            # active、passive
+            columns = ['tid', 'time', 'lat', 'lon', 'did', 'spaceid', 'timeid', 'stid']
+            self.data1 = self.data1[columns]
+            self.data2 = self.data2[columns]
             test_tid = []
             test_data = {}
             for k, df in self.test.items():
                 tid = df.tid.unique().tolist()
-                v = self.test_path[k]
-                file = v.split('/')[-1].split('.')[0]
                 test_tid += tid
                 data1 = self.data1.query(f"tid in {tid}").copy()
                 data1.reset_index(drop=True, inplace=True)
-                data1.to_csv(f"{log_path}{file}_{k}_data1.csv", index=False)
+                data1.to_csv(f"{self.data_path[: -4]}_{k}_data1.csv", index=False)
                 data2 = self.data2.query(f"tid in {tid}").copy()
                 data2.reset_index(drop=True, inplace=True)
-                data2.to_csv(f"{log_path}{file}_{k}_data2.csv", index=False)
+                data2.to_csv(f"{self.data_path[: -4]}_{k}_data2.csv", index=False)
                 test_data[k] = [data1, data2]
 
             data1 = self.data1.query(f"tid not in {test_tid}").copy()
             data1.reset_index(drop=True, inplace=True)
-            data1.to_csv(f"{log_path}{self.file}_train_data1.csv", index=False)
+            data1.to_csv(f"{self.data_path[: -4]}_train_data1.csv", index=False)
             data2 = self.data2.query(f"tid not in {test_tid}").copy()
             data2.reset_index(drop=True, inplace=True)
-            data2.to_csv(f"{log_path}{self.file}_train_data2.csv", index=False)
-            train = [data1, data2]
+            data2.to_csv(f"{self.data_path[: -4]}_train_data2.csv", index=False)
+            train_data = [data1, data2]
 
-            self.ts_vec.to_csv(f"{log_path}{self.file}_ts_vec.csv", index=False)
-            self.st_vec.to_csv(f"{log_path}{self.file}_st_vec.csv", index=False)
-
-        tsid = [train[0][['tsid']]]
-        for lis in test_data.values():
-            tsid.append(lis[0][['tsid']])
-        tsid = pd.concat(tsid)
-        tsid_counts = tsid.tsid.value_counts().to_dict()
-
-        stid = [train[1][['stid']]]
-        for lis in test_data.values():
-            stid.append(lis[1][['stid']])
-        stid = pd.concat(stid)
-        stid_counts = stid.stid.value_counts().to_dict()
-
-        return train, test_data, self.ts_vec, self.st_vec, tsid_counts, stid_counts
+        return train_data, test_data, self.st_vec, self.stid_counts
