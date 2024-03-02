@@ -13,13 +13,13 @@ log_path = "./libTrajectory/logs/STEL/"
 
 
 class Executor(object):
-    def __init__(self, st_vec, stid_counts, batch_size=256, num_workers=2):
+    def __init__(self, st_vec, stid_counts, batch_size=128, num_workers=8):
         self.st_vec = st_vec
         self.stid_counts = stid_counts
         self.batch_size = batch_size
         self.num_workers = num_workers
         logging.info(f"Executor...")
-        gpu_id = 1
+        gpu_id = 0
         self.device = torch.device(f"cuda:{gpu_id}" if torch.cuda.is_available() else "cpu")
         logging.info(f"device={self.device}, batch_size={self.batch_size}, num_workers={self.num_workers}")
 
@@ -28,8 +28,8 @@ class Executor(object):
         logging.info(f"epoch_num={epoch_num}")
         data1, data2 = train_data
         index_set = IdDataset(data1)
-        graph_data = GraphDataset(data1, data2, self.st_vec, self.stid_counts, self.device)
-        data_loader = DataLoader(index_set, batch_size=self.batch_size, shuffle=True, persistent_workers=True, num_workers=self.num_workers)
+        graph_data = GraphDataset(data1, data2, self.st_vec, self.stid_counts)
+        data_loader = DataLoader(index_set, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers)
 
         in_dim = len(self.st_vec.vec.values[0])
         # net1
@@ -49,46 +49,88 @@ class Executor(object):
         net3.train()
         logging.info(f"in_dim={in_dim}, mid_dim={mid_dim}, out_dim={out_dim}, lr1={lr1}, lr2={lr2}, lr3={lr3}")
 
-        cost = torch.nn.BCEWithLogitsLoss(pos_weight=torch.tensor([self.batch_size / 2])).to(self.device)
+        # cost = torch.nn.BCEWithLogitsLoss(pos_weight=torch.tensor([self.batch_size / 2])).to(self.device)
+        cost = torch.nn.CrossEntropyLoss().to(self.device)
         for epoch in range(epoch_num):  # 每个epoch循环
             logging.info(f'Epoch {epoch + 1}/{epoch_num}')
             batch_loss = 0
             for batch_tid in data_loader:  # 每个批次循环
-                node1, edge_ind1, edge_attr1, node2, edge_ind2, edge_attr2 = graph_data[batch_tid]
+                node1, edge_ind1, edge_attr1, node2, edge_ind2, edge_attr2, struct = graph_data[batch_tid]
+                if 'cuda' in str(self.device):
+                    node1 = node1.to(device=self.device)
+                    edge_ind1 = edge_ind1.to(device=self.device)
+                    edge_attr1 = edge_attr1.to(device=self.device)
+                    node2 = node2.to(device=self.device)
+                    edge_ind2 = edge_ind2.to(device=self.device)
+                    edge_attr2 = edge_attr2.to(device=self.device)
+
                 # 前向传播
                 net1_x = net1(node1, edge_ind1, edge_attr1)
                 net2_x = net2(node2, edge_ind2, edge_attr2)
                 x1 = net3(net1_x, edge_ind1, edge_attr1)
                 x2 = net3(net2_x, edge_ind2, edge_attr2)
-                user1 = x1[: len(batch_tid)]
-                user2 = x2[: len(batch_tid)]
 
                 # 计算损失
-                labels = torch.arange(len(user1)) == torch.arange(len(user2)).view(-1, 1)
-                cosine_sim1 = F.cosine_similarity(user1.unsqueeze(1), user2, dim=2)
-
-                node1_user = node1[: len(batch_tid)]
-                max_len1 = max(user2.shape[1], node1_user.shape[1])
-                node1_user = F.pad(node1_user, (0, max_len1 - node1_user.shape[1]))
-                user2 = F.pad(user2, (0, max_len1 - user2.shape[1]))
-                cosine_sim2 = F.cosine_similarity(user2.unsqueeze(1), node1_user, dim=2)
-
-                node2_user = node2[: len(batch_tid)]
-                max_len2 = max(user1.shape[1], node2_user.shape[1])
-                node2_user = F.pad(node2_user, (0, max_len2 - node2_user.shape[1]))
-                user1 = F.pad(user1, (0, max_len2 - user1.shape[1]))
-                cosine_sim3 = F.cosine_similarity(user1.unsqueeze(1), node2_user, dim=2)
-
+                # 增强样本1 loss1  "enh1": [[A A'], ...]
+                label1 = []
+                vector1 = []
+                for i, pairs in enumerate(struct['enh1']):
+                    vector1.append(x1[pairs[0]])
+                    label1.append(i)
+                    vector1.append(x1[pairs[1]])
+                    label1.append(i)
+                label1 = torch.tensor(label1)
+                vector1 = torch.stack(vector1, dim=0)
                 if 'cuda' in str(self.device):
-                    labels = labels.to(device=self.device)
-                    cosine_sim1 = cosine_sim1.to(device=self.device)
-                    cosine_sim2 = cosine_sim2.to(device=self.device)
-                    cosine_sim3 = cosine_sim3.to(device=self.device)
-                loss1 = cost(cosine_sim1, labels.float())
-                loss2 = cost(cosine_sim2, labels.float())
-                loss3 = cost(cosine_sim3, labels.float())
-                loss = loss1 + loss2 + loss3  # + loss2 + loss3
+                    label1 = label1.to(device=self.device)
+                    vector1 = vector1.to(device=self.device)
+                loss1 = cost(vector1, label1)
 
+                # 增强样本2 loss2  "enh1": [[B B'], ...]
+                label2 = []
+                vector2 = []
+                for i, pairs in enumerate(struct['enh1']):
+                    vector2.append(x2[pairs[0]])
+                    label2.append(i)
+                    vector2.append(x2[pairs[1]])
+                    label2.append(i)
+                label2 = torch.tensor(label2)
+                vector2 = torch.stack(vector2, dim=0)
+                if 'cuda' in str(self.device):
+                    label2 = label2.to(device=self.device)
+                    vector2 = vector2.to(device=self.device)
+                loss2 = cost(vector2, label2)
+
+                # 正样本对 loss3  "ps": [[A B], ...]、负样本对1 loss  "ns1": [[A B], ...]  "ns2": [[B A], ...]
+                label3 = []
+                vector3_1 = []
+                vector3_2 = []
+                for pairs in struct['ps']:  # [A B]
+                    label3.append(1)
+                    vector3_1.append(x1[pairs[0]])
+                    vector3_2.append(x2[pairs[1]])
+
+                for pairs in struct['ns1']:  # [A B]
+                    label3.append(0)
+                    vector3_1.append(x1[pairs[0]])
+                    vector3_2.append(x2[pairs[1]])
+
+                for pairs in struct['ns2']:  # [B A]
+                    label3.append(0)
+                    vector3_1.append(x1[pairs[1]])
+                    vector3_2.append(x2[pairs[0]])
+
+                label3 = torch.tensor(label3, dtype=torch.float32)
+                vector3_1 = torch.stack(vector3_1, dim=0)
+                vector3_2 = torch.stack(vector3_2, dim=0)
+                if 'cuda' in str(self.device):
+                    label3 = label3.to(device=self.device)
+                    vector3_1 = vector3_1.to(device=self.device)
+                    vector3_2 = vector3_2.to(device=self.device)
+                similarities3 = F.cosine_similarity(vector3_1, vector3_2)
+                loss3 = cost(similarities3, label3)
+
+                loss = loss1 + loss2 + loss3
                 # 反向传播
                 optimizer1.zero_grad()
                 optimizer2.zero_grad()
@@ -97,10 +139,7 @@ class Executor(object):
                 optimizer1.step()
                 optimizer2.step()
                 optimizer3.step()
-                logging.info(f"batch loss1(A' 与 B' cosine similarity): {loss1.data.item()}")
-                logging.info(f"batch loss2(A 与 B' cosine similarity): {loss2.data.item()}")
-                logging.info(f"batch loss3(B 与 A' cosine similarity): {loss3.data.item()}")
-                logging.info(f"batch loss(loss1 + loss2 +loss3): {loss.data.item()}")
+                logging.info(f"batch loss(loss1={loss1} + loss2={loss2} + loss3={loss3}): {loss.data.item()}")
                 batch_loss += loss.data.item()
 
             epoch_loss = batch_loss / len(data_loader)
@@ -136,20 +175,25 @@ class Executor(object):
         for k, v in test_data.items():
             logging.info(f"{k}...")
             data1, data2 = v
-            # test_tid = data1.tid[:20].tolist()
-            # data1 = data1.query(f"tid in {test_tid}")
-            # data2 = data2.query(f"tid in {test_tid}")
             index_set = IdDataset(data1)
-            graph_data = GraphDataset(data1, data2, self.st_vec, self.stid_counts, self.device)
-            data_loader = DataLoader(index_set, batch_size=self.batch_size, shuffle=False, persistent_workers=True, num_workers=self.num_workers)
+            graph_data = GraphDataset(data1, data2, self.st_vec, self.stid_counts)
+            data_loader = DataLoader(index_set, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers)
             embedding_1 = []
             embedding_2 = []
             for batch_tid in data_loader:
                 node1, edge_ind1, edge_attr1, node2, edge_ind2, edge_attr2 = graph_data[batch_tid]
+                if 'cuda' in str(self.device):
+                    node1 = node1.to(device=self.device)
+                    edge_ind1 = edge_ind1.to(device=self.device)
+                    edge_attr1 = edge_attr1.to(device=self.device)
+                    node2 = node2.to(device=self.device)
+                    edge_ind2 = edge_ind2.to(device=self.device)
+                    edge_attr2 = edge_attr2.to(device=self.device)
                 net1_x = net1(node1, edge_ind1, edge_attr1)
                 net2_x = net2(node2, edge_ind2, edge_attr2)
                 x1 = net3(net1_x, edge_ind1, edge_attr1)
                 x2 = net3(net2_x, edge_ind2, edge_attr2)
+
                 if 'cuda' in str(self.device):
                     x1 = x1.to(device='cpu')
                     x2 = x2.to(device='cpu')

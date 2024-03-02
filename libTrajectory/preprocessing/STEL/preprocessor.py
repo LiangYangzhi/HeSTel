@@ -4,7 +4,6 @@ import math
 import time
 
 import pandas as pd
-from geopy.distance import geodesic
 from math import cos, radians
 
 
@@ -254,24 +253,35 @@ class Preprocessor(object):
 
     def get(self):
         if self.data1 is None:
+            logging.info("train data loading...")
             dic = {'tid': str, 'time': int, 'lat': float, 'lon': float, 'did': str, 'spaceid': str, 'timeid': str, 'stid': str}
             train_data1 = pd.read_csv(f"{self.data_path[: -4]}_train_data1.csv", dtype=dic)
             train_data2 = pd.read_csv(f"{self.data_path[: -4]}_train_data2.csv", dtype=dic)
             train_data = [train_data1, train_data2]
+            logging.info("train data load completed")
+
+            logging.info("test data loading...")
             test_data = {}
             for k, v in self.test_path.items():
                 data1 = pd.read_csv(f"{self.data_path[: -4]}_{k}_data1.csv", dtype=dic)
                 data2 = pd.read_csv(f"{self.data_path[: -4]}_{k}_data2.csv", dtype=dic)
                 test_data[k] = [data1, data2]
+            logging.info(f"test data load completed")
 
+            logging.info("spatiotemporal vector loading...")
             st_vec = pd.read_csv(f"{self.data_path[: -4]}_st_vec.csv")
-            st_vec['s_vec'] = st_vec['s_vec'].map(lambda x: eval(x))
-            st_vec['t_vec'] = st_vec['t_vec'].map(lambda x: eval(x))
-            st_vec['vec'] = st_vec['vec'].map(lambda x: eval(x))
+            from pandarallel import pandarallel
+            pandarallel.initialize(nb_workers=24)
+            st_vec['s_vec'] = st_vec['s_vec'].parallel_map(lambda x: eval(x))
+            st_vec['t_vec'] = st_vec['t_vec'].parallel_map(lambda x: eval(x))
+            st_vec['vec'] = st_vec['vec'].parallel_map(lambda x: eval(x))
             self.st_vec = st_vec
+            logging.info("spatiotemporal vector completed")
 
+            logging.info("trajectory points and spatiotemporal_id loading...")
             stid = pd.read_csv(f"{self.data_path[: -4]}_stid.csv")
             self.stid_counts = stid.stid.value_counts().to_dict()
+            logging.info("trajectory points and spatiotemporal_id load completed")
 
         else:
             columns = ['tid', 'time', 'lat', 'lon', 'did', 'spaceid', 'timeid', 'stid']
