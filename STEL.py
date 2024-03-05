@@ -10,14 +10,14 @@ data_path = "./libTrajectory/dataset/AIS/"
 def pipeline():
     logging.basicConfig(filename=f'{log_path}test.log', format='%(asctime)s - %(levelname)s - %(message)s',
                         level=logging.INFO)
-    preprocessor = Preprocessor(f"{data_path}sample100.csv",
-                                {"test1": f"{data_path}sample10.csv", "test2": f"{data_path}sample30.csv"})
+    preprocessor = Preprocessor(f"{data_path}sample2K.csv",
+                                {"test1": f"{data_path}sample100.csv", "test2": f"{data_path}sample300.csv"})
     # preprocessor.run()  # 注释后get方法将调用已经预处理好的数据，
     # tid : 轨迹标识，tid1与tid2相同则为正样本，否则为负样本.
     train_data, test_data, st_vec, stid_counts = preprocessor.get()
     executor = Executor(st_vec, stid_counts)
     executor.train(train_data)
-    executor.infer(test_data)
+    # executor.infer(test_data)
 
 
 if __name__ == "__main__":
