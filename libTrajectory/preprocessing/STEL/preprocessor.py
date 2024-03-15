@@ -8,7 +8,7 @@ from math import cos, radians
 
 
 class Preprocessor(object):
-    def __init__(self, data_path, test_path={}):
+    def __init__(self, data_path, test_path):
         self.data_path = data_path
         self.test_path = test_path
         self.data1 = None  # Active
@@ -16,15 +16,17 @@ class Preprocessor(object):
         logging.info(f"self.path={self.data_path}")
 
     def run(self):
-        self.loader()
+        self.traj_loader()
         self.cleaner()
         self.space2coor()  # 空间建模
         self.time2coor()  # 时间建模
-        self.space2vector()  # 空间编号转向量
-        self.time2vector()  # 时间编号转向量
-        self.st2vector()  # 时空编号转向量
+        self.space2vector()
+        self.time2vector()
+        self.st2vector()
+        self.save()
+        return self.train_data, self.test_data, self.st_vec, self.stid_counts
 
-    def loader(self):
+    def traj_loader(self):
         logging.info("data loading...")
         data = pd.read_csv(self.data_path, dtype={
             'uid': str, 'tid': str, 'time': int, 'lat': float, 'lon': float, 'did': str,
@@ -68,7 +70,7 @@ class Preprocessor(object):
 
         # 获取区域的lat、lon步长
         deci = 5  # decimal 小数点后的精度
-        distance = 100 * 1000  # m
+        distance = 10 * 1000  # m
         r = 6371393  # 地球半径 单位m
         lat_step = (distance / (r * cos(radians(0)))) * (180 / 3.1415926)
         lon_step = (distance / r) * (180 / 3.1415926)
@@ -83,37 +85,16 @@ class Preprocessor(object):
         for _ in range(lon_size):
             lon_lis.append(round(lon_lis[-1] + lon_step, deci))
         lat_lis[-1], lon_lis[-1] = lat1, lon1
-        self.lat_lis, self.lon_lis = lat_lis, lon_lis
 
         logging.info("data1 space coordinate...")
-        self.data1['spaceid'] = self.data1.apply(lambda row: self._create_spaceid(row.lat, row.lon), axis=1)
+        space_num = SpaceNum(lat_lis, lon_lis)
+        test = self.data1.copy()
+        self.data1 = space_num.get(test)
         logging.info("data1 space coordinate completed")
         logging.info("data2 space coordinate...")
-        self.data2['spaceid'] = self.data2.apply(lambda row: self._create_spaceid(row.lat, row.lon), axis=1)
+        test = self.data2.copy()
+        self.data2 = space_num.get(test)
         logging.info("data2 space coordinate completed")
-
-    def _create_spaceid(self, lat, lon):
-        latf = None
-        lat0 = self.lat_lis[0]
-        for i, lat1 in enumerate(self.lat_lis[1:]):
-            if lat0 <= lat <= lat1:
-                latf = i + 1
-                break
-            lat0 = lat1
-        if latf is None:
-            logging.critical(f"lat={lat} 找不到对应的空间切割编号")
-
-        lonf = None
-        lon0 = self.lon_lis[0]
-        for j, lon1 in enumerate(self.lon_lis[1:]):
-            if lon0 <= lon <= lon1:
-                lonf = j + 1
-                break
-            lon0 = lon1
-        if lonf is None:
-            logging.critical(f"lon={lon} 找不到对应的空间切割编号")
-
-        return f"{latf}-{lonf}"
 
     def time2coor(self, groupby='month'):
         logging.info("time coordinate...")
@@ -143,22 +124,15 @@ class Preprocessor(object):
             lis[-1] = t1
             time_dict[flag] = lis
 
-        self.time_dict = time_dict
         logging.info("data1 time coordinate...")
-        self.data1['timeid'] = self.data1.apply(lambda row: self._create_timeid(row.tgroup, row.time), axis=1)
+        timeid = TimeNum(time_dict)
+        test = self.data1.copy()
+        self.data1 = timeid.get(test)
         logging.info("data1 time coordinate completed")
         logging.info("data2 time coordinate...")
-        self.data2['timeid'] = self.data2.apply(lambda row: self._create_timeid(row.tgroup, row.time), axis=1)
+        test = self.data2.copy()
+        self.data2 = timeid.get(test)
         logging.info("data2 time coordinate completed")
-
-    def _create_timeid(self, tgroup, t):
-        t_lis = self.time_dict[tgroup]
-        t0 = t_lis[0]
-        for i, t1 in enumerate(t_lis[1:]):
-            if t0 <= t <= t1:
-                return f"{tgroup}-{i + 1}"
-            t0 = t1
-        logging.critical(f"t={t} 找不到相应的时间分割编号")
 
     def space2vector(self):
         logging.info("space2vector...")
@@ -180,7 +154,6 @@ class Preprocessor(object):
         s_vec = pd.concat([df1, df2])
         s_vec.drop_duplicates(inplace=True)
         s_vec['vec'] = s_vec.apply(lambda row: self._2binary(row.latid, lat_len, row.lonid, lon_len), axis=1)
-        s_vec.to_csv(f"{self.data_path[: -4]}_space_vec.csv", index=False)
         self.s_vec = s_vec
         logging.info("space2vector completed")
 
@@ -202,8 +175,8 @@ class Preprocessor(object):
         df2 = self.data2[['timeid', 'timeid0', 'timeid1']].copy()
         t_vec = pd.concat([df1, df2])
         t_vec.drop_duplicates(inplace=True)
-        t_vec['vec'] = t_vec.apply(lambda row: self._2binary(row.timeid0, timeid0_len, row.timeid1, timeid1_len), axis=1)
-        t_vec.to_csv(f"{self.data_path[: -4]}_time_vec.csv", index=False)
+        t_vec['vec'] = t_vec.apply(lambda row: self._2binary(row.timeid0, timeid0_len, row.timeid1, timeid1_len),
+                                   axis=1)
         self.t_vec = t_vec
         logging.info("time2vector completed")
 
@@ -228,7 +201,7 @@ class Preprocessor(object):
         st_vec = st_vec.merge(self.t_vec, how='left')
         st_vec.rename(columns={"vec": "t_vec"}, inplace=True)
         st_vec['vec'] = st_vec.apply(lambda x: x.s_vec[0] + x.s_vec[1] + x.t_vec[0] + x.t_vec[1], axis=1)
-        st_vec.to_csv(f"{self.data_path[: -4]}_st_vec.csv", index=False)
+        st_vec = st_vec[['stid', 'spaceid', 'timeid', 'vec']]
         self.st_vec = st_vec
         logging.info("spatiotemporal2vector completed")
 
@@ -251,61 +224,136 @@ class Preprocessor(object):
         bin_vec = [bin_vec1, bin_vec2]
         return bin_vec
 
-    def get(self):
-        if self.data1 is None:
-            logging.info("train data loading...")
-            dic = {'tid': str, 'time': int, 'lat': float, 'lon': float, 'did': str, 'spaceid': str, 'timeid': str, 'stid': str}
-            train_data1 = pd.read_csv(f"{self.data_path[: -4]}_train_data1.csv", dtype=dic)
-            train_data2 = pd.read_csv(f"{self.data_path[: -4]}_train_data2.csv", dtype=dic)
-            train_data = [train_data1, train_data2]
-            logging.info("train data load completed")
+    def _stid(self):
+        df1 = self.data1[['stid']].copy()
+        df2 = self.data2[['stid']].copy()
+        self.stid = pd.concat([df1, df2])
+        self.stid_counts = self.stid.stid.value_counts().to_dict()
+        logging.info("stid, stid_counts completed")
 
-            logging.info("test data loading...")
-            test_data = {}
-            for k, v in self.test_path.items():
-                data1 = pd.read_csv(f"{self.data_path[: -4]}_{k}_data1.csv", dtype=dic)
-                data2 = pd.read_csv(f"{self.data_path[: -4]}_{k}_data2.csv", dtype=dic)
-                test_data[k] = [data1, data2]
-            logging.info(f"test data load completed")
+    def save(self):
+        logging.info("data save...")
+        self._stid()
+        self.s_vec.to_csv(f"{self.data_path[: -4]}_s_vec.csv", index=False)
+        self.t_vec.to_csv(f"{self.data_path[: -4]}_t_vec.csv", index=False)
+        self.st_vec.to_csv(f"{self.data_path[: -4]}_st_vec.csv", index=False)
+        self.stid.to_csv(f"{self.data_path[: -4]}_stid.csv", index=False)
 
-            logging.info("spatiotemporal vector loading...")
-            st_vec = pd.read_csv(f"{self.data_path[: -4]}_st_vec.csv")
-            from pandarallel import pandarallel
-            pandarallel.initialize(nb_workers=24)
-            st_vec['s_vec'] = st_vec['s_vec'].parallel_map(lambda x: eval(x))
-            st_vec['t_vec'] = st_vec['t_vec'].parallel_map(lambda x: eval(x))
-            st_vec['vec'] = st_vec['vec'].parallel_map(lambda x: eval(x))
-            self.st_vec = st_vec
-            logging.info("spatiotemporal vector completed")
+        columns = ['tid', 'time', 'lat', 'lon', 'spaceid', 'timeid', 'stid']
+        data1 = self.data1[columns]
+        data1.to_csv(f"{self.data_path[: -4]}_data1.csv", index=False)
+        data2 = self.data2[columns]
+        data2.to_csv(f"{self.data_path[: -4]}_data2.csv", index=False)
 
-            logging.info("trajectory points and spatiotemporal_id loading...")
-            stid = pd.read_csv(f"{self.data_path[: -4]}_stid.csv")
-            self.stid_counts = stid.stid.value_counts().to_dict()
-            logging.info("trajectory points and spatiotemporal_id load completed")
+        test_tid = []
+        self.test_data = {}
+        for k, df in self.test.items():
+            tid = df.tid.unique().tolist()
+            test_tid += tid
+            df1 = data1.query(f"tid in {tid}").copy()
+            df1.reset_index(drop=True, inplace=True)
+            df1.to_csv(f"{self.data_path[: -4]}_{k}_data1.csv", index=False)
+            df2 = data2.query(f"tid in {tid}").copy()
+            df2.reset_index(drop=True, inplace=True)
+            df2.to_csv(f"{self.data_path[: -4]}_{k}_data2.csv", index=False)
+            self.test_data[k] = [df1, df2]
 
-        else:
-            columns = ['tid', 'time', 'lat', 'lon', 'did', 'spaceid', 'timeid', 'stid']
-            self.data1 = self.data1[columns]
-            self.data2 = self.data2[columns]
-            test_tid = []
-            test_data = {}
-            for k, df in self.test.items():
-                tid = df.tid.unique().tolist()
-                test_tid += tid
-                data1 = self.data1.query(f"tid in {tid}").copy()
-                data1.reset_index(drop=True, inplace=True)
-                data1.to_csv(f"{self.data_path[: -4]}_{k}_data1.csv", index=False)
-                data2 = self.data2.query(f"tid in {tid}").copy()
-                data2.reset_index(drop=True, inplace=True)
-                data2.to_csv(f"{self.data_path[: -4]}_{k}_data2.csv", index=False)
-                test_data[k] = [data1, data2]
+        data1 = data1.query(f"tid not in {test_tid}").copy()
+        data1.reset_index(drop=True, inplace=True)
+        data1.to_csv(f"{self.data_path[: -4]}_train_data1.csv", index=False)
+        data2 = data2.query(f"tid not in {test_tid}").copy()
+        data2.reset_index(drop=True, inplace=True)
+        data2.to_csv(f"{self.data_path[: -4]}_train_data2.csv", index=False)
+        self.train_data = [data1, data2]
+        logging.info("data save completed")
 
-            data1 = self.data1.query(f"tid not in {test_tid}").copy()
-            data1.reset_index(drop=True, inplace=True)
-            data1.to_csv(f"{self.data_path[: -4]}_train_data1.csv", index=False)
-            data2 = self.data2.query(f"tid not in {test_tid}").copy()
-            data2.reset_index(drop=True, inplace=True)
-            data2.to_csv(f"{self.data_path[: -4]}_train_data2.csv", index=False)
-            train_data = [data1, data2]
+    def load(self):
+        from pandarallel import pandarallel
+        pandarallel.initialize(nb_workers=12)
+        # logging.info("spatiotemporal vector loading...")
+        # st_vec = pd.read_csv(f"{self.data_path[: -4]}_st_vec.csv")
+        # st_vec['vec'] = st_vec['vec'].parallel_map(lambda x: eval(x))
+        # logging.info("spatiotemporal vector load completed")
 
-        return train_data, test_data, self.st_vec, self.stid_counts
+        logging.info("train data loading...")
+        dic = {'tid': str, 'time': int, 'lat': float, 'lon': float, 'spaceid': str, 'timeid': str, 'stid': str}
+        train_data1 = pd.read_csv(f"{self.data_path[: -4]}_train_data1.csv", dtype=dic)
+        train_data2 = pd.read_csv(f"{self.data_path[: -4]}_train_data2.csv", dtype=dic)
+        train_data = [train_data1, train_data2]
+        logging.info("train data load completed")
+
+        logging.info("test data loading...")
+        test_data = {}
+        for k, v in self.test_path.items():
+            df1 = pd.read_csv(f"{self.data_path[: -4]}_{k}_data1.csv", dtype=dic)
+            df2 = pd.read_csv(f"{self.data_path[: -4]}_{k}_data2.csv", dtype=dic)
+            test_data[k] = [df1, df2]
+        logging.info(f"test data load completed")
+
+        logging.info("trajectory points and spatiotemporal_id loading...")
+        stid_counts = pd.read_csv(f"{self.data_path[: -4]}_stid.csv").stid.value_counts().to_dict()
+        logging.info("trajectory points and spatiotemporal_id load completed")
+
+        return train_data, test_data, stid_counts
+        # return train_data, test_data, st_vec, stid_counts
+
+    def get(self, method="load"):
+        if method == "load":
+            return self.load()
+        if method == "run":
+            return self.run()
+
+
+class SpaceNum(object):
+    def __init__(self, lat_lis, lon_lis):
+        self.lat_lis = lat_lis
+        self.lon_lis = lon_lis
+
+    def _create_spaceid(self, lat, lon):
+        latf = None
+        lat0 = self.lat_lis[0]
+        for i, lat1 in enumerate(self.lat_lis[1:]):
+            if lat0 <= lat <= lat1:
+                latf = i + 1
+                break
+            lat0 = lat1
+        if latf is None:
+            logging.critical(f"lat={lat} 找不到对应的空间切割编号")
+
+        lonf = None
+        lon0 = self.lon_lis[0]
+        for j, lon1 in enumerate(self.lon_lis[1:]):
+            if lon0 <= lon <= lon1:
+                lonf = j + 1
+                break
+            lon0 = lon1
+        if lonf is None:
+            logging.critical(f"lon={lon} 找不到对应的空间切割编号")
+
+        return f"{latf}-{lonf}"
+
+    def get(self, df):
+        from pandarallel import pandarallel
+        pandarallel.initialize(nb_workers=4)
+        df['spaceid'] = df.parallel_apply(lambda row: self._create_spaceid(row.lat, row.lon), axis=1)
+        return df
+
+
+class TimeNum(object):
+    def __init__(self, time_dict):
+        self.time_dict = time_dict
+
+    def _create_timeid(self, tgroup, t):
+        t_lis = self.time_dict[tgroup]
+        t0 = t_lis[0]
+        for i, t1 in enumerate(t_lis[1:]):
+            if t0 <= t <= t1:
+                return f"{tgroup}-{i + 1}"
+            t0 = t1
+        logging.critical(f"t={t} 找不到相应的时间分割编号")
+
+    def get(self, df):
+        from pandarallel import pandarallel
+        pandarallel.initialize(nb_workers=4)
+        df['timeid'] = df.apply(lambda row: self._create_timeid(row.tgroup, row.time), axis=1)
+        return df

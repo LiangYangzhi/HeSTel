@@ -16,6 +16,7 @@ spatiotemporal similarity: dot product
 base knn query
 """
 import logging
+import time
 from datetime import datetime
 
 import numpy as np
@@ -33,7 +34,7 @@ class Preprocessor(Pre):
     def __init__(self, data_path, test_path={}):
         self.inter = 60 * 60
         super(Preprocessor, self).__init__(data_path, test_path)
-        self.loader()
+        self.traj_loader()
         self.cleaner()
 
         self.test_data = {}
@@ -79,7 +80,7 @@ class Preprocessor(Pre):
         matrix = vectorizer.fit_transform(group['seq'])
         logging.info(f"data sequential matrix shape {matrix.shape}")
         # perform SVD dimensionality reduction
-        svd = TruncatedSVD(n_components=64, algorithm='arpack')
+        svd = TruncatedSVD(n_components=128, algorithm='arpack')
         matrix = svd.fit_transform(matrix)
         logging.info(f"perform SVD dimensionality reduction after data shape: {matrix.shape}")
 
@@ -94,49 +95,75 @@ class Preprocessor(Pre):
             test2['seq'] = test2.index.map(lambda i: normalize([matrix[i]], 'l2'))
 
             embedding1, embedding2 = self._vector_format(test1, test2, name='seq')
-            np.save(f'{log_path}sequential_{self.test_path[k].split("/")[-1]}_embedding1.npy', embedding1)
-            np.save(f'{log_path}sequential_{self.test_path[k].split("/")[-1]}_embedding2.npy', embedding2)
             test_data[k] = [embedding1, embedding2]
         return test_data
 
-    def _deal_tem(self, data: pd.DataFrame):
-        def time_interval(lis):
+    def _deal_tem(self, data: pd.DataFrame, method):  # year_month month_day week_day day_hour
+
+        def year_month_interval(lis):
+            v = [0 for _ in range(12)]  # tm_mon: 12, tm_wday: 7, tm_hour: 24
+            for t in lis:
+                ind = time.localtime(t).tm_mon - 1  # tm_mon - 1  , tm_wday,  tm_hour
+                v[ind] += 1
+            v = np.array(v, dtype=np.float64)
+            v_l1 = normalize([v], 'l1')
+            return v_l1
+
+        def month_day_interval(lis):
+            v = [0 for _ in range(31)]
+            for t in lis:
+                ind = time.localtime(t).tm_mday - 1
+                v[ind] += 1
+            v = np.array(v, dtype=np.float64)
+            v_l1 = normalize([v], 'l1')
+            return v_l1
+
+        def week_day_interval(lis):
+            v = [0 for _ in range(7)]
+            for t in lis:
+                ind = time.localtime(t).tm_wday
+                v[ind] += 1
+            v = np.array(v, dtype=np.float64)
+            v_l1 = normalize([v], 'l1')
+            return v_l1
+
+        def day_hour_interval(lis):
             v = [0 for _ in range(24)]
-            for i in lis:
-                t_tuple = datetime.fromtimestamp(i)
-                hour = t_tuple.hour
-                v[hour] += 1
+            for t in lis:
+                ind = time.localtime(t).tm_hour
+                v[ind] += 1
             v = np.array(v, dtype=np.float64)
             v_l1 = normalize([v], 'l1')
             return v_l1
 
         group = data.groupby("tid", as_index=False).agg({"time": list})
-        group['tem'] = group['time'].map(time_interval)  # parallel_map
+        if method == "year_month":
+            group['tem'] = group['time'].map(year_month_interval)  # parallel_map
+        elif method == "month_day":
+            group['tem'] = group['time'].map(month_day_interval)
+        elif method == "week_day":
+            group['tem'] = group['time'].map(week_day_interval)
+        elif method == "day_hour":
+            group['tem'] = group['time'].map(day_hour_interval)
         return group
 
-    def temporal(self):
-        logging.info(f"temporal signature, time interval={self.inter}...")
-        # t0 = min([self.data1.time.min(), self.data2.time.min()])
-        # self.t0 = datetime.fromtimestamp(t0).day
-        # t1 = max([self.data1.time.max(), self.data2.time.max()])
-        # self.t1 = datetime.fromtimestamp(t1).day
+    def temporal(self, method="month_day"):  # year_month month_day week_day day_hour
+        logging.info(f"temporal signature, method={method}...")
         test_data = {}
         for k, tid in self.test_data.items():
             logging.info(f"{k}, data1--->temporal vector....")
             test1 = self.data1[self.data1['tid'].isin(tid)].copy()
-            test1 = self._deal_tem(test1)
+            test1 = self._deal_tem(test1, method=method)
             logging.info(f"{k}, data2--->temporal vector....")
             test2 = self.data2[self.data2['tid'].isin(tid)].copy()
-            test2 = self._deal_tem(test2)
+            test2 = self._deal_tem(test2, method=method)
 
             embedding1, embedding2 = self._vector_format(test1, test2, name='tem')
-            np.save(f'{log_path}temporal_{self.test_path[k].split("/")[-1]}_embedding1.npy', embedding1)
-            np.save(f'{log_path}temporal_{self.test_path[k].split("/")[-1]}_embedding2.npy', embedding2)
             test_data[k] = [embedding1, embedding2]
         return test_data
 
     def _deal_spa(self, data: pd.DataFrame):
-        data['point'] = data.parallel_apply(lambda row: (row.lat, row.lon), axis=1)
+        data['point'] = data.apply(lambda row: (row.lat, row.lon), axis=1)   # parallel_apply
         group = data.groupby("tid", as_index=False).agg({"point": list})
         group['point'] = group['point'].map(lambda s: str(s))
         group.reset_index(drop=True, inplace=True)
@@ -178,26 +205,32 @@ class Preprocessor(Pre):
             test2['spatial'] = test2.index.map(lambda i: normalize([matrix[i]], 'l2'))
 
             embedding1, embedding2 = self._vector_format(test1, test2, name='spatial')
-            np.save(f'{log_path}spatial_{self.test_path[k].split("/")[-1]}_embedding1.npy', embedding1)
-            np.save(f'{log_path}spatial_{self.test_path[k].split("/")[-1]}_embedding2.npy', embedding2)
             test_data[k] = [embedding1, embedding2]
         return test_data
 
-    def _deal_st(self, data: pd.DataFrame):
-        data['tem'] = data['time'].map(lambda t: t // self.inter)
+    def _deal_st(self, data: pd.DataFrame, method):  # year_month month_day week_day day_hour
+        if method == "year_month":
+            data['tem'] = data['time'].map(lambda t: time.localtime(t).tm_mon)
+        elif method == "month_day":
+            data['tem'] = data['time'].map(lambda t: time.localtime(t).tm_mday)
+        elif method == "week_day":
+            data['tem'] = data['time'].map(lambda t: time.localtime(t).tm_wday)
+        elif method == "day_hour":
+            data['tem'] = data['time'].map(lambda t: time.localtime(t).tm_hour)
+
         data['st'] = data.apply(lambda row: (row.tem, row.lat, row.lon), axis=1)
         group = data.groupby("tid", as_index=False).agg({"st": list})
         group['st'] = group['st'].map(lambda s: str(s))
         group.reset_index(drop=True, inplace=True)
         return group
 
-    def spatiotemporal(self):
-        logging.info(f"spatiotemporal signature...")
+    def spatiotemporal(self, method="month_day"):  # year_month month_day week_day day_hour
+        logging.info(f"spatiotemporal signature, method={method}...")
         logging.info("data1 spatiotemporal...")
-        group1 = self._deal_st(self.data1)
+        group1 = self._deal_st(self.data1, method)
         group1['data'] = 'data1'
         logging.info("data2 spatiotemporal...")
-        group2 = self._deal_st(self.data2)
+        group2 = self._deal_st(self.data2, method)
         group2['data'] = 'data2'
         group = pd.concat([group1, group2])
         group.reset_index(drop=True, inplace=True)
@@ -226,7 +259,5 @@ class Preprocessor(Pre):
             test2['st'] = test2.index.map(lambda i: normalize([matrix[i]], 'l2'))
 
             embedding1, embedding2 = self._vector_format(test1, test2, name='st')
-            np.save(f'{log_path}spatiotemporal_{self.test_path[k].split("/")[-1]}_embedding1.npy', embedding1)
-            np.save(f'{log_path}spatiotemporal_{self.test_path[k].split("/")[-1]}_embedding2.npy', embedding2)
             test_data[k] = [embedding1, embedding2]
         return test_data

@@ -3,12 +3,12 @@ from libTrajectory.preprocessing.STEL.signature_BL import Preprocessor
 from libTrajectory.evaluator.knn_query import evaluator
 
 
-log_path = "./libTrajectory/logs/STEL_BL/"
+log_path = "./libTrajectory/logs/STEL/"
 data_path = "./libTrajectory/dataset/AIS/"
 
 
 def pipeline():
-    logging.basicConfig(filename=f'{log_path}STEL_BL.log', format='%(asctime)s - %(levelname)s - %(message)s',
+    logging.basicConfig(filename=f'{log_path}baseline.log', format='%(asctime)s - %(levelname)s - %(message)s',
                         level=logging.INFO)
     preprocessor = Preprocessor(f"{data_path}multiA.csv",
                                 {"test1": f"{data_path}test1K.csv", "test2": f"{data_path}test3K.csv"})
@@ -21,11 +21,12 @@ def pipeline():
         distances, indices = evaluator(v1, v2)
 
     # 时间signature
-    test_data = preprocessor.temporal()
-    for k, v in test_data.items():
-        logging.info(f"{k}")
-        v1, v2 = v
-        distances, indices = evaluator(v1, v2, distance='emd')
+    for method in ['year_month', 'month_day', 'week_day', 'day_hour']:
+        test_data = preprocessor.temporal(method=method)
+        for k, v in test_data.items():
+            logging.info(f"{k}")
+            v1, v2 = v
+            distances, indices = evaluator(v1, v2, method=method)
 
     # 空间signature
     test_data = preprocessor.spatial()
@@ -35,11 +36,12 @@ def pipeline():
         distances, indices = evaluator(v1, v2)
 
     # 时空signature
-    test_data = preprocessor.spatiotemporal()
-    for k, v in test_data.items():
-        logging.info(f"{k}")
-        v1, v2 = v
-        distances, indices = evaluator(v1, v2)
+    for method in ['year_month', 'month_day', 'week_day', 'day_hour']:
+        test_data = preprocessor.spatiotemporal(method=method)
+        for k, v in test_data.items():
+            logging.info(f"{k}")
+            v1, v2 = v
+            distances, indices = evaluator(v1, v2)
 
 
 if __name__ == "__main__":

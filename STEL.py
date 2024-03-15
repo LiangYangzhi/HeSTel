@@ -1,22 +1,20 @@
 import logging
+
+from libTrajectory.preprocessing.STEL.graphGenerator import GraphPreprocessor
 from libTrajectory.preprocessing.STEL.preprocessor import Preprocessor
 from libTrajectory.executor.STEL import Executor
 
 
-log_path = "./libTrajectory/logs/STEL/"
-data_path = "./libTrajectory/dataset/AIS/"
-
-
 def pipeline():
-    logging.basicConfig(filename=f'{log_path}test.log', format='%(asctime)s - %(levelname)s - %(message)s',
+    log_path = "./libTrajectory/logs/STEL/"
+    logging.basicConfig(filename=f'{log_path}train3_13.log', format='%(asctime)s - %(levelname)s - %(message)s',
                         level=logging.INFO)
-    preprocessor = Preprocessor(f"{data_path}sample2K.csv",
-                                {"test1": f"{data_path}sample100.csv", "test2": f"{data_path}sample300.csv"})
-    # preprocessor.run()  # 注释后get方法将调用已经预处理好的数据，
-    # tid : 轨迹标识，tid1与tid2相同则为正样本，否则为负样本.
-    train_data, test_data, st_vec, stid_counts = preprocessor.get()
-    executor = Executor(st_vec, stid_counts)
-    executor.train(train_data)
+    route = "./libTrajectory/dataset/AIS/"
+    data_path = f"{route}multiA.csv"  # multiA  sample6K
+    test_path = {"test1": f"{route}test1K.csv", "test2": f"{route}test3K.csv"}
+    train_data, test_data, stid_counts = Preprocessor(data_path, test_path).get(method='load')
+    executor = Executor(stid_counts)
+    executor.train(train_data, test_data)  # test_data传入，则epoch_num每次结束都进行infer
     # executor.infer(test_data)
 
 
