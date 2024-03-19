@@ -1,4 +1,6 @@
 import logging
+import re
+
 import pandas as pd
 from geopy.distance import geodesic
 
@@ -13,21 +15,12 @@ class GraphGenerator(object):
         self.tail = 3  # 取用户到访区域中拥有全量轨迹点最后几名作为用户向量
 
     def _st_vec(self, stid):
-        t_len0 = 8
-        t_len1 = 17
-        s_len0 = 15
-        s_len1 = 16
-        spaceid = stid.split("_")[0]
-        timeid = stid.split("_")[1]
-        s0 = int(spaceid.split("-")[0])
-        s1 = int(spaceid.split("-")[1])
-        t0 = int(timeid.split("-")[0])
-        t1 = int(timeid.split("-")[1])
-
-        v1 = self._2binary(s0, s_len0)
-        v2 = self._2binary(s1, s_len1)
-        v3 = self._2binary(t0, t_len0)
-        v4 = self._2binary(t1, t_len1)
+        s0, s1, t0, t1 = re.split('-+|_+', stid)
+        s0, s1, t0, t1 = int(s0), int(s1), int(t0), int(t1)
+        v1 = self._2binary(s0, 16)
+        v2 = self._2binary(s1, 16)
+        v3 = self._2binary(t0, 8)
+        v4 = self._2binary(t1, 16)
         return v1 + v2 + v3 + v4
 
     def _2binary(self, num, length):
@@ -71,6 +64,7 @@ class GraphGenerator(object):
         df.sort_values(['time'], inplace=True)
         df.reset_index(drop=True, inplace=True)
         df['st0'] = df.apply(lambda row: (row.stid, row.lat, row.lon, row.time), axis=1)
+        df['timeid'] = df['stid'].map(lambda x: x.split('_')[1])
         df['st1'] = df.groupby('timeid')['st0'].shift(1)
         spatio = df[~df['st1'].isna()].copy()  # 获取每个时间片内的空间点，计算空间点距离
         temporal = df[df['st1'].isna()].copy()  # 获取每个时间片内的第一个点，计算时间片间隔
@@ -125,6 +119,7 @@ class GraphGenerator(object):
         df.sort_values(['time'], inplace=True)
         df.reset_index(drop=True, inplace=True)
         df['st0'] = df.apply(lambda row: (row.stid, row.lat, row.lon, row.time), axis=1)
+        df['spaceid'] = df['stid'].map(lambda x: x.split('_')[0])
         df['st1'] = df.groupby('spaceid')['st0'].shift(1)
         temporal = df[~df['st1'].isna()].copy()  # 获取每个空间片内的时间点，计算时间点间隔
         spatio = df[df['st1'].isna()].copy()  # 获取每个空间片内的第一个点，计算空间片距离

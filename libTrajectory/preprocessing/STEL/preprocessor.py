@@ -1,54 +1,78 @@
+import pandas as pd
+from math import cos, radians
+from collections import Counter
+from itertools import chain
 import logging
 import io
 import math
 import time
 
-import pandas as pd
-from math import cos, radians
+from pandarallel import pandarallel
+pandarallel.initialize(nb_workers=32, progress_bar=True)
 
 
 class Preprocessor(object):
     def __init__(self, data_path, test_path):
         self.data_path = data_path
         self.test_path = test_path
-        self.data1 = None  # Active
-        self.data2 = None  # Passive
         logging.info(f"self.path={self.data_path}")
 
     def run(self):
-        self.traj_loader()
+        self.loader(method="run")
         self.cleaner()
         self.space2coor()  # 空间建模
         self.time2coor()  # 时间建模
-        self.space2vector()
-        self.time2vector()
-        self.st2vector()
+        self.stid()
         self.save()
-        return self.train_data, self.test_data, self.st_vec, self.stid_counts
+        enhance_ns = EnhanceNS(self.data_path).get(method='run')
+        return self.train_tid, self.test_tid, self.stid_counts, enhance_ns
 
-    def traj_loader(self):
-        logging.info("data loading...")
-        data = pd.read_csv(self.data_path, dtype={
-            'uid': str, 'tid': str, 'time': int, 'lat': float, 'lon': float, 'did': str,
-            'm_time': int, 'm_lat': float, 'm_lon': float, 'm_did': str})
-        self.data1 = data[['tid', 'time', 'lat', 'lon', 'did']].copy()
-        self.data2 = data[['tid', 'm_time', 'm_lat', 'm_lon', 'm_did']].copy()
-        self.data2.rename(columns={'m_time': 'time', 'm_lat': 'lat', 'm_lon': 'lon', 'm_did': 'did'}, inplace=True)
-        self.data2 = self.data2[self.data2['time'] != 0]
+    def loader(self, method='run'):
+        if method == "run":
+            logging.info("data loading...")
+            data = pd.read_csv(self.data_path, dtype={
+                'uid': str, 'tid': str, 'time': int, 'lat': float, 'lon': float, 'did': str,
+                'm_time': int, 'm_lat': float, 'm_lon': float, 'm_did': str})
+            data = data[['tid', 'time', 'lat', 'lon', 'did', 'm_time', 'm_lat', 'm_lon', 'm_did']]
+            data.dropna(inplace=True)
+            data.drop_duplicates(inplace=True)
 
-        buffer = io.StringIO()
-        self.data1.info(buf=buffer)
-        logging.info(f"data1 info: {buffer.getvalue()}")
-        buffer = io.StringIO()
-        self.data2.info(buf=buffer)
-        logging.info(f"data2 info: {buffer.getvalue()}")
+            self.data1 = data[['tid', 'time', 'lat', 'lon', 'did']].copy()
+            self.data2 = data[['tid', 'm_time', 'm_lat', 'm_lon', 'm_did']].copy()
+            self.data2.rename(columns={'m_time': 'time', 'm_lat': 'lat', 'm_lon': 'lon', 'm_did': 'did'}, inplace=True)
+            self.data2 = self.data2[self.data2['time'] != 0]
 
-        self.test = {}
-        for k, v in self.test_path.items():
-            data = pd.read_csv(v, usecols=['tid'], dtype={'tid': str})
-            self.test[k] = data
+            buffer = io.StringIO()
+            self.data1.info(buf=buffer)
+            logging.info(f"data1 info: {buffer.getvalue()}")
+            buffer = io.StringIO()
+            self.data2.info(buf=buffer)
+            logging.info(f"data2 info: {buffer.getvalue()}")
 
-        logging.info("data load completed")
+            self.test_tid = {}
+            for k, v in self.test_path.items():
+                tid = pd.read_csv(v, usecols=['tid'], dtype={'tid': str})
+                tid = tid.tid.unique().tolist()
+                self.test_tid[k] = tid
+                logging.info("data load completed")
+
+        elif method == "load":
+            logging.info("loading train tid...")
+            train_tid = pd.read_csv(f"{self.data_path[: -4]}_train_tid.csv", dtype={'tid': str})
+            train_tid = train_tid.tid.unique().tolist()
+            logging.info("loading test tid...")
+            test_tid = {}
+            for k, v in self.test_path.items():
+                tid = pd.read_csv(v, usecols=['tid'], dtype={'tid': str})
+                tid = tid.tid.unique().tolist()
+                test_tid[k] = tid
+            logging.info("loading stid_counts...")
+            stid_counts = pd.read_csv(f"{self.data_path[: -4]}_stid.csv").stid.value_counts().to_dict()
+
+            logging.info("loading enhance negative sample...")
+            enhance_ns = EnhanceNS(self.data_path).get(method="load")
+            logging.info("data load completed")
+            return train_tid, test_tid, stid_counts, enhance_ns
 
     def cleaner(self):
         logging.info("data clean...")
@@ -134,172 +158,55 @@ class Preprocessor(object):
         self.data2 = timeid.get(test)
         logging.info("data2 time coordinate completed")
 
-    def space2vector(self):
-        logging.info("space2vector...")
-
-        self.data1['latid'] = self.data1['spaceid'].map(lambda s: int(s.split('-')[0]))
-        self.data2['latid'] = self.data2['spaceid'].map(lambda s: int(s.split('-')[0]))
-        lat_max = int(max([self.data1.latid.max(), self.data2.latid.max()]))
-        lat_len = (lat_max - 1).bit_length() + 4
-        logging.info(f"lat_max={lat_max}, lat_len={lat_len}")
-
-        self.data1['lonid'] = self.data1['spaceid'].map(lambda s: int(s.split('-')[1]))
-        self.data2['lonid'] = self.data2['spaceid'].map(lambda s: int(s.split('-')[1]))
-        lon_max = int(max([self.data1.lonid.max(), self.data2.lonid.max()]))
-        lon_len = (lon_max - 1).bit_length() + 4
-        logging.info(f"lon_max={lon_max}, lon_len={lon_len}")
-
-        df1 = self.data1[['spaceid', 'latid', 'lonid']].copy()
-        df2 = self.data2[['spaceid', 'latid', 'lonid']].copy()
-        s_vec = pd.concat([df1, df2])
-        s_vec.drop_duplicates(inplace=True)
-        s_vec['vec'] = s_vec.apply(lambda row: self._2binary(row.latid, lat_len, row.lonid, lon_len), axis=1)
-        self.s_vec = s_vec
-        logging.info("space2vector completed")
-
-    def time2vector(self):
-        logging.info("time2vector...")
-        self.data1['timeid0'] = self.data1['timeid'].map(lambda t: int(t.split("-")[0]))
-        self.data2['timeid0'] = self.data2['timeid'].map(lambda t: int(t.split("-")[0]))
-        timeid0_max = int(max([self.data1.timeid0.max(), self.data2.timeid0.max()]))
-        timeid0_len = (timeid0_max - 1).bit_length() + 4
-        logging.info(f"time group max={timeid0_max}, len={timeid0_len}")
-
-        self.data1['timeid1'] = self.data1['timeid'].map(lambda t: int(t.split("-")[1]))
-        self.data2['timeid1'] = self.data2['timeid'].map(lambda t: int(t.split("-")[1]))
-        timeid1_max = int(max([self.data1.timeid1.max(), self.data2.timeid1.max()]))
-        timeid1_len = (timeid1_max - 1).bit_length() + 4
-        logging.info(f"max value within the time group={timeid1_max}, len={timeid1_len}")
-
-        df1 = self.data1[['timeid', 'timeid0', 'timeid1']].copy()
-        df2 = self.data2[['timeid', 'timeid0', 'timeid1']].copy()
-        t_vec = pd.concat([df1, df2])
-        t_vec.drop_duplicates(inplace=True)
-        t_vec['vec'] = t_vec.apply(lambda row: self._2binary(row.timeid0, timeid0_len, row.timeid1, timeid1_len),
-                                   axis=1)
-        self.t_vec = t_vec
-        logging.info("time2vector completed")
-
-    def st2vector(self):
-        logging.info("spatiotemporal2vector...")
-        self.data1['stid'] = self.data1.apply(lambda row: f"{row.spaceid}_{row.timeid}", axis=1)
-        self.data2['stid'] = self.data2.apply(lambda row: f"{row.spaceid}_{row.timeid}", axis=1)
-
+    def stid(self):
+        logging.info("stid, stid_counts...")
+        self.data1['stid'] = self.data1.parallel_apply(lambda row: f"{row.spaceid}_{row.timeid}", axis=1)
+        self.data2['stid'] = self.data2.parallel_apply(lambda row: f"{row.spaceid}_{row.timeid}", axis=1)
         df1 = self.data1[['stid']].copy()
         df2 = self.data2[['stid']].copy()
-        stid = pd.concat([df1, df2])
-        stid.to_csv(f"{self.data_path[: -4]}_stid.csv", index=False)
-        self.stid_counts = stid.stid.value_counts().to_dict()
-
-        df1 = self.data1[['stid', 'spaceid', 'timeid']].copy()
-        df2 = self.data2[['stid', 'spaceid', 'timeid']].copy()
-        st_vec = pd.concat([df1, df2])
-        st_vec.drop_duplicates(inplace=True)
-
-        st_vec = st_vec.merge(self.s_vec, how='left')
-        st_vec.rename(columns={"vec": "s_vec"}, inplace=True)
-        st_vec = st_vec.merge(self.t_vec, how='left')
-        st_vec.rename(columns={"vec": "t_vec"}, inplace=True)
-        st_vec['vec'] = st_vec.apply(lambda x: x.s_vec[0] + x.s_vec[1] + x.t_vec[0] + x.t_vec[1], axis=1)
-        st_vec = st_vec[['stid', 'spaceid', 'timeid', 'vec']]
-        self.st_vec = st_vec
-        logging.info("spatiotemporal2vector completed")
-
-    def _2binary(self, num1, len1, num2=None, len2=None):
-        bin_str1 = bin(num1)[2:]
-        if len(bin_str1) < len1:
-            padding1 = '0' * (len1 - len(bin_str1))
-            bin_str1 = padding1 + bin_str1
-        bin_vec1 = [int(i) for i in bin_str1]
-
-        if num2 is None:
-            return bin_vec1
-
-        bin_str2 = bin(num2)[2:]
-        if len(bin_str2) < len2:
-            padding2 = '0' * (len2 - len(bin_str2))
-            bin_str2 = padding2 + bin_str2
-        bin_vec2 = [int(i) for i in bin_str2]
-
-        bin_vec = [bin_vec1, bin_vec2]
-        return bin_vec
-
-    def _stid(self):
-        df1 = self.data1[['stid']].copy()
-        df2 = self.data2[['stid']].copy()
-        self.stid = pd.concat([df1, df2])
-        self.stid_counts = self.stid.stid.value_counts().to_dict()
+        self.stid_df = pd.concat([df1, df2])
+        self.stid_counts = self.stid_df.stid.value_counts().to_dict()
         logging.info("stid, stid_counts completed")
 
     def save(self):
         logging.info("data save...")
-        self._stid()
-        self.s_vec.to_csv(f"{self.data_path[: -4]}_s_vec.csv", index=False)
-        self.t_vec.to_csv(f"{self.data_path[: -4]}_t_vec.csv", index=False)
-        self.st_vec.to_csv(f"{self.data_path[: -4]}_st_vec.csv", index=False)
-        self.stid.to_csv(f"{self.data_path[: -4]}_stid.csv", index=False)
+        self.stid_df.to_csv(f"{self.data_path[: -4]}_stid.csv", index=False)
+        self.stid_counts = self.stid_df.stid.value_counts().to_dict()
 
-        columns = ['tid', 'time', 'lat', 'lon', 'spaceid', 'timeid', 'stid']
-        data1 = self.data1[columns]
-        data1.to_csv(f"{self.data_path[: -4]}_data1.csv", index=False)
-        data2 = self.data2[columns]
-        data2.to_csv(f"{self.data_path[: -4]}_data2.csv", index=False)
+        logging.info("data1...")
+        columns = ['tid', 'time', 'lat', 'lon', 'stid']
+        data = self.data1[columns]
+        data.to_csv(f"{self.data_path[: -4]}_data1.csv", index=False)
+        group = data.groupby('tid')
+        tid = data.tid.unique().tolist()
+        for i in tid:
+            df = group.get_group(i)
+            df = df[["time", "lat", "lon", "stid"]]
+            df.to_csv(f"{self.data_path[: -4]}_data1/{i}.csv", index=False)
 
+        data = self.data2[columns]
+        data.to_csv(f"{self.data_path[: -4]}_data2.csv", index=False)
+        group = data.groupby('tid')
+        tid = data.tid.unique().tolist()
+        for i in tid:
+            df = group.get_group(i)
+            df = df[["time", "lat", "lon", "stid"]]
+            df.to_csv(f"{self.data_path[: -4]}_data2/{i}.csv", index=False)
+
+        all_tid = data[['tid']].copy()
+        all_tid.drop_duplicates(inplace=True)
         test_tid = []
-        self.test_data = {}
-        for k, df in self.test.items():
-            tid = df.tid.unique().tolist()
+        for _, tid in self.test_tid.items():
             test_tid += tid
-            df1 = data1.query(f"tid in {tid}").copy()
-            df1.reset_index(drop=True, inplace=True)
-            df1.to_csv(f"{self.data_path[: -4]}_{k}_data1.csv", index=False)
-            df2 = data2.query(f"tid in {tid}").copy()
-            df2.reset_index(drop=True, inplace=True)
-            df2.to_csv(f"{self.data_path[: -4]}_{k}_data2.csv", index=False)
-            self.test_data[k] = [df1, df2]
-
-        data1 = data1.query(f"tid not in {test_tid}").copy()
-        data1.reset_index(drop=True, inplace=True)
-        data1.to_csv(f"{self.data_path[: -4]}_train_data1.csv", index=False)
-        data2 = data2.query(f"tid not in {test_tid}").copy()
-        data2.reset_index(drop=True, inplace=True)
-        data2.to_csv(f"{self.data_path[: -4]}_train_data2.csv", index=False)
-        self.train_data = [data1, data2]
+        train_tid = all_tid.query(f"tid not in {test_tid}").copy()
+        train_tid.reset_index(drop=True, inplace=True)
+        train_tid.to_csv(f"{self.data_path[: -4]}_train_tid.csv", index=False)
+        self.train_tid = train_tid.tid.unique().tolist()
         logging.info("data save completed")
-
-    def load(self):
-        from pandarallel import pandarallel
-        pandarallel.initialize(nb_workers=12)
-        # logging.info("spatiotemporal vector loading...")
-        # st_vec = pd.read_csv(f"{self.data_path[: -4]}_st_vec.csv")
-        # st_vec['vec'] = st_vec['vec'].parallel_map(lambda x: eval(x))
-        # logging.info("spatiotemporal vector load completed")
-
-        logging.info("train data loading...")
-        dic = {'tid': str, 'time': int, 'lat': float, 'lon': float, 'spaceid': str, 'timeid': str, 'stid': str}
-        train_data1 = pd.read_csv(f"{self.data_path[: -4]}_train_data1.csv", dtype=dic)
-        train_data2 = pd.read_csv(f"{self.data_path[: -4]}_train_data2.csv", dtype=dic)
-        train_data = [train_data1, train_data2]
-        logging.info("train data load completed")
-
-        logging.info("test data loading...")
-        test_data = {}
-        for k, v in self.test_path.items():
-            df1 = pd.read_csv(f"{self.data_path[: -4]}_{k}_data1.csv", dtype=dic)
-            df2 = pd.read_csv(f"{self.data_path[: -4]}_{k}_data2.csv", dtype=dic)
-            test_data[k] = [df1, df2]
-        logging.info(f"test data load completed")
-
-        logging.info("trajectory points and spatiotemporal_id loading...")
-        stid_counts = pd.read_csv(f"{self.data_path[: -4]}_stid.csv").stid.value_counts().to_dict()
-        logging.info("trajectory points and spatiotemporal_id load completed")
-
-        return train_data, test_data, stid_counts
-        # return train_data, test_data, st_vec, stid_counts
 
     def get(self, method="load"):
         if method == "load":
-            return self.load()
+            return self.loader(method=method)
         if method == "run":
             return self.run()
 
@@ -333,8 +240,6 @@ class SpaceNum(object):
         return f"{latf}-{lonf}"
 
     def get(self, df):
-        from pandarallel import pandarallel
-        pandarallel.initialize(nb_workers=4)
         df['spaceid'] = df.parallel_apply(lambda row: self._create_spaceid(row.lat, row.lon), axis=1)
         return df
 
@@ -353,7 +258,129 @@ class TimeNum(object):
         logging.critical(f"t={t} 找不到相应的时间分割编号")
 
     def get(self, df):
-        from pandarallel import pandarallel
-        pandarallel.initialize(nb_workers=4)
-        df['timeid'] = df.apply(lambda row: self._create_timeid(row.tgroup, row.time), axis=1)
+        df['timeid'] = df.parallel_apply(lambda row: self._create_timeid(row.tgroup, row.time), axis=1)
         return df
+
+
+class EnhanceNS(object):  # Enhance negative samples
+    def __init__(self, path):
+        self.path = path
+
+    def run(self):
+        self.loader()
+        self.generate_ns()
+        return self.tid
+
+    def get(self, method="load"):
+        if method == "load":
+            return self.loader(method=method)
+        if method == "run":
+            return self.run()
+
+    def loader(self, method="run"):
+        if method == "run":
+            logging.info("EnhanceNS data preparation...")
+            dic = {'tid': str, 'time': int, 'lat': float, 'lon': float, 'spaceid': str, 'timeid': str, 'stid': str}
+            data1 = pd.read_csv(f"{self.path[: -4]}_data1.csv", dtype=dic)
+            data2 = pd.read_csv(f"{self.path[: -4]}_data2.csv", dtype=dic)
+            train_tid = pd.read_csv(f"{self.path[: -4]}_train_tid.csv", dtype={'tid': str})
+            self.tid = train_tid[['tid']].copy()
+            self.tid.drop_duplicates(inplace=True)
+            train_tid = train_tid.tid.unique().tolist()
+            data1 = data1.query(f"tid in {train_tid}").copy()
+            data1['spaceid'] = data1['stid'].map(lambda x: x.split('_')[0])
+            data1['timeid'] = data1['stid'].map(lambda x: x.split('_')[1])
+            data2 = data2.query(f"tid in {train_tid}").copy()
+            data2['spaceid'] = data2['stid'].map(lambda x: x.split('_')[0])
+            data2['timeid'] = data2['stid'].map(lambda x: x.split('_')[1])
+
+            logging.info("data group by tid...")
+            self.data1_group = data1.groupby('tid')
+            self.data2_group = data2.groupby('tid')
+            logging.info("data group by stid...")
+            self.stid_tid1 = data1.groupby('stid').agg({"tid": set})
+            self.stid_tid2 = data2.groupby('stid').agg({"tid": set})
+            logging.info("data group by spaceid...")
+            self.space_tid1 = data1.groupby('spaceid').agg({"tid": set})
+            self.space_tid2 = data2.groupby('spaceid').agg({"tid": set})
+            logging.info("data group by timeid...")
+            self.time_tid1 = data1.groupby('timeid').agg({"tid": set})
+            self.time_tid2 = data2.groupby('timeid').agg({"tid": set})
+            logging.info("data preparation completed")
+
+        elif method == "load":
+            ns = pd.read_csv(f"{self.path[: -4]}_enhance_ns.csv")
+            ns['ns1'] = ns['ns1'].map(lambda x: eval(x))
+            ns['ns2'] = ns['ns2'].map(lambda x: eval(x))
+            return ns
+
+    def generate_ns(self):
+        logging.info("generate negative sample...")
+        logging.info("negative sample1...")
+        self.tid['ns1'] = self.tid['tid'].map(
+            lambda x: {"st": self._generate_method(x, data='1', method='st'),
+                       "s": self._generate_method(x, data='1', method='s'),
+                       "t": self._generate_method(x, data='1', method='t')
+                       })
+        logging.info("negative sample2...")
+        self.tid['ns2'] = self.tid['tid'].map(
+            lambda x: {"st": self._generate_method(x, data='2', method='st'),
+                       "s": self._generate_method(x, data='2', method='s'),
+                       "t": self._generate_method(x, data='2', method='t')
+                       })
+        self.tid.to_csv(f"{self.path[: -4]}_enhance_ns.csv", index=False)
+        logging.info("negative sample completed")
+
+    def _generate_method(self, tid, data='1', method='st'):
+        """
+        st: spatiotemporal
+        s: spatial
+        t: temporal
+        ns: negative sample
+        """
+        if data == '1':
+            df = self.data1_group.get_group(tid).copy()
+        elif data == '2':
+            df = self.data2_group.get_group(tid).copy()
+        else:
+            raise ValueError(f"data={data} 不在方法random_enhance中。")
+
+        if method == 'st':
+            id_list = df.stid.unique().tolist()
+            if data == '1':
+                tid_lis = self.stid_tid1.loc[id_list, :].tid.tolist()
+            elif data == '2':
+                tid_lis = self.stid_tid2.loc[id_list, :].tid.tolist()
+            else:
+                raise ValueError(f"data={data} 不在方法st_ns中。")
+
+        elif method == 's':
+            id_list = df.spaceid.unique().tolist()
+            if data == '1':
+                tid_lis = self.space_tid1.loc[id_list, :].tid.tolist()
+            elif data == '2':
+                tid_lis = self.space_tid2.loc[id_list, :].tid.tolist()
+            else:
+                raise ValueError(f"data={data} 不在方法st_ns中。")
+
+        elif method == 't':
+            id_list = df.timeid.unique().tolist()
+            if data == '1':
+                tid_lis = self.time_tid1.loc[id_list, :].tid.tolist()
+            elif data == '2':
+                tid_lis = self.time_tid2.loc[id_list, :].tid.tolist()
+            else:
+                raise ValueError(f"data={data} 不在方法st_ns中。")
+        else:
+            raise ValueError(f"method={method} 不在方法st_ns中。")
+
+        tid_lis = list(chain.from_iterable(map(list, tid_lis)))
+        most_counter = Counter(tid_lis).most_common(2)  # 出现最多的top2 tid
+        if len(most_counter) == 1:
+            return None
+        if most_counter[0][0] == tid:
+            ns_tid = most_counter[1][0]
+        else:
+            ns_tid = most_counter[0][0]
+        return ns_tid
+

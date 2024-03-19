@@ -11,18 +11,15 @@ from torch.utils.data import DataLoader
 import torch.nn.functional as F
 
 log_path = "./libTrajectory/logs/STEL/"
-os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+# os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 
 
 class Executor(object):
-    def __init__(self, stid_counts, mid_dim=128, out_dim=128):
-        # self.st_vec = st_vec
+    def __init__(self, path, stid_counts, mid_dim=128, out_dim=128):
+        self.path = path
         self.stid_counts = stid_counts
         logging.info(f"Executor...")
-        gpu_id = 0
-        self.device = torch.device(f"cuda:{gpu_id}" if torch.cuda.is_available() else "cpu")
-        # self.device = "cpu"
-        # self.in_dim = len(self.st_vec.vec.values[0])
+        self.device = torch.device(f"cuda:0" if torch.cuda.is_available() else "cpu")
         self.in_dim = 8 + 17 + 15 + 16
         self.mid_dim = mid_dim
         self.out_dim = out_dim
@@ -129,10 +126,9 @@ class Executor(object):
 
         return node1, edge_ind1, edge_attr1, node2, edge_ind2, edge_attr2, struct
 
-    def train(self, train_data, test_data=None, epoch_num=3, batch_size=32, num_workers=4):
+    def train(self, train_tid, enhance_ns, test_tid=None, epoch_num=1, batch_size=32, num_workers=48):
         logging.info(f"train, epoch_num={epoch_num}, batch_size={batch_size}, num_workers={num_workers}")
-        data1, data2 = train_data
-        graph_data = GraphDataset(data1, data2, self.stid_counts, train=True)  # self.st_vec,
+        graph_data = GraphDataset(self.path, train_tid, self.stid_counts, train=True, enhance_ns=enhance_ns)
         data_loader = DataLoader(dataset=graph_data, batch_size=batch_size, shuffle=True, num_workers=num_workers,
                                  collate_fn=lambda x: x, persistent_workers=True)
         # net1
@@ -156,7 +152,10 @@ class Executor(object):
         for epoch in range(epoch_num):  # 每个epoch循环
             logging.info(f'Epoch {epoch}/{epoch_num}')
             batch_loss = 0
+            tid_len = len(train_tid)
+            num = 1
             for data in data_loader:  # 每个批次循环
+                num = num*batch_size
                 node1, edge_ind1, edge_attr1, node2, edge_ind2, edge_attr2, struct = self.batch_struct(data)
 
                 # 前向传播
@@ -222,7 +221,7 @@ class Executor(object):
                 optimizer1.step()
                 optimizer2.step()
                 optimizer3.step()
-                logging.info(f"batch loss(loss1={loss1} + loss2={loss2}): {loss.data.item()}")
+                logging.info(f"bar={num}/{tid_len}, loss1:{loss1} + loss2:{loss2} = {loss.data.item()}")
                 batch_loss += loss.data.item()
 
             epoch_loss = batch_loss / len(data_loader)
@@ -230,15 +229,15 @@ class Executor(object):
             torch.save(net1.state_dict(), f'{log_path}net1_parameter-epoch:{epoch}.pth')
             torch.save(net2.state_dict(), f'{log_path}net2_parameter-epoch:{epoch}.pth')
             torch.save(net3.state_dict(), f'{log_path}net3_parameter-epoch:{epoch}.pth')
-            if test_data is not None:
-                self.infer(test_data, para1=f'net1_parameter-epoch:{epoch}.pth',
+            if test_tid is not None:
+                self.infer(test_tid, para1=f'net1_parameter-epoch:{epoch}.pth',
                            para2=f'net2_parameter-epoch:{epoch}.pth',
                            para3=f'net3_parameter-epoch:{epoch}.pth')
         torch.save(net1.state_dict(), f'{log_path}net1_parameter.pth')
         torch.save(net2.state_dict(), f'{log_path}net2_parameter.pth')
         torch.save(net3.state_dict(), f'{log_path}net3_parameter.pth')
 
-    def infer(self, test_data, para1='net1_parameter-epoch:1.pth', para2='net2_parameter-epoch:1.pth', para3='net3_parameter-epoch:1.pth'):
+    def infer(self, test_data, para1='net1_parameter-epoch:0.pth', para2='net2_parameter-epoch:0.pth', para3='net3_parameter-epoch:0.pth'):
         logging.info("test")
         state_dict1 = torch.load(f'{log_path}{para1}')
         net1 = GCN(in_dim=self.in_dim, out_dim=self.mid_dim, device=self.device).to(self.device)
@@ -258,35 +257,40 @@ class Executor(object):
 
         for k, v in test_data.items():
             logging.info(f"{k}...")
-            data1, data2 = v
-            graph_data = GraphDataset(data1, data2, self.stid_counts, train=False)  # , self.st_vec
-            data_loader = DataLoader(graph_data, batch_size=1, num_workers=8)
+            graph_data = GraphDataset(self.path, v, self.stid_counts, train=False)  # , self.st_vec
+            data_loader = DataLoader(graph_data, batch_size=2, num_workers=8, collate_fn=lambda x: x, persistent_workers=True)
             embedding_1 = []
             embedding_2 = []
-            for node1, edge_ind1, edge_attr1, node2, edge_ind2, edge_attr2 in data_loader:
-                node1 = torch.tensor(node1, dtype=torch.float32)
-                edge_ind1 = torch.tensor(edge_ind1, dtype=torch.long)
-                edge_attr1 = torch.tensor(edge_attr1, dtype=torch.float32)
-                node2 = torch.tensor(node2, dtype=torch.float32)
-                edge_ind2 = torch.tensor(edge_ind2, dtype=torch.long)
-                edge_attr2 = torch.tensor(edge_attr2, dtype=torch.float32)
-                if 'cuda' in str(self.device):
-                    node1 = node1.to(device=self.device)
-                    edge_ind1 = edge_ind1.to(device=self.device)
-                    edge_attr1 = edge_attr1.to(device=self.device)
-                    node2 = node2.to(device=self.device)
-                    edge_ind2 = edge_ind2.to(device=self.device)
-                    edge_attr2 = edge_attr2.to(device=self.device)
-                net1_x = net1(node1, edge_ind1, edge_attr1)
-                net2_x = net2(node2, edge_ind2, edge_attr2)
-                x1 = net3(net1_x, edge_ind1, edge_attr1)
-                x2 = net3(net2_x, edge_ind2, edge_attr2)
-                if 'cuda' in str(self.device):
-                    x1 = x1.to(device='cpu')
-                    x2 = x2.to(device='cpu')
-                embedding_1.append(x1[0].detach().numpy())
-                embedding_2.append(x2[0].detach().numpy())
+            for struct in data_loader:
+                for data in struct:
+                    node1, edge_ind1, edge_attr1, node2, edge_ind2, edge_attr2 = data
+
+                    node1 = torch.tensor(node1, dtype=torch.float32)
+                    edge_ind1 = torch.tensor(edge_ind1, dtype=torch.long)
+                    edge_attr1 = torch.tensor(edge_attr1, dtype=torch.float32)
+                    node2 = torch.tensor(node2, dtype=torch.float32)
+                    edge_ind2 = torch.tensor(edge_ind2, dtype=torch.long)
+                    edge_attr2 = torch.tensor(edge_attr2, dtype=torch.float32)
+                    if 'cuda' in str(self.device):
+                        node1 = node1.to(device=self.device)
+                        edge_ind1 = edge_ind1.to(device=self.device)
+                        edge_attr1 = edge_attr1.to(device=self.device)
+                        node2 = node2.to(device=self.device)
+                        edge_ind2 = edge_ind2.to(device=self.device)
+                        edge_attr2 = edge_attr2.to(device=self.device)
+                    net1_x = net1(node1, edge_ind1, edge_attr1)
+                    net2_x = net2(node2, edge_ind2, edge_attr2)
+                    x1 = net3(net1_x, edge_ind1, edge_attr1)
+                    x2 = net3(net2_x, edge_ind2, edge_attr2)
+                    if 'cuda' in str(self.device):
+                        x1 = x1.to(device='cpu')
+                        x2 = x2.to(device='cpu')
+                    embedding_1.append(x1[0].detach().numpy())
+                    embedding_2.append(x2[0].detach().numpy())
 
             embedding_1 = np.array(embedding_1)
             embedding_2 = np.array(embedding_2)
             evaluator(embedding_1, embedding_2)
+
+
+

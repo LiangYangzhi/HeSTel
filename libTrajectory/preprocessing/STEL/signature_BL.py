@@ -34,7 +34,7 @@ class Preprocessor(Pre):
     def __init__(self, data_path, test_path={}):
         self.inter = 60 * 60
         super(Preprocessor, self).__init__(data_path, test_path)
-        self.traj_loader()
+        self.loader()
         self.cleaner()
 
         self.test_data = {}
