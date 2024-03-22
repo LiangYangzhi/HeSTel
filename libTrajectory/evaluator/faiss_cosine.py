@@ -24,6 +24,7 @@ def evaluator(vector1, vector2, k=10):
     for i in range(k):
         score = len(result[result['rank'] <= i])
         logging.info(f"top{i+1}={score}/{total}={round(score/total, 6)}")
+        print(f"top{i+1}={score}/{total}={round(score/total, 6)}")
 
     distances = pd.DataFrame(data=distances, columns=[f"dis{i}" for i in range(1, k + 1)])
     indices = pd.DataFrame(data=indices, columns=[f"rank{i}" for i in range(1, k+1)])

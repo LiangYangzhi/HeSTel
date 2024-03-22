@@ -11,19 +11,19 @@ from libTrajectory.evaluator.faiss_cosine import evaluator
 
 
 class Pretrain(object):
-    def __init__(self, data_path):
-        self.data_path = data_path
-        logging.info(f"self.path={self.data_path}")
+    def __init__(self, path):
+        self.path = path
+        logging.info(f"self.path={self.path}")
 
     def loader(self):
         logging.info("data loading...")
-        dic = {'tid': str, 'time': int, 'lat': float, 'lon': float, 'spaceid': str, 'timeid': str, 'stid': str}
+        dic = {'tid': str, 'time': int, 'lat': float, 'lon': float, 'stid': str}
         logging.info("generate graph1...")
         logging.info("data preparation...")
-        data1 = pd.read_csv(f"{self.data_path[: -4]}_data1.csv", dtype=dic)
+        data1 = pd.read_csv(f"{self.path}data1.csv", dtype=dic)
         data1 = data1[['tid', 'time', 'stid']].copy()
         data1['tid'] = data1['tid'].map(lambda x: f"{x}_1")
-        data2 = pd.read_csv(f"{self.data_path[: -4]}_data2.csv", dtype=dic)
+        data2 = pd.read_csv(f"{self.path}data2.csv", dtype=dic)
         data2 = data2[['tid', 'time', 'stid']].copy()
         data2['tid'] = data2['tid'].map(lambda x: f"{x}_2")
         data = pd.concat([data1, data2])
@@ -66,33 +66,36 @@ class Pretrain(object):
         self.generate_corpus()
         para = {
             "min_count": 1,
-            "workers": 24,
+            "workers": 32,
             "window": 5,
-            "vector_size": 128,
+            "vector_size": 32,
             "epochs": 10,
             "sg": 1
         }
         logging.info(f"pretrain..., parameter={para}")
         model = Word2Vec(sentences=self.corpus, **para)
-        model.save(f"{self.data_path[: -4]}_stid_model.model")
+        model.save(f"{self.path}/stid_model_32.model")
         logging.info("model train completed")
         return model
 
     def eval(self, test_path):
         logging.info("model eval...")
-        dic = {'tid': str, 'time': int, 'lat': float, 'lon': float, 'spaceid': str, 'timeid': str, 'stid': str}
-        model = Word2Vec.load(f"{self.data_path[: -4]}_stid_model.model")
+        dic = {'tid': str, 'time': int, 'lat': float, 'lon': float, 'spaceid': str}
+        model = Word2Vec.load(f"{self.path}stid_model_32.model")
+        self.data1 = pd.read_csv(f"{self.path}data1.csv", dtype=dic)
+        self.data1 = self.data1[['tid', 'time', 'stid']].copy()
+        self.data2 = pd.read_csv(f"{self.path}data2.csv", dtype=dic)
+        self.data2 = self.data2[['tid', 'time', 'stid']].copy()
         for k, v in test_path.items():
-            data1 = pd.read_csv(f"{self.data_path[: -4]}_{k}_data1.csv", dtype=dic)
-            data1 = data1[['tid', 'time', 'stid']].copy()
-            data1.sort_values(['time'], inplace=True)
-            data1 = data1[['tid', 'stid']].copy()
-            group1 = data1.groupby('tid')
+            tid = pd.read_csv(v, usecols=['tid'], dtype={'tid': str})
+            tid = tid.tid.unique().tolist()
+            logging.info("data load completed")
 
-            data2 = pd.read_csv(f"{self.data_path[: -4]}_{k}_data2.csv", dtype=dic)
-            data2 = data2[['tid', 'time', 'stid']].copy()
+            data1 = self.data1.query(f"tid in {tid}").copy()
+            data1.sort_values(['time'], inplace=True)
+            group1 = data1.groupby('tid')
+            data2 = self.data2.query(f"tid in {tid}").copy()
             data2.sort_values(['time'], inplace=True)
-            data2 = data2[['tid', 'stid']].copy()
             group2 = data2.groupby('tid')
 
             tid_list = data1.tid.unique().tolist()
@@ -120,7 +123,7 @@ class Pretrain(object):
 
     def get(self, method="load"):
         if method == "load":
-            model = Word2Vec.load(f"{self.data_path[: -4]}_stid_model.model")
+            model = Word2Vec.load(f"{self.path}stid_model.model")
             return model
         if method == "run":
             return self.run()

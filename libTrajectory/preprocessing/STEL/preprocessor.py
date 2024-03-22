@@ -1,3 +1,5 @@
+import re
+
 import pandas as pd
 from math import cos, radians
 from collections import Counter
@@ -7,15 +9,18 @@ import io
 import math
 import time
 
-from pandarallel import pandarallel
-pandarallel.initialize(nb_workers=32, progress_bar=True)
+from torch.utils.data import DataLoader
+from tqdm import tqdm
+
+from libTrajectory.preprocessing.STEL.graphDataset import GraphSaver
 
 
 class Preprocessor(object):
     def __init__(self, data_path, test_path):
         self.data_path = data_path
+        self.path = re.sub(r'/[^/]*$', '/', self.data_path)
         self.test_path = test_path
-        logging.info(f"self.path={self.data_path}")
+        logging.info(f"self.path={self.path}")
 
     def run(self):
         self.loader(method="run")
@@ -24,7 +29,8 @@ class Preprocessor(object):
         self.time2coor()  # 时间建模
         self.stid()
         self.save()
-        enhance_ns = EnhanceNS(self.data_path).get(method='run')
+        enhance_ns = EnhanceNS(self.path).get(method='run')
+        save_graph(self.data_path, self.test_path)
         return self.train_tid, self.test_tid, self.stid_counts, enhance_ns
 
     def loader(self, method='run'):
@@ -58,7 +64,8 @@ class Preprocessor(object):
 
         elif method == "load":
             logging.info("loading train tid...")
-            train_tid = pd.read_csv(f"{self.data_path[: -4]}_train_tid.csv", dtype={'tid': str})
+            train_tid = pd.read_csv(f"{self.path}train_tid.csv", dtype={'tid': str})
+
             train_tid = train_tid.tid.unique().tolist()
             logging.info("loading test tid...")
             test_tid = {}
@@ -67,10 +74,10 @@ class Preprocessor(object):
                 tid = tid.tid.unique().tolist()
                 test_tid[k] = tid
             logging.info("loading stid_counts...")
-            stid_counts = pd.read_csv(f"{self.data_path[: -4]}_stid.csv").stid.value_counts().to_dict()
+            stid_counts = pd.read_csv(f"{self.path}stid.csv").stid.value_counts().to_dict()
 
             logging.info("loading enhance negative sample...")
-            enhance_ns = EnhanceNS(self.data_path).get(method="load")
+            enhance_ns = EnhanceNS(self.path).get(method="load")
             logging.info("data load completed")
             return train_tid, test_tid, stid_counts, enhance_ns
 
@@ -94,7 +101,7 @@ class Preprocessor(object):
 
         # 获取区域的lat、lon步长
         deci = 5  # decimal 小数点后的精度
-        distance = 10 * 1000  # m
+        distance = 120 * 1000  # m
         r = 6371393  # 地球半径 单位m
         lat_step = (distance / (r * cos(radians(0)))) * (180 / 3.1415926)
         lon_step = (distance / r) * (180 / 3.1415926)
@@ -109,6 +116,7 @@ class Preprocessor(object):
         for _ in range(lon_size):
             lon_lis.append(round(lon_lis[-1] + lon_step, deci))
         lat_lis[-1], lon_lis[-1] = lat1, lon1
+        logging.info(f"lat_lis len:{len(lat_lis)}, lon_lis_len:{len(lon_lis)}")
 
         logging.info("data1 space coordinate...")
         space_num = SpaceNum(lat_lis, lon_lis)
@@ -122,7 +130,7 @@ class Preprocessor(object):
 
     def time2coor(self, groupby='month'):
         logging.info("time coordinate...")
-        interval = 10 * 60
+        interval = 6 * 60 * 60
         logging.info(f"time interval={interval}s")
         if groupby == 'month':
             self.data1['tgroup'] = self.data1['time'].map(lambda t: time.localtime(t).tm_mon)
@@ -149,6 +157,10 @@ class Preprocessor(object):
             time_dict[flag] = lis
 
         logging.info("data1 time coordinate...")
+        time_len = 0
+        for _, v in time_dict.items():
+            time_len += len(v)
+        logging.info(f"time_dict len:{time_len}")
         timeid = TimeNum(time_dict)
         test = self.data1.copy()
         self.data1 = timeid.get(test)
@@ -160,6 +172,8 @@ class Preprocessor(object):
 
     def stid(self):
         logging.info("stid, stid_counts...")
+        from pandarallel import pandarallel
+        pandarallel.initialize(nb_workers=16, progress_bar=True)
         self.data1['stid'] = self.data1.parallel_apply(lambda row: f"{row.spaceid}_{row.timeid}", axis=1)
         self.data2['stid'] = self.data2.parallel_apply(lambda row: f"{row.spaceid}_{row.timeid}", axis=1)
         df1 = self.data1[['stid']].copy()
@@ -170,28 +184,28 @@ class Preprocessor(object):
 
     def save(self):
         logging.info("data save...")
-        self.stid_df.to_csv(f"{self.data_path[: -4]}_stid.csv", index=False)
+        self.stid_df.to_csv(f"{self.path}stid.csv", index=False)
         self.stid_counts = self.stid_df.stid.value_counts().to_dict()
 
         logging.info("data1...")
         columns = ['tid', 'time', 'lat', 'lon', 'stid']
         data = self.data1[columns]
-        data.to_csv(f"{self.data_path[: -4]}_data1.csv", index=False)
+        data.to_csv(f"{self.path}data1.csv", index=False)
         group = data.groupby('tid')
         tid = data.tid.unique().tolist()
         for i in tid:
             df = group.get_group(i)
             df = df[["time", "lat", "lon", "stid"]]
-            df.to_csv(f"{self.data_path[: -4]}_data1/{i}.csv", index=False)
+            df.to_csv(f"{self.path}data1/{i}.csv", index=False)
 
         data = self.data2[columns]
-        data.to_csv(f"{self.data_path[: -4]}_data2.csv", index=False)
+        data.to_csv(f"{self.path}data2.csv", index=False)
         group = data.groupby('tid')
         tid = data.tid.unique().tolist()
         for i in tid:
             df = group.get_group(i)
             df = df[["time", "lat", "lon", "stid"]]
-            df.to_csv(f"{self.data_path[: -4]}_data2/{i}.csv", index=False)
+            df.to_csv(f"{self.path}data2/{i}.csv", index=False)
 
         all_tid = data[['tid']].copy()
         all_tid.drop_duplicates(inplace=True)
@@ -200,7 +214,7 @@ class Preprocessor(object):
             test_tid += tid
         train_tid = all_tid.query(f"tid not in {test_tid}").copy()
         train_tid.reset_index(drop=True, inplace=True)
-        train_tid.to_csv(f"{self.data_path[: -4]}_train_tid.csv", index=False)
+        train_tid.to_csv(f"{self.path}train_tid.csv", index=False)
         self.train_tid = train_tid.tid.unique().tolist()
         logging.info("data save completed")
 
@@ -240,6 +254,8 @@ class SpaceNum(object):
         return f"{latf}-{lonf}"
 
     def get(self, df):
+        from pandarallel import pandarallel
+        pandarallel.initialize(nb_workers=32, progress_bar=True)
         df['spaceid'] = df.parallel_apply(lambda row: self._create_spaceid(row.lat, row.lon), axis=1)
         return df
 
@@ -258,6 +274,8 @@ class TimeNum(object):
         logging.critical(f"t={t} 找不到相应的时间分割编号")
 
     def get(self, df):
+        from pandarallel import pandarallel
+        pandarallel.initialize(nb_workers=32, progress_bar=True)
         df['timeid'] = df.parallel_apply(lambda row: self._create_timeid(row.tgroup, row.time), axis=1)
         return df
 
@@ -281,9 +299,9 @@ class EnhanceNS(object):  # Enhance negative samples
         if method == "run":
             logging.info("EnhanceNS data preparation...")
             dic = {'tid': str, 'time': int, 'lat': float, 'lon': float, 'spaceid': str, 'timeid': str, 'stid': str}
-            data1 = pd.read_csv(f"{self.path[: -4]}_data1.csv", dtype=dic)
-            data2 = pd.read_csv(f"{self.path[: -4]}_data2.csv", dtype=dic)
-            train_tid = pd.read_csv(f"{self.path[: -4]}_train_tid.csv", dtype={'tid': str})
+            data1 = pd.read_csv(f"{self.path}data1.csv", dtype=dic)
+            data2 = pd.read_csv(f"{self.path}data2.csv", dtype=dic)
+            train_tid = pd.read_csv(f"{self.path}train_tid.csv", dtype={'tid': str})
             self.tid = train_tid[['tid']].copy()
             self.tid.drop_duplicates(inplace=True)
             train_tid = train_tid.tid.unique().tolist()
@@ -309,7 +327,7 @@ class EnhanceNS(object):  # Enhance negative samples
             logging.info("data preparation completed")
 
         elif method == "load":
-            ns = pd.read_csv(f"{self.path[: -4]}_enhance_ns.csv")
+            ns = pd.read_csv(f"{self.path}enhance_ns.csv")
             ns['ns1'] = ns['ns1'].map(lambda x: eval(x))
             ns['ns2'] = ns['ns2'].map(lambda x: eval(x))
             return ns
@@ -328,7 +346,7 @@ class EnhanceNS(object):  # Enhance negative samples
                        "s": self._generate_method(x, data='2', method='s'),
                        "t": self._generate_method(x, data='2', method='t')
                        })
-        self.tid.to_csv(f"{self.path[: -4]}_enhance_ns.csv", index=False)
+        self.tid.to_csv(f"{self.path}enhance_ns.csv", index=False)
         logging.info("negative sample completed")
 
     def _generate_method(self, tid, data='1', method='st'):
@@ -384,3 +402,15 @@ class EnhanceNS(object):  # Enhance negative samples
             ns_tid = most_counter[0][0]
         return ns_tid
 
+
+def save_graph(data_path, test_path):
+    train_tid, test_tid, stid_counts, enhance_ns = Preprocessor(data_path, test_path).get(method='load')
+    tid = train_tid.copy()
+    for _, v in test_tid.items():
+        tid += v
+    path = re.sub(r'/[^/]*$', '/', data_path)
+
+    graph_data = GraphSaver(path, tid, stid_counts)
+    data_loader = DataLoader(dataset=graph_data, batch_size=4, num_workers=32)
+    for _ in tqdm(data_loader):  # 每个批次循环
+        pass
