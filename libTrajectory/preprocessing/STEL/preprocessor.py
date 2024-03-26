@@ -29,8 +29,10 @@ class Preprocessor(object):
         self.time2coor()  # 时间建模
         self.stid()
         self.save()
+
         enhance_ns = EnhanceNS(self.path).get(method='run')
         save_graph(self.data_path, self.test_path)
+
         return self.train_tid, self.test_tid, self.stid_counts, enhance_ns
 
     def loader(self, method='run'):
@@ -65,14 +67,15 @@ class Preprocessor(object):
         elif method == "load":
             logging.info("loading train tid...")
             train_tid = pd.read_csv(f"{self.path}train_tid.csv", dtype={'tid': str})
-
             train_tid = train_tid.tid.unique().tolist()
+
             logging.info("loading test tid...")
             test_tid = {}
             for k, v in self.test_path.items():
                 tid = pd.read_csv(v, usecols=['tid'], dtype={'tid': str})
                 tid = tid.tid.unique().tolist()
                 test_tid[k] = tid
+
             logging.info("loading stid_counts...")
             stid_counts = pd.read_csv(f"{self.path}stid.csv").stid.value_counts().to_dict()
 
@@ -285,7 +288,7 @@ class EnhanceNS(object):  # Enhance negative samples
         self.path = path
 
     def run(self):
-        self.loader()
+        self.loader(method="run")
         self.generate_ns()
         return self.tid
 
@@ -411,6 +414,7 @@ def save_graph(data_path, test_path):
     path = re.sub(r'/[^/]*$', '/', data_path)
 
     graph_data = GraphSaver(path, tid, stid_counts)
-    data_loader = DataLoader(dataset=graph_data, batch_size=4, num_workers=32)
+    data_loader = DataLoader(dataset=graph_data, batch_size=8, num_workers=42)
     for _ in tqdm(data_loader):  # 每个批次循环
         pass
+

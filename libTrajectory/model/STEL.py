@@ -13,5 +13,7 @@ class GCN(torch.nn.Module):
         x = self.conv2(x=x, edge_index=edge_index, edge_weight=edge_weight)
         x = self.conv2(x=x, edge_index=edge_index, edge_weight=edge_weight)
         x = self.conv2(x=x, edge_index=edge_index, edge_weight=edge_weight)
+        x = self.conv2(x=x, edge_index=edge_index, edge_weight=edge_weight)
+        x = self.conv2(x=x, edge_index=edge_index, edge_weight=edge_weight)
 
         return x

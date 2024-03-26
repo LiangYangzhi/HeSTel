@@ -1,12 +1,10 @@
-import logging
+import numpy as np
 import re
-
-import pandas as pd
 from geopy.distance import geodesic
 
 
 class GraphGenerator(object):
-    def __init__(self, stid_counts):
+    def __init__(self, path, stid_counts):
         """
         tid: trajectory id
         st: spatiotemporal
@@ -21,16 +19,8 @@ class GraphGenerator(object):
         v2 = self._2binary(s1, 10)  # lon
         v3 = self._2binary(t0, 4)  # t0
         v4 = self._2binary(t1, 10)  # t1
-        return v3 + v1 + v2 + v4
-
-    # def _st_vec(self, stid):
-    #     s0, s1, t0, t1 = re.split('-+|_+', stid)
-    #     s0, s1, t0, t1 = int(s0), int(s1), int(t0), int(t1)
-    #     v1 = self._2binary(s0, 16)
-    #     v2 = self._2binary(s1, 16)
-    #     v3 = self._2binary(t0, 8)
-    #     v4 = self._2binary(t1, 16)
-    #     return v3 + v1 + v2 + v4
+        vec = v1 + v2 + v3 + v4
+        return np.array(vec)
 
     def _2binary(self, num, length):
         bin_str = bin(num)[2:]
@@ -51,10 +41,9 @@ class GraphGenerator(object):
 
         # tid node
         tid_node = [self._st_vec(stid) for stid in tid_stid]
-        # np.mean(np.array(u_vec), axis=0).tolist()      [sum(x) for x in zip(*u_vec)]
-        tid_node = [sum(x) for x in zip(*tid_node)]  # 航迹代表向量
+        tid_node = np.mean(np.array(tid_node), axis=0).tolist()  # 航迹代表向量
         # spatiotemporal node
-        st_node = [self._st_vec(stid) for stid in stid_lis]  # stid 向量组
+        st_node = [self._st_vec(stid).tolist() for stid in stid_lis]  # stid 向量组
         # node
         node = [tid_node] + st_node
         node_id[tid] = 0
@@ -106,10 +95,9 @@ class GraphGenerator(object):
 
         # tid node
         tid_node = [self._st_vec(stid) for stid in tid_stid]
-        # np.mean(np.array(u_vec), axis=0).tolist()      [sum(x) for x in zip(*u_vec)]
-        tid_node = [sum(x) for x in zip(*tid_node)]  # 航迹代表向量
+        tid_node = np.mean(np.array(tid_node), axis=0).tolist()  # 航迹代表向量
         # spatiotemporal node
-        st_node = [self._st_vec(stid) for stid in stid_lis]  # stid 向量组
+        st_node = [self._st_vec(stid).tolist() for stid in stid_lis]  # stid 向量组
         # node
         node = [tid_node] + st_node
         node_id[tid] = 0

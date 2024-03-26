@@ -1,3 +1,5 @@
+import random
+
 import numpy as np
 import pandas as pd
 from torch.utils.data import Dataset
@@ -14,7 +16,7 @@ class GraphDataset(Dataset):
         self.path = path
         self.tid = tid
         self.tail = 3  # 取用户到访区域中拥有全量轨迹点最后几名作为用户向量
-        self.generator = GraphGenerator(stid_counts)
+        self.generator = GraphGenerator(path, stid_counts)
 
         self.train = train
         self.struct = None  # enhance、positive and negative sample struct
@@ -90,43 +92,45 @@ class GraphDataset(Dataset):
         random: 随机删除轨迹点
         st: 随机保留 spatiotemporal相同标号 一个轨迹点
         """
-        if df.shape[0] <= 2:
+        if df.shape[0] <= 3:
             return None
 
+        frac = sample([0.8, 0.7, 0.6, 0.5, 0.4], 1)[0]
         if method == 'random':
-            return df.sample(frac=0.8)
+            return df.sample(frac=frac)
 
         elif method == 'st':
-            if df.shape[0] == df.drop_duplicates(subset=['stid']).shape[0]:
-                # 无重复的stid, 每个stid都只有一个
+            stid = df.stid.unique().tolist()
+            if len(stid) < 3:
                 return None
-            # 只保留st中轨迹点frac比例
-            df = df.sort_values(by=['stid']).reset_index(drop=True)
-            frac = sample([0.8, 0.7, 0.6, 0.4], 1)[0]
-            df = df.groupby("stid", group_keys=False).apply(lambda x: x.sample(frac=frac))
+            sample_size = int(len(stid) * frac)
+            sample_size = 2 if sample_size < 2 else sample_size
+            stid = random.sample(stid, sample_size)
+            df = df.query(f"stid in {stid}")
             return df
 
         elif method == 's':
             df['spaceid'] = df['stid'].map(lambda x: x.split('_')[0])
-            if df.shape[0] == df.drop_duplicates(subset=['spaceid']).shape[0]:
-                # 无重复的spaceid, 每个spaceid都只有一个
+            spaceid = df.spaceid.unique().tolist()
+            if len(spaceid) < 3:
                 return None
-            # 只保留st中轨迹点frac比例
-            df = df.sort_values(by=['spaceid']).reset_index(drop=True)
-            frac = sample([0.8, 0.7, 0.6, 0.4], 1)[0]
-            df = df.groupby("spaceid", group_keys=False).apply(lambda x: x.sample(frac=frac))
+            sample_size = int(len(spaceid) * frac)
+            sample_size = 2 if sample_size < 2 else sample_size
+            spaceid = random.sample(spaceid, sample_size)
+            df = df.query(f"spaceid in {spaceid}")
             return df
 
         elif method == 't':
             df['timeid'] = df['stid'].map(lambda x: x.split('_')[1])
-            if df.shape[0] == df.drop_duplicates(subset=['timeid']).shape[0]:
-                # 无重复的timeid, 每个timeid都只有一个
+            timeid = df.timeid.unique().tolist()
+            if len(timeid) < 3:
                 return None
-            # 只保留st中轨迹点frac比例
-            df = df.sort_values(by=['stid']).reset_index(drop=True)
-            frac = sample([0.8, 0.7, 0.6, 0.4], 1)[0]
-            df = df.groupby("timeid", group_keys=False).apply(lambda x: x.sample(frac=frac))
+            sample_size = int(len(timeid) * frac)
+            sample_size = 2 if sample_size < 2 else sample_size
+            timeid = random.sample(timeid, sample_size)
+            df = df.query(f"timeid in {timeid}")
             return df
+
         else:
             raise ValueError(f"method={method} 不在方法random_enhance中。")
 
@@ -167,26 +171,23 @@ class GraphLoader(GraphDataset):
         tid = self.tid[index]
         if self.train:
             struct = self.generate_sample_tid(tid)
-            for i in ['g1', 'ns1']:
+            for i in ['g1', 'ns1']:  # , 'ns1'
                 if struct[i] is not None:
                     tid = struct[i][0]
                     struct[i] = self.load_graph(tid, method="1")
-            for i in ['g2', 'ns2']:
+            for i in ['g2', 'ns2']:  # , 'ns2'
                 if struct[i] is not None:
                     tid = struct[i][0]
                     struct[i] = self.load_graph(tid, method="2")
-            if struct['ps1'] is not None:
-                tid, df = struct['ps1']
-                struct['ps1'] = self.generator.graph1(tid, df)
-            if struct['ps2'] is not None:
-                tid, df = struct['ps2']
-                struct['ps2'] = self.generator.graph2(tid, df)
+            # if struct['ps1'] is not None:
+            #     tid, df = struct['ps1']
+            #     struct['ps1'] = self.generator.graph1(tid, df)
+            # if struct['ps2'] is not None:
+            #     tid, df = struct['ps2']
+            #     struct['ps2'] = self.generator.graph2(tid, df)
         else:
-            dic = {'time': int, 'lat': float, 'lon': float, 'stid': str}
-            df1 = pd.read_csv(f"{self.path}data1/{tid}.csv", dtype=dic)
-            df2 = pd.read_csv(f"{self.path}data2/{tid}.csv", dtype=dic)
-            node1, edge_ind1, edge_attr1 = self.generator.graph1(tid, df1)
-            node2, edge_ind2, edge_attr2 = self.generator.graph2(tid, df2)
+            node1, edge_ind1, edge_attr1 = self.load_graph(tid, method="1")
+            node2, edge_ind2, edge_attr2 = self.load_graph(tid, method="2")
             struct = (node1, edge_ind1, edge_attr1, node2, edge_ind2, edge_attr2)
 
         return struct
@@ -203,21 +204,24 @@ class GraphLoader(GraphDataset):
             'ns1': None,
             'ns2': None}
         # 增强正样本
-        for i in ['1', '2']:
-            method = sample(['random', 'st', 'st', 's', 's', 't'], 1)[0]
-            en_df = self.generate_es(sample_tid[f"g{i}"][1], method=method)
-            if en_df is not None:
-                en_tid = f"{tid}_enhance_ps_{method}"
-                sample_tid[f"ps{i}"] = (en_tid, en_df)
+        # for i in ['1', '2']:
+        #     method = sample(sum([['random'] * 1, ['st'] * 3, ['s'] * 2, ['t'] * 1], []), 1)[0]
+        #     en_df = self.generate_es(sample_tid[f"g{i}"][1], method=method)
+        #     if en_df is not None:
+        #         en_tid = f"{tid}_enhance_ps_{method}"
+        #         sample_tid[f"ps{i}"] = (en_tid, en_df)
 
         # 增强负样本
-        enhance_ns = self.enhance_ns.query(f"tid == '{tid}'").ns1.values[0]
-        method = sample(['st', 'st', 'st', 's', 's', 't'], 1)[0]
-        ns_tid = enhance_ns[method]
+        df = self.enhance_ns.query(f"tid == '{tid}'")
+        enhance_ns1 = df.ns1.values[0]
+        method = sample(sum([['st'] * 3, ['s'] * 2, ['t'] * 1], []), 1)[0]
+        ns_tid = enhance_ns1[method]
         if ns_tid is not None:
             sample_tid["ns1"] = (ns_tid, None)
-        method = sample(['st', 'st', 'st', 's', 's', 't'], 1)[0]
-        ns_tid = enhance_ns[method]
+
+        enhance_ns2 = df.ns2.values[0]
+        method = sample(sum([['st'] * 3, ['s'] * 2, ['t'] * 1], []), 1)[0]
+        ns_tid = enhance_ns2[method]
         if ns_tid is not None:
             sample_tid["ns2"] = (ns_tid, None)
 
