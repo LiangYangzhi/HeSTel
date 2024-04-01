@@ -73,22 +73,22 @@ def collate_fun(batch):
             ns2.append(None)  # 后续从tid2随机选择
 
     # 随机选择tid
-    if None in ns1:
-        for k, v in enumerate(ns1):
-            if not v:  # v = None
-                while True:
-                    random_ind = sample(tid1, 1)[0]
-                    if random_ind != tid1[k]:
-                        ns1[k] = random_ind
-                        break
-    if None in ns2:
-        for k, v in enumerate(ns2):
-            if not v:  # v = None
-                while True:
-                    random_ind = sample(tid2, 1)[0]
-                    if random_ind != tid2[k]:
-                        ns2[k] = random_ind
-                        break
+    # if None in ns1:
+    #     for k, v in enumerate(ns1):
+    #         if not v:  # v = None
+    #             while True:
+    #                 random_ind = sample(tid1, 1)[0]
+    #                 if random_ind != tid1[k]:
+    #                     ns1[k] = random_ind
+    #                     break
+    # if None in ns2:
+    #     for k, v in enumerate(ns2):
+    #         if not v:  # v = None
+    #             while True:
+    #                 random_ind = sample(tid2, 1)[0]
+    #                 if random_ind != tid2[k]:
+    #                     ns2[k] = random_ind
+    #                     break
 
     node1 = torch.tensor(node1, dtype=torch.float32)
     edge_ind1 = torch.tensor(edge_ind1, dtype=torch.long)

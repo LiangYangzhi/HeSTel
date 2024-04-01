@@ -512,6 +512,26 @@ class ProTra(object):
         print(sample6K.shape)
         sample6K.to_csv("sample6K.csv", index=False)
 
+    def split(self):
+        data = pd.read_csv("./multiA.csv", dtype={
+            'uid': str, 'tid': str, 'time': int, 'lat': float, 'lon': float, 'did': str,
+            'm_time': int, 'm_lat': float, 'm_lon': float, 'm_did': str})
+        data = data[['tid', 'time', 'lat', 'lon', 'did', 'm_time', 'm_lat', 'm_lon', 'm_did']]
+        data.dropna(inplace=True)
+        data.drop_duplicates(inplace=True)
+
+        data1 = data[['tid', 'time', 'lat', 'lon', 'did']].copy()
+        data1.drop_duplicates(inplace=True)
+        arr1 = data1.to_numpy()
+        np.save("data1.npy", arr1)
+
+        data2 = data[['tid', 'm_time', 'm_lat', 'm_lon', 'm_did']].copy()
+        data2.rename(columns={'m_time': 'time', 'm_lat': 'lat', 'm_lon': 'lon', 'm_did': 'did'}, inplace=True)
+        data2 = data2[data2['time'] != 0]
+        data2.drop_duplicates(inplace=True)
+        arr2 = data2.to_numpy()
+        np.save("data2.npy", arr2)
+
     def run(self):
         # self.cols()
         # self.vessel()
@@ -521,7 +541,8 @@ class ProTra(object):
         # self.denoising()
         # self.density()
         # self.multi_tra()
-        self.test_data()
+        # self.test_data()
+        self.split()
 
 
 if __name__ == "__main__":
