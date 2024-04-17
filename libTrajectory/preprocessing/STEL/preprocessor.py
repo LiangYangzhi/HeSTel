@@ -1,3 +1,4 @@
+import os
 import pickle
 
 import numpy as np
@@ -18,8 +19,9 @@ from libTrajectory.preprocessing.STEL.graphDataset import GraphSaver
 class Preprocessor(object):
     def __init__(self, path, test_file):
         self.path = path
+        self.test_file = test_file
         test_path = {}
-        for k, v in test_file.items():
+        for k, v in self.test_file.items():
             test_path[k] = f"{path}{v}"
         self.test_path = test_path
         logging.info(f"self.path={self.path}")
@@ -32,10 +34,9 @@ class Preprocessor(object):
         self.stid()
         self.save()
 
-        # enhance_ns = EnhanceNS(self.path).get(method='run')
-        # save_graph(self.data_path, self.test_path)
-
-        # return self.train_tid, self.test_tid, self.stid_counts, enhance_ns
+        enhance_ns = EnhanceNS(self.path).get(method='run')
+        save_graph(self.path, self.test_file)
+        return self.train_tid, self.test_tid, enhance_ns
 
     def loader(self, method='run'):
         if method == "run":
@@ -65,15 +66,15 @@ class Preprocessor(object):
                 tid = tid.tid.unique().tolist()
                 test_tid[k] = tid
 
-            logging.info("loading stid_counts...")
-            with open(f"{self.path}stid_counts.pkl", "rb") as f:
-                stid_counts = pickle.load(f)
+            # logging.info("loading stid_counts...")
+            # with open(f"{self.path}stid_counts.pkl", "rb") as f:
+            #     stid_counts = pickle.load(f)
 
-            # logging.info("loading enhance negative sample...")
-            # enhance_ns = EnhanceNS(self.path).get(method="load")
-            # logging.info("data load completed")
-            enhance_ns = None
-            return train_tid, test_tid, stid_counts, enhance_ns
+            logging.info("loading enhance negative sample...")
+            enhance_ns = EnhanceNS(self.path).get(method="load")
+            logging.info("data load completed")
+
+            return train_tid, test_tid, enhance_ns
 
     def cleaner(self):
         logging.info("data clean...")
@@ -185,7 +186,6 @@ class Preprocessor(object):
         logging.info("data2 time coordinate...")
         test = self.data2.copy()
         self.data2 = timeid.get(test)
-
         # self.data2['timeid'] = self.data2['time'].map(
         #     lambda x: f"{time.localtime(x).tm_mon}-{time.localtime(x).tm_mday * (time.localtime(x).tm_hour // 6 + 1)}")
         logging.info("data2 time coordinate completed")
@@ -214,7 +214,6 @@ class Preprocessor(object):
         data = self.data1[columns]
         arr = data.to_numpy()
         np.save(f'{self.path}traj1.npy', arr)
-        # data.to_csv(f"{self.path}data1.csv", index=False)
         group = data.groupby('tid')
         tid = data.tid.unique().tolist()
         for i in tid:
@@ -225,7 +224,6 @@ class Preprocessor(object):
         data = self.data2[columns]
         arr = data.to_numpy()
         np.save(f'{self.path}traj2.npy', arr)
-        # data.to_csv(f"{self.path}data2.csv", index=False)
         group = data.groupby('tid')
         tid = data.tid.unique().tolist()
         for i in tid:
@@ -324,13 +322,11 @@ class EnhanceNS(object):  # Enhance negative samples
     def loader(self, method="run"):
         if method == "run":
             logging.info("EnhanceNS data preparation...")
-            columns = ['tid', 'time', 'lat', 'lon', 'spaceid', 'timeid', 'stid']
+            columns = ['tid', 'time', 'lat', 'lon', 'stid']
             data1 = np.load(f"{self.path}traj1.npy", allow_pickle=True)
             data1 = pd.DataFrame(data1, columns=columns).infer_objects()
             data2 = np.load(f"{self.path}traj2.npy", allow_pickle=True)
             data2 = pd.DataFrame(data2, columns=columns).infer_objects()
-            # data1 = pd.read_csv(f"{self.path}traj1.csv", dtype=dic)
-            # data2 = pd.read_csv(f"{self.path}traj2.csv", dtype=dic)
             train_tid = pd.read_csv(f"{self.path}train_tid.csv", dtype={'tid': str})
             self.tid = train_tid[['tid']].copy()
             self.tid.drop_duplicates(inplace=True)
@@ -422,25 +418,72 @@ class EnhanceNS(object):  # Enhance negative samples
         else:
             raise ValueError(f"method={method} 不在方法st_ns中。")
 
+        dic = {'st': 20, 's': 20, 't': 5}
+        num = dic[method]
+
         tid_lis = list(chain.from_iterable(map(list, tid_lis)))
-        most_counter = Counter(tid_lis).most_common(2)  # 出现最多的top2 tid
+        most_counter = Counter(tid_lis).most_common(num + 1)  # 出现最多的top2 tid
         if len(most_counter) == 1:
             return None
-        if most_counter[0][0] == tid:
-            ns_tid = most_counter[1][0]
-        else:
-            ns_tid = most_counter[0][0]
+        ns_tid = [i[0] for i in most_counter if i[0] != tid]
         return ns_tid
 
 
 def save_graph(path, test_file):
-    train_tid, test_tid, stid_counts, enhance_ns = Preprocessor(path, test_file).get(method='load')
+    train_tid, test_tid, _ = Preprocessor(path, test_file).get(method='load')
+    with open(f"{path}stid_counts.pkl", "rb") as f:
+        stid_counts = pickle.load(f)
     tid = train_tid.copy()
     for _, v in test_tid.items():
         tid += v
 
     graph_data = GraphSaver(path, tid, stid_counts)
-    data_loader = DataLoader(dataset=graph_data, batch_size=8, num_workers=24)
+    data_loader = DataLoader(dataset=graph_data, batch_size=8, num_workers=32, persistent_workers=True)
     for _ in tqdm(data_loader):  # 每个批次循环
         pass
 
+
+def normal(lis):
+    min_val = 10
+    max_val = 1
+    for i in lis:
+        arr = np.array(i)
+        min_val = min_val if min_val < np.min(arr) else np.min(arr)
+        max_val = max_val if max_val > np.max(arr) else np.max(arr)
+
+    result = []
+    for i in lis:
+        arr = np.array(i)
+        arr = (arr - min_val) / (max_val - min_val)
+        result.append(arr.tolist())
+    return result
+
+
+def spatiotemporal(path):
+    tids = []
+    spatials = []
+    temporals = []
+    dir = ['graph1', 'graph2', 'ps_graph1', 'ps_graph2']
+    for name in dir:
+        files = os.listdir(f'{path}{name}')
+        tid = []
+        spatial = []
+        temporal = []
+        for f in tqdm(files):
+            graph = np.load(f"{path}graph1/{f}")
+            tid.append(f.split(".")[0])
+            spatial.append(graph['space_range'][0])
+            temporal.append(graph['time_range'][0])
+
+        spatial = normal(spatial)
+        temporal = normal(temporal)
+        tids.append(tid)
+        spatials.append(spatial)
+        temporals.append(temporal)
+
+    spatials = normal(spatials)
+    temporals = normal(temporals)
+    st = {name: {k: (s, t) for k, s, t in zip(tids[i], spatials[i], temporals[i])} for i, name in enumerate(dir)}
+
+    with open(f"{path}spatiotemporal.pkl", 'wb') as f:
+        pickle.dump(st, f)

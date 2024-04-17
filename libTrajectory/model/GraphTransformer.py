@@ -1,19 +1,35 @@
-import torch_geometric.nn as pyg_nn
+import logging
+
 import torch
+from libTrajectory.model.transformer_conv import TransformerConv
+# from torch_geometric.nn import TransformerConv
 
 
 class GraphTransformer(torch.nn.Module):
     def __init__(self, in_dim, out_dim, heads):
         super(GraphTransformer, self).__init__()
-        self.conv1 = pyg_nn.TransformerConv(
-            in_channels=in_dim, out_channels=out_dim, edge_dim=1, heads=heads, dropout=0.1, beta=True)
-        self.conv2 = pyg_nn.TransformerConv(
-            in_channels=out_dim*heads, out_channels=out_dim, edge_dim=1, heads=heads, dropout=0.1, beta=True)
+        add_self_loops = True
+        logging.info(f"add_self_loops={add_self_loops}")
+        self.conv1 = TransformerConv(
+            in_channels=in_dim, out_channels=out_dim, edge_dim=1,
+            add_self_loops=add_self_loops, heads=heads, dropout=0.2)
+        self.conv2 = TransformerConv(
+            in_channels=out_dim*heads, out_channels=out_dim, edge_dim=1,
+            add_self_loops=add_self_loops, heads=heads, dropout=0.2)
 
-    def forward(self, x, edge_index, edge_weight=None):
+    def forward(self, x, edge_index, edge_weight=None, global_spatial=None, global_temporal=None):
         if edge_weight is not None:
             edge_weight = torch.unsqueeze(edge_weight, dim=-1)
-        x = self.conv1(x=x, edge_index=edge_index, edge_attr=edge_weight)
-        x = self.conv2(x=x, edge_index=edge_index, edge_attr=edge_weight)
-        x = self.conv2(x=x, edge_index=edge_index, edge_attr=edge_weight)
+        x = self.conv1(x=x, edge_index=edge_index, edge_attr=edge_weight,
+                       global_spatial=global_spatial, global_temporal=global_temporal)
+        x = self.conv2(x=x, edge_index=edge_index, edge_attr=edge_weight,
+                       global_spatial=global_spatial, global_temporal=global_temporal)
+        x = self.conv2(x=x, edge_index=edge_index, edge_attr=edge_weight,
+                       global_spatial=global_spatial, global_temporal=global_temporal)
+        x = self.conv2(x=x, edge_index=edge_index, edge_attr=edge_weight,
+                       global_spatial=global_spatial, global_temporal=global_temporal)
+        x = self.conv2(x=x, edge_index=edge_index, edge_attr=edge_weight,
+                       global_spatial=global_spatial, global_temporal=global_temporal)
+        x = self.conv2(x=x, edge_index=edge_index, edge_attr=edge_weight,
+                       global_spatial=global_spatial, global_temporal=global_temporal)
         return x

@@ -1,3 +1,4 @@
+import pickle
 import random
 import re
 
@@ -9,7 +10,7 @@ from random import sample
 
 
 class GraphGenerator(object):
-    def __init__(self, path, stid_counts):
+    def __init__(self, stid_counts):
         """
         tid: trajectory id
         st: spatiotemporal
@@ -18,14 +19,6 @@ class GraphGenerator(object):
         self.tail = 3  # 取用户到访区域中拥有全量轨迹点最后几名作为用户向量
 
     def _st_vec(self, stid):
-        # s0, s1, t0, t1 = re.split('-+|_+', stid)
-        # s0, s1, t0, t1 = int(s0), int(s1), int(t0), int(t1)
-        # v1 = self._2binary(s0, 8)  # lat
-        # v2 = self._2binary(s1, 10)  # lon
-        # v3 = self._2binary(t0, 4)  # t0
-        # v4 = self._2binary(t1, 10)  # t1
-        # vec = v1 + v2 + v3 + v4
-        # return np.array(vec)
         s0, s1, flag, t0, t1 = re.split('-+|_+', stid)
         s0, s1, flag, t0, t1 = int(s0), int(s1), int(flag), int(t0), int(t1)
         v1 = self._2binary(s0, 8)  # lat
@@ -47,7 +40,7 @@ class GraphGenerator(object):
         bin_vec = [int(i) for i in bin_str]
         return bin_vec
 
-    def graph1(self, tid, df):
+    def graph1(self, df):
         # get tsid 、user tsid、 node index
         node_id = {}  # tid or stid : index
         stid_lis = df.stid.unique().tolist()
@@ -61,7 +54,7 @@ class GraphGenerator(object):
         st_node = [self._st_vec(stid).tolist() for stid in stid_lis]  # stid 向量组
         # node
         node = [tid_node] + st_node
-        node_id[tid] = 0
+        node_id["tid"] = 0
         for i, stid in enumerate(stid_lis):
             node_id[stid] = i + 1
 
@@ -71,13 +64,16 @@ class GraphGenerator(object):
         # edge: user(tid) node and spatiotemporal node
         sub_stid_counts = df.stid.value_counts().to_dict()
         for stid, count in sub_stid_counts.items():
-            edge_ind[0].append(node_id[tid])
+            edge_ind[0].append(node_id["tid"])
             edge_ind[1].append(node_id[stid])
             edge_attr.append(count)
 
         # edge between spatiotemporal node
         df.sort_values(['time'], inplace=True)
         df.reset_index(drop=True, inplace=True)
+        df = df.copy()
+        space_range = 0.1
+        time_range = [abs(df['time'].iloc[0] - df['time'].iloc[-1] + 0.1) / 1000] * len(node)
         df['st0'] = df.apply(lambda row: (row.stid, row.lat, row.lon, row.time), axis=1)
         df['timeid'] = df['stid'].map(lambda x: x.split('_')[1])
         df['st1'] = df.groupby('timeid')['st0'].shift(1)
@@ -92,16 +88,19 @@ class GraphGenerator(object):
                 edge_ind[0].append(node_id[i[0]])  # i[0] stid0
                 edge_ind[1].append(node_id[i[1]])  # i[1] stid1
                 edge_attr.append(i[2])
+            dis = [i[2] for i in spatio.dis.tolist()]
+            space_range += sum(dis)
+        space_range = [space_range] * len(node)
         if temporal.shape[0] > 1:
             temporal['int'] = temporal.apply(
-                lambda row: (row.st0[0], row.st1[0], (abs(row.st0[3] - row.st1[3]) + 0.1) / 1000), axis=1)
+                lambda row: (row.st0[0], row.st1[0], (abs(row.st0[3] - row.st1[3]) + 0.1) / -1000), axis=1)
             for i in temporal.int.tolist():
                 edge_ind[0].append(node_id[i[0]])  # i[0] tsid0
                 edge_ind[1].append(node_id[i[1]])  # i[1] tsid1
                 edge_attr.append(i[2])
-        return node, edge_ind, edge_attr
+        return node, edge_ind, edge_attr, space_range, time_range
 
-    def graph2(self, tid, df):
+    def graph2(self, df):
         # get tsid 、user tsid、 node index
         node_id = {}  # tid or stid : index
         stid_lis = df.stid.unique().tolist()
@@ -115,7 +114,7 @@ class GraphGenerator(object):
         st_node = [self._st_vec(stid).tolist() for stid in stid_lis]  # stid 向量组
         # node
         node = [tid_node] + st_node
-        node_id[tid] = 0
+        node_id["tid"] = 0
         for i, stid in enumerate(stid_lis):
             node_id[stid] = i + 1
 
@@ -125,13 +124,16 @@ class GraphGenerator(object):
         # edge: user(tid) node and spatiotemporal node
         sub_stid_counts = df.stid.value_counts().to_dict()
         for stid, count in sub_stid_counts.items():
-            edge_ind[0].append(node_id[tid])
+            edge_ind[0].append(node_id["tid"])
             edge_ind[1].append(node_id[stid])
             edge_attr.append(count)
 
         # edge between spatiotemporal node
         df.sort_values(['time'], inplace=True)
         df.reset_index(drop=True, inplace=True)
+        space_range = 0.1
+        time_range = [abs(df['time'].iloc[0] - df['time'].iloc[-1] + 0.1) / 1000] * len(node)
+        df = df.copy()
         df['st0'] = df.apply(lambda row: (row.stid, row.lat, row.lon, row.time), axis=1)
         df['spaceid'] = df['stid'].map(lambda x: x.split('_')[0])
         df['st1'] = df.groupby('spaceid')['st0'].shift(1)
@@ -141,7 +143,7 @@ class GraphGenerator(object):
         spatio = spatio[~spatio['st1'].isna()]
         if temporal.shape[0] > 1:
             temporal['inter'] = temporal.apply(
-                lambda row: (row.st0[0], row.st1[0], (abs(row.st0[3] - row.st1[3]) + 0.1) / 100), axis=1)
+                lambda row: (row.st0[0], row.st1[0], (abs(row.st0[3] - row.st1[3]) + 0.1) / -100), axis=1)
             for i in temporal.inter.tolist():
                 edge_ind[0].append(node_id[i[0]])  # i[0] stid0
                 edge_ind[1].append(node_id[i[1]])  # i[1] stid1
@@ -153,10 +155,14 @@ class GraphGenerator(object):
                 edge_ind[0].append(node_id[i[0]])  # i[0] stid0
                 edge_ind[1].append(node_id[i[1]])  # i[1] stid1
                 edge_attr.append(i[2])
-        return node, edge_ind, edge_attr
+            dis = [i[2] for i in spatio.dis.tolist()]
+            space_range += sum(dis)
+        space_range = [space_range] * len(node)
+
+        return node, edge_ind, edge_attr, space_range, time_range
 
 
-class GraphDataset(Dataset):
+class GraphSaver(Dataset):
     def __init__(self, path: str, tid: list, stid_counts: dict, train=True, enhance_ns=None):
         """
         tid: trajectory id
@@ -165,10 +171,9 @@ class GraphDataset(Dataset):
         self.path = path
         self.tid = tid
         self.tail = 3  # 取用户到访区域中拥有全量轨迹点最后几名作为用户向量
-        self.generator = GraphGenerator(path, stid_counts)
+        self.generator = GraphGenerator(stid_counts)
 
         self.train = train
-        self.struct = None  # enhance、positive and negative sample struct
         if self.train:
             self.enhance_ns = enhance_ns
 
@@ -178,64 +183,7 @@ class GraphDataset(Dataset):
     def __getitem__(self, index):
         return self.get_sample(index)
 
-    def get_sample(self, index):
-        tid = self.tid[index]
-        if self.train:
-            struct = self.generate_sample_tid(tid)
-            for i in ['g1', 'ps1', 'ns1']:
-                if struct[i] is not None:
-                    tid, df1 = struct[i]
-                    struct[i] = self.generator.graph1(tid, df1)
-            for i in ['g2', 'ps2', 'ns2']:
-                if struct[i] is not None:
-                    tid, df2 = struct[i]
-                    struct[i] = self.generator.graph2(tid, df2)
-        else:
-            dic = {'time': int, 'lat': float, 'lon': float, 'stid': str}
-            df1 = pd.read_csv(f"{self.path}/data1/{tid}.csv", dtype=dic)
-            df2 = pd.read_csv(f"{self.path}/data2/{tid}.csv", dtype=dic)
-            node1, edge_ind1, edge_attr1 = self.generator.graph1(tid, df1)
-            node2, edge_ind2, edge_attr2 = self.generator.graph2(tid, df2)
-            struct = (node1, edge_ind1, edge_attr1, node2, edge_ind2, edge_attr2)
-
-        return struct
-
-    def generate_sample_tid(self, tid):
-        dic = {'time': int, 'lat': float, 'lon': float, 'stid': str}
-        df1 = pd.read_csv(f"{self.path}/data1/{tid}.csv", dtype=dic)
-        df2 = pd.read_csv(f"{self.path}/data2/{tid}.csv", dtype=dic)
-        sample_tid = {
-            "g1": (tid, df1),
-            "g2": (tid, df2),
-            "ps1": None,
-            'ps2': None,
-            'ns1': None,
-            'ns2': None}
-        # 增强正样本
-        for i in ['1', '2']:
-            method = sample(['random', 'st', 'st', 's', 's', 't'], 1)[0]
-            en_df = self.generate_es(sample_tid[f"g{i}"][1], method=method)
-            if en_df is not None:
-                en_tid = f"{tid}_enhance_ps_{method}"
-                sample_tid[f"ps{i}"] = (en_tid, en_df)
-
-        # 增强负样本
-        enhance_ns = self.enhance_ns.query(f"tid == '{tid}'").ns1.values[0]
-
-        method = sample(['st', 'st', 'st', 's', 's', 't'], 1)[0]
-        ns_tid = enhance_ns[method]
-        if ns_tid is not None:
-            df1 = pd.read_csv(f"{self.path}/data1/{ns_tid}.csv", dtype=dic)
-            sample_tid["ns1"] = (ns_tid, df1)
-        method = sample(['st', 'st', 'st', 's', 's', 't'], 1)[0]
-        ns_tid = enhance_ns[method]
-        if ns_tid is not None:
-            df2 = pd.read_csv(f"{self.path}/data2/{ns_tid}.csv", dtype=dic)
-            sample_tid["ns2"] = (ns_tid, df2)
-
-        return sample_tid
-
-    def generate_es(self, df, method='random'):
+    def _ps_df(self, df, method='random'):
         """
         es: enhance sample
         random: 随机删除轨迹点
@@ -244,7 +192,7 @@ class GraphDataset(Dataset):
         if df.shape[0] <= 3:
             return None
 
-        frac = sample([0.8, 0.7, 0.6, 0.5, 0.4], 1)[0]
+        frac = sample([0.8, 0.6, 0.5, 0.4], 1)[0]
         if method == 'random':
             return df.sample(frac=frac)
 
@@ -283,93 +231,155 @@ class GraphDataset(Dataset):
         else:
             raise ValueError(f"method={method} 不在方法random_enhance中。")
 
-
-class GraphSaver(GraphDataset):
-    def __init__(self, path: str, tid: list, stid_counts: dict):
-        super().__init__(path, tid, stid_counts)
-
     def get_sample(self, index):
         tid = self.tid[index]
         dic = {'time': int, 'lat': float, 'lon': float, 'stid': str}
         df1 = pd.read_csv(f"{self.path}traj1/{tid}.csv", dtype=dic)
-        node1, edge_ind1, edge_attr1 = self.generator.graph1(tid, df1)
+        node1, edge_ind1, edge_attr1, space_range, time_range = self.generator.graph1(df1)
         node1, edge_ind1, edge_attr1 = np.array(node1), np.array(edge_ind1), np.array(edge_attr1)
-        np.savez(f"{self.path}graph1/{tid}.npz", node=node1, edge=edge_ind1, edge_attr=edge_attr1)
+        space_range, time_range = np.array(space_range), np.array(time_range)
+        np.savez(f"{self.path}graph1/{tid}.npz",
+                 node=node1, edge=edge_ind1, edge_attr=edge_attr1, space_range=space_range, time_range=time_range)
 
         df2 = pd.read_csv(f"{self.path}traj2/{tid}.csv", dtype=dic)
-        node2, edge_ind2, edge_attr2 = self.generator.graph2(tid, df2)
+        node2, edge_ind2, edge_attr2, space_range, time_range = self.generator.graph2(df2)
         node2, edge_ind2, edge_attr2 = np.array(node2), np.array(edge_ind2), np.array(edge_attr2)
-        np.savez(f"{self.path}graph2/{tid}.npz", node=node2, edge=edge_ind2, edge_attr=edge_attr2)
+        space_range, time_range = np.array(space_range), np.array(time_range)
+        np.savez(f"{self.path}graph2/{tid}.npz",
+                 node=node2, edge=edge_ind2, edge_attr=edge_attr2, space_range=space_range, time_range=time_range)
+
+        # enhance sample
+        method = sample(sum([['random'] * 7, ['st'] * 2, ['s'] * 2, ['t'] * 1], []), 1)[0]
+        ps_df1 = self._ps_df(df1, method=method)
+        if ps_df1 is not None:
+            node1, edge_ind1, edge_attr1, space_range, time_range = self.generator.graph1(ps_df1)
+            node1, edge_ind1, edge_attr1 = np.array(node1), np.array(edge_ind1), np.array(edge_attr1)
+            space_range, time_range = np.array(space_range), np.array(time_range)
+            np.savez(f"{self.path}ps_graph1/{tid}.npz",
+                     node=node1, edge=edge_ind1, edge_attr=edge_attr1, space_range=space_range, time_range=time_range)
+
+        ps_df2 = self._ps_df(df2, method=method)
+        if ps_df2 is not None:
+            node2, edge_ind2, edge_attr2, space_range, time_range = self.generator.graph2(ps_df2)
+            node2, edge_ind2, edge_attr2 = np.array(node2), np.array(edge_ind2), np.array(edge_attr2)
+            space_range, time_range = np.array(space_range), np.array(time_range)
+            np.savez(f"{self.path}ps_graph2/{tid}.npz",
+                     node=node2, edge=edge_ind2, edge_attr=edge_attr2, space_range=space_range, time_range=time_range)
+
         return "save success"
 
 
-class GraphLoader(GraphDataset):
-    def __init__(self, path: str, tid: list, stid_counts, train=True, enhance_ns=None):
-        super().__init__(path, tid, stid_counts, train, enhance_ns)
+class GraphLoader(Dataset):
+    def __init__(self, path: str, tid: list, train=True, enhance_ns=None):
+        """
+        tid: trajectory id
+        st: spatiotemporal
+        """
+        self.path = path
+        self.tid = tid
+        self.train = train
+        self.enhance_ns = enhance_ns
 
-    def load_graph(self, tid, method="1"):
-        graph = np.load(f"{self.path}graph{method}/{tid}.npz")
+    def __len__(self):
+        return self.tid.__len__()
+
+    def __getitem__(self, index):
+        return self.get_sample(index)
+
+    def _load_graph(self, tid, folder):
+        try:
+            graph = np.load(f"{self.path}{folder}/{tid}.npz")
+        except FileNotFoundError:
+            return None
         node = graph['node'].tolist()
         edge = graph['edge'].tolist()
         attr = graph['edge_attr'].tolist()
-        return node, edge, attr
+        space_range = graph['space_range'].tolist()
+        time_range = graph['time_range'].tolist()
+        # space_range = [(spatiotemporal[folder][tid][0] + 0.001)**8] * len(node)
+        # time_range = [(spatiotemporal[folder][tid][1] + 0.001)**8] * len(node)
+        # space_range = [spatiotemporal[folder][tid][0]] * len(node)
+        # time_range = [spatiotemporal[folder][tid][1]] * len(node)
+        return node, edge, attr, space_range, time_range
 
     def get_sample(self, index):
         tid = self.tid[index]
         if self.train:
-            struct = self.generate_sample_tid(tid)
-            for i in ['g1']:  # , 'ns1'
-                if struct[i] is not None:
-                    tid = struct[i][0]
-                    struct[i] = self.load_graph(tid, method="1")
-            for i in ['g2']:  # , 'ns2'
-                if struct[i] is not None:
-                    tid = struct[i][0]
-                    struct[i] = self.load_graph(tid, method="2")
-            # if struct['ps1'] is not None:
-            #     tid, df = struct['ps1']
-            #     struct['ps1'] = self.generator.graph1(tid, df)
-            # if struct['ps2'] is not None:
-            #     tid, df = struct['ps2']
-            #     struct['ps2'] = self.generator.graph2(tid, df)
-        else:
-            node1, edge_ind1, edge_attr1 = self.load_graph(tid, method="1")
-            node2, edge_ind2, edge_attr2 = self.load_graph(tid, method="2")
-            struct = (node1, edge_ind1, edge_attr1, node2, edge_ind2, edge_attr2)
+            struct = {
+                "g1": self._load_graph(tid, folder="graph1"),  # self.graph1[tid]  self._load_graph(tid, folder="graph1")
+                # "ps1": self._load_graph(tid, folder="ps_graph1"),  # None self._load_graph(tid, folder="ps_graph1")
+                "g2": self._load_graph(tid, folder="graph2"),  # self.graph2[tid]  self._load_graph(tid, folder="graph2")
+                # "ps2": self._load_graph(tid, folder="ps_graph2")  # None self._load_graph(tid, folder="ps_graph2")
+            }
 
+            # ns = self.enhance_ns[self.enhance_ns["tid"] == tid]
+            # dic1 = ns['ns1'].values[0]
+            # ns_tid1 = []
+            # for i in dic1.values():
+            #     if i:
+            #         ns_tid1.append(i)
+            # if not ns_tid1:
+            #     struct['ns1'] = None
+            # else:
+            #     ns_tid1 = list(set(sum(ns_tid1, [])))
+            #     ns_tid1 = sample(ns_tid1, 5) if len(ns_tid1) > 5 else ns_tid1
+            #     ns_graph1 = {i: graph1[i] for i in ns_tid1}
+            #     struct['ns1'] = ns_graph1
+            #
+            # dic2 = ns['ns2'].values[0]
+            # ns_tid2 = []
+            # for i in dic2.values():
+            #     if i:
+            #         ns_tid2.append(i)
+            # if not ns_tid2:
+            #     struct['ns2'] = None
+            # else:
+            #     ns_tid2 = list(set(sum(ns_tid2, [])))
+            #     ns_tid2 = sample(ns_tid2, 5) if len(ns_tid2) > 5 else ns_tid2
+            #     ns_graph2 = {i: graph2[i] for i in ns_tid2}
+            #     struct['ns2'] = ns_graph2
+
+        else:
+            struct = {
+                "g1": self._load_graph(tid, folder="graph1"),
+                "g2": self._load_graph(tid, folder="graph2")
+            }
         return struct
 
-    def generate_sample_tid(self, tid):
-        dic = {'time': int, 'lat': float, 'lon': float, 'stid': str}
-        df1 = pd.read_csv(f"{self.path}traj1/{tid}.csv", dtype=dic)
-        df2 = pd.read_csv(f"{self.path}traj2/{tid}.csv", dtype=dic)
-        sample_tid = {
-            "g1": (tid, df1),
-            "g2": (tid, df2),
-            "ps1": None,
-            'ps2': None,
-            'ns1': None,
-            'ns2': None}
-        # 增强正样本
-        # for i in ['1', '2']:
-        #     method = sample(sum([['random'] * 1, ['st'] * 3, ['s'] * 2, ['t'] * 1], []), 1)[0]
-        #     en_df = self.generate_es(sample_tid[f"g{i}"][1], method=method)
-        #     if en_df is not None:
-        #         en_tid = f"{tid}_enhance_ps_{method}"
-        #         sample_tid[f"ps{i}"] = (en_tid, en_df)
 
-        # 增强负样本
-        # df = self.enhance_ns.query(f"tid == '{tid}'")
-        # enhance_ns1 = df.ns1.values[0]
-        # method = sample(sum([['st'] * 3, ['s'] * 2, ['t'] * 1], []), 1)[0]
-        # ns_tid = enhance_ns1[method]
-        # if ns_tid is not None:
-        #     sample_tid["ns1"] = (ns_tid, None)
-        #
-        # enhance_ns2 = df.ns2.values[0]
-        # method = sample(sum([['st'] * 3, ['s'] * 2, ['t'] * 1], []), 1)[0]
-        # ns_tid = enhance_ns2[method]
-        # if ns_tid is not None:
-        #     sample_tid["ns2"] = (ns_tid, None)
+class GraphDataset(object):
+    def __init__(self, path, tid):
+        self.path = path
+        self.tid = tid
 
-        return sample_tid
+    def get(self):
+        graph = pd.DataFrame(self.tid, columns=['tid'])
+        from pandarallel import pandarallel
+        pandarallel.initialize(nb_workers=6, progress_bar=True)
+        print("  graph1")
+        graph['graph1'] = graph.tid.parallel_map(lambda i: self._load_graph(i, "graph1"))
+        print("  graph2")
+        graph['graph2'] = graph.tid.parallel_map(lambda i: self._load_graph(i, "graph2"))
+
+        graph.set_index('tid', inplace=True)
+        g1 = graph['graph1'].to_dict()
+        g2 = graph['graph2'].to_dict()
+        return g1, g2
+
+    def _load_graph(self, tid, folder):
+        graph = np.load(f"{self.path}{folder}/{tid}.npz")
+        node = graph['node'].tolist()
+        edge = graph['edge'].tolist()
+        attr = graph['edge_attr'].tolist()
+        space_range = graph['space_range'].tolist()
+        time_range = graph['time_range'].tolist()
+        return node, edge, attr, space_range, time_range
+        # return node, edge, attr
+
+
+path = "./libTrajectory/dataset/ais/"
+# train_tid = pd.read_csv(f"{path}train_tid.csv", dtype={'tid': str})
+# train_tid = train_tid.tid.unique().tolist()
+# graph1, graph2 = GraphDataset(path, train_tid).get()
+with open(f"{path}spatiotemporal.pkl", "rb") as f:
+    spatiotemporal = pickle.load(f)

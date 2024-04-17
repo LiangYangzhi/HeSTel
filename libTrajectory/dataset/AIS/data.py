@@ -405,7 +405,7 @@ class ProTra(object):
         print(f"multi trajectory...")
 
         from pandarallel import pandarallel
-        pandarallel.initialize(nb_workers=48)
+        pandarallel.initialize(nb_workers=32)
         df["multi"] = df.parallel_apply(lambda row: self._multi(row.lat, row.lon, row.time), axis=1)
         df['m_time'] = df["multi"].map(lambda x: x['m_time'])
         df['m_lat'] = df["multi"].map(lambda x: x['m_lat'])
@@ -426,7 +426,7 @@ class ProTra(object):
         if self.no_tid:
             self.no_tid = {k: 0 for k in self.no_tid}
             from pandarallel import pandarallel
-            pandarallel.initialize(nb_workers=48)
+            pandarallel.initialize(nb_workers=32)
             df['m_time'] = df.parallel_apply(lambda row: self._random(row.tid, row.time, row.m_time), axis=1)
             print(f"generate trajectory points num: {df[df['m_time'] != 0].shape}")
             print(f"no generate trajectory points num: {df[df['m_time'] == 0].shape}")
