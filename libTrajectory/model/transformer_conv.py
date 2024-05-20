@@ -173,9 +173,6 @@ class TransformerConv(MessagePassing):
 
         global_spatial = (torch.softmax(global_spatial, dim=0) + 0.01) ** 6
         global_temporal = (torch.softmax(global_temporal, dim=0) + 0.01) ** 6
-        # query = query * global_spatial.unsqueeze(1).unsqueeze(1) * global_temporal.unsqueeze(1).unsqueeze(1)
-        # key = key * global_spatial.unsqueeze(1).unsqueeze(1) * global_temporal.unsqueeze(1).unsqueeze(1)
-        # value = value * global_spatial.unsqueeze(1).unsqueeze(1) * global_temporal.unsqueeze(1).unsqueeze(1)
 
         # propagate_type: (query: Tensor, key:Tensor, value: Tensor, edge_attr: OptTensor) # noqa
         out = self.propagate(edge_index, query=query, key=key, value=value, edge_attr=edge_attr, size=None)

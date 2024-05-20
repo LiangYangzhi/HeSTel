@@ -296,10 +296,6 @@ class GraphLoader(Dataset):
         attr = graph['edge_attr'].tolist()
         space_range = graph['space_range'].tolist()
         time_range = graph['time_range'].tolist()
-        # space_range = [(spatiotemporal[folder][tid][0] + 0.001)**8] * len(node)
-        # time_range = [(spatiotemporal[folder][tid][1] + 0.001)**8] * len(node)
-        # space_range = [spatiotemporal[folder][tid][0]] * len(node)
-        # time_range = [spatiotemporal[folder][tid][1]] * len(node)
         return node, edge, attr, space_range, time_range
 
     def get_sample(self, index):
@@ -307,37 +303,37 @@ class GraphLoader(Dataset):
         if self.train:
             struct = {
                 "g1": self._load_graph(tid, folder="graph1"),  # self.graph1[tid]  self._load_graph(tid, folder="graph1")
-                # "ps1": self._load_graph(tid, folder="ps_graph1"),  # None self._load_graph(tid, folder="ps_graph1")
+                "ps1": self._load_graph(tid, folder="ps_graph1"),  # None self._load_graph(tid, folder="ps_graph1")
                 "g2": self._load_graph(tid, folder="graph2"),  # self.graph2[tid]  self._load_graph(tid, folder="graph2")
-                # "ps2": self._load_graph(tid, folder="ps_graph2")  # None self._load_graph(tid, folder="ps_graph2")
+                "ps2": self._load_graph(tid, folder="ps_graph2")  # None self._load_graph(tid, folder="ps_graph2")
             }
 
-            # ns = self.enhance_ns[self.enhance_ns["tid"] == tid]
-            # dic1 = ns['ns1'].values[0]
-            # ns_tid1 = []
-            # for i in dic1.values():
-            #     if i:
-            #         ns_tid1.append(i)
-            # if not ns_tid1:
-            #     struct['ns1'] = None
-            # else:
-            #     ns_tid1 = list(set(sum(ns_tid1, [])))
-            #     ns_tid1 = sample(ns_tid1, 5) if len(ns_tid1) > 5 else ns_tid1
-            #     ns_graph1 = {i: graph1[i] for i in ns_tid1}
-            #     struct['ns1'] = ns_graph1
-            #
-            # dic2 = ns['ns2'].values[0]
-            # ns_tid2 = []
-            # for i in dic2.values():
-            #     if i:
-            #         ns_tid2.append(i)
-            # if not ns_tid2:
-            #     struct['ns2'] = None
-            # else:
-            #     ns_tid2 = list(set(sum(ns_tid2, [])))
-            #     ns_tid2 = sample(ns_tid2, 5) if len(ns_tid2) > 5 else ns_tid2
-            #     ns_graph2 = {i: graph2[i] for i in ns_tid2}
-            #     struct['ns2'] = ns_graph2
+            ns = self.enhance_ns[self.enhance_ns["tid"] == tid]
+            dic1 = ns['ns1'].values[0]
+            ns_tid1 = []
+            for i in dic1.values():
+                if i:
+                    ns_tid1.append(i)
+            if not ns_tid1:
+                struct['ns1'] = None
+            else:
+                ns_tid1 = list(set(sum(ns_tid1, [])))
+                ns_tid1 = sample(ns_tid1, 2) if len(ns_tid1) > 2 else ns_tid1
+                ns_graph1 = {i: self._load_graph(i, folder="graph1") for i in ns_tid1}
+                struct['ns1'] = ns_graph1
+
+            dic2 = ns['ns2'].values[0]
+            ns_tid2 = []
+            for i in dic2.values():
+                if i:
+                    ns_tid2.append(i)
+            if not ns_tid2:
+                struct['ns2'] = None
+            else:
+                ns_tid2 = list(set(sum(ns_tid2, [])))
+                ns_tid2 = sample(ns_tid2, 2) if len(ns_tid2) > 2 else ns_tid2
+                ns_graph2 = {i: self._load_graph(i, folder="graph2") for i in ns_tid2}
+                struct['ns2'] = ns_graph2
 
         else:
             struct = {
@@ -345,41 +341,3 @@ class GraphLoader(Dataset):
                 "g2": self._load_graph(tid, folder="graph2")
             }
         return struct
-
-
-class GraphDataset(object):
-    def __init__(self, path, tid):
-        self.path = path
-        self.tid = tid
-
-    def get(self):
-        graph = pd.DataFrame(self.tid, columns=['tid'])
-        from pandarallel import pandarallel
-        pandarallel.initialize(nb_workers=6, progress_bar=True)
-        print("  graph1")
-        graph['graph1'] = graph.tid.parallel_map(lambda i: self._load_graph(i, "graph1"))
-        print("  graph2")
-        graph['graph2'] = graph.tid.parallel_map(lambda i: self._load_graph(i, "graph2"))
-
-        graph.set_index('tid', inplace=True)
-        g1 = graph['graph1'].to_dict()
-        g2 = graph['graph2'].to_dict()
-        return g1, g2
-
-    def _load_graph(self, tid, folder):
-        graph = np.load(f"{self.path}{folder}/{tid}.npz")
-        node = graph['node'].tolist()
-        edge = graph['edge'].tolist()
-        attr = graph['edge_attr'].tolist()
-        space_range = graph['space_range'].tolist()
-        time_range = graph['time_range'].tolist()
-        return node, edge, attr, space_range, time_range
-        # return node, edge, attr
-
-
-path = "./libTrajectory/dataset/ais/"
-# train_tid = pd.read_csv(f"{path}train_tid.csv", dtype={'tid': str})
-# train_tid = train_tid.tid.unique().tolist()
-# graph1, graph2 = GraphDataset(path, train_tid).get()
-with open(f"{path}spatiotemporal.pkl", "rb") as f:
-    spatiotemporal = pickle.load(f)
