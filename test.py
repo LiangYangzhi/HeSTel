@@ -1,46 +1,47 @@
-import torch
-from libTrajectory.model.transformer_conv import TransformerConv
+import math
+import os
+import pandas as pd
 
 
-class GraphTransformer(torch.nn.Module):
-    def __init__(self, in_dim, out_dim, heads):
-        super(GraphTransformer, self).__init__()
-        self.conv1 = TransformerConv(
-            in_channels=in_dim, out_channels=out_dim, edge_dim=1, add_self_loops=True, heads=heads, dropout=0.2)
-        self.conv2 = TransformerConv(
-            in_channels=out_dim*heads, out_channels=out_dim, edge_dim=1, add_self_loops=True, heads=heads, dropout=0.2)
+# if __name__ == "__main__":
+    # df = pd.read_csv("./libTrajectory/dataset/ais/enhance_ns.csv")
+    # df['ns1'] = df['ns1'].map(lambda x: eval(x))
+    #
+    # ns1 = [lis for lis in df.ns1.values if lis]
+    # ns1 = sum(ns1, [])
+    #
+    # ns_traj1 = [f"{i}.csv" for i in ns1]
+    # files = os.listdir("./libTrajectory/dataset/ais/ns_traj1/")
+    # print(files[0], len(files), ns_traj1[0], len(ns_traj1))
+    # print(f"files - ns_traj1 : {len(list(set(files) - set(ns_traj1)))}")
+    # print(f"ns_traj1 - files : {len(list(set(ns_traj1) - set(files)))}")
+    #
+    # ns_graph1 = [f"{i}.npz" for i in ns1]
+    # files = os.listdir("./libTrajectory/dataset/ais/ns_graph1/")
+    # print(files[0], len(files), ns_graph1[0], len(ns_graph1))
+    # print(f"files - ns_graph1 : {len(list(set(files) - set(ns_graph1)))}")
+    # print(f"ns_graph1 - files : {len(list(set(ns_graph1) - set(files)))}")
+    #
+    # df['ns2'] = df['ns2'].map(lambda x: eval(x))
+    # ns2 = [lis for lis in df.ns2.values if lis]
+    # ns2 = sum(ns2, [])
+    #
+    # ns_traj2 = [f"{i}.csv" for i in ns2]
+    # files = os.listdir("./libTrajectory/dataset/ais/ns_traj2/")
+    # print(files[0], len(files), ns_traj2[0], len(ns_traj2))
+    # print(f"files - ns_traj2 : {len(list(set(files) - set(ns_traj2)))}")
+    # print(f"ns_traj2 - files : {len(list(set(ns_traj2) - set(files)))}")
+    #
+    # ns_graph2 = [f"{i}.npz" for i in ns2]
+    # files = os.listdir("./libTrajectory/dataset/ais/ns_graph2/")
+    # print(files[0], len(files), ns_graph2[0], len(ns_graph2))
+    # print(f"files - ns_graph2 : {len(list(set(files) - set(ns_graph2)))}")
+    # print(f"ns_graph2 - files : {len(list(set(ns_graph2) - set(files)))}")
 
-    def forward(self, x, edge_index, edge_weight=None):
-        if edge_weight is not None:
-            edge_weight = torch.unsqueeze(edge_weight, dim=-1)
-        x = self.conv1(x=x, edge_index=edge_index, edge_attr=edge_weight)
-        x = self.conv2(x=x, edge_index=edge_index, edge_attr=edge_weight)
-        return x
+    # file_path = f"{self.path}/ns_traj{data}/{ns}.csv"
+    # if os.path.exists(file_path):
+    #     os.remove(file_path)
+    # file_path = f"{self.path}/ns_graph{data}/{ns}.npz"
+    # if os.path.exists(file_path):
+    #     os.remove(file_path)
 
-
-if __name__ == "__main__":
-    node1 = [[0, 1, 1, 0], [0, 1, 1, 1]]
-    edge1 = [[0, 1], [1, 1]]
-    edge_attr1 = [5, -60]
-
-    node2 = [[0, 1, 1, 0], [0, 1, 1, 1], [1, 0, 1, 1]]
-    edge2 = [[0, 1], [1, 2]]
-    edge_attr2 = [3, 18]
-
-    node = node1 + node2
-    edge = edge1
-    for i in edge2[0]:
-        edge[0].append(i + len(node1))
-    for i in edge2[1]:
-        edge[1].append(i + len(node1))
-    edge_attr = edge_attr1 + edge_attr2
-
-    node = torch.tensor(node, dtype=torch.float32)
-    edge = torch.tensor(edge, dtype=torch.long)
-    edge_attr = torch.tensor(edge_attr, dtype=torch.float32)
-
-    net = GraphTransformer(len(node[0]), len(node[0]), 2)
-    optimizer = torch.optim.Adam(net.parameters(), lr=0.001)
-    net.train()
-    x = net(node, edge, edge_attr)
-    print(f"net: {x}")

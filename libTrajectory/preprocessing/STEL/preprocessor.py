@@ -1,5 +1,6 @@
 import os
 import pickle
+import random
 
 import numpy as np
 import pandas as pd
@@ -9,11 +10,10 @@ from itertools import chain
 import logging
 import math
 import time
-
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from libTrajectory.preprocessing.STEL.graphDataset import GraphSaver
+from libTrajectory.preprocessing.STEL.graphDataset import GraphSaver, NSGraphSaver
 
 
 class Preprocessor(object):
@@ -56,8 +56,9 @@ class Preprocessor(object):
 
         elif method == "load":
             logging.info("loading train tid...")
-            train_tid = pd.read_csv(f"{self.path}train_tid.csv", dtype={'tid': str})
-            train_tid = train_tid.tid.unique().tolist()
+            with open(f"{self.path}train_tid.pkl", "rb") as f:
+                train_tid = pickle.load(f)
+            train_tid = [f"{tid}" for tid in train_tid]
 
             logging.info("loading test tid...")
             test_tid = {}
@@ -65,10 +66,6 @@ class Preprocessor(object):
                 tid = pd.read_csv(v, usecols=['tid'], dtype={'tid': str})
                 tid = tid.tid.unique().tolist()
                 test_tid[k] = tid
-
-            # logging.info("loading stid_counts...")
-            # with open(f"{self.path}stid_counts.pkl", "rb") as f:
-            #     stid_counts = pickle.load(f)
 
             logging.info("loading enhance negative sample...")
             enhance_ns = EnhanceNS(self.path).get(method="load")
@@ -238,8 +235,9 @@ class Preprocessor(object):
             test_tid += tid
         train_tid = all_tid.query(f"tid not in {test_tid}").copy()
         train_tid.reset_index(drop=True, inplace=True)
-        train_tid.to_csv(f"{self.path}train_tid.csv", index=False)
         self.train_tid = train_tid.tid.unique().tolist()
+        with open(f"{self.path}train_tid.pkl", 'wb') as f:
+            pickle.dump(self.train_tid, f)
         logging.info("data save completed")
 
     def get(self, method="load"):
@@ -310,7 +308,7 @@ class EnhanceNS(object):  # Enhance negative samples
 
     def run(self):
         self.loader(method="run")
-        self.generate_ns()
+        NSMultiRun(self.path).generate_ns()
         return self.tid
 
     def get(self, method="load"):
@@ -327,29 +325,26 @@ class EnhanceNS(object):  # Enhance negative samples
             data1 = pd.DataFrame(data1, columns=columns).infer_objects()
             data2 = np.load(f"{self.path}traj2.npy", allow_pickle=True)
             data2 = pd.DataFrame(data2, columns=columns).infer_objects()
-            train_tid = pd.read_csv(f"{self.path}train_tid.csv", dtype={'tid': str})
-            self.tid = train_tid[['tid']].copy()
+
+            with open(f"{self.path}train_tid.pkl", "rb") as f:
+                train_tid = pickle.load(f)
+            train_tid = [f"{tid}" for tid in train_tid]
+            self.tid = pd.DataFrame(data=train_tid, columns=['tid'])
             self.tid.drop_duplicates(inplace=True)
-            train_tid = train_tid.tid.unique().tolist()
+
             data1 = data1.query(f"tid in {train_tid}").copy()
-            data1['spaceid'] = data1['stid'].map(lambda x: x.split('_')[0])
-            data1['timeid'] = data1['stid'].map(lambda x: x.split('_')[1])
             data2 = data2.query(f"tid in {train_tid}").copy()
-            data2['spaceid'] = data2['stid'].map(lambda x: x.split('_')[0])
-            data2['timeid'] = data2['stid'].map(lambda x: x.split('_')[1])
 
             logging.info("data group by tid...")
-            self.data1_group = data1.groupby('tid')
-            self.data2_group = data2.groupby('tid')
+            global data1_group
+            data1_group = data1.groupby('tid')
+            global data2_group
+            data2_group = data2.groupby('tid')
             logging.info("data group by stid...")
-            self.stid_tid1 = data1.groupby('stid').agg({"tid": set})
-            self.stid_tid2 = data2.groupby('stid').agg({"tid": set})
-            logging.info("data group by spaceid...")
-            self.space_tid1 = data1.groupby('spaceid').agg({"tid": set})
-            self.space_tid2 = data2.groupby('spaceid').agg({"tid": set})
-            logging.info("data group by timeid...")
-            self.time_tid1 = data1.groupby('timeid').agg({"tid": set})
-            self.time_tid2 = data2.groupby('timeid').agg({"tid": set})
+            global stid_tid1
+            stid_tid1 = data1.groupby('stid').agg({"tid": set})
+            global stid_tid2
+            stid_tid2 = data2.groupby('stid').agg({"tid": set})
             logging.info("data preparation completed")
 
         elif method == "load":
@@ -358,132 +353,132 @@ class EnhanceNS(object):  # Enhance negative samples
             ns['ns2'] = ns['ns2'].map(lambda x: eval(x))
             return ns
 
+
+class NSMultiRun(object):
+    def __init__(self, path):
+        self.path = path
+        with open(f"{self.path}train_tid.pkl", "rb") as f:
+            train_tid = pickle.load(f)
+        train_tid = [f"{tid}" for tid in train_tid]
+        self.tid = pd.DataFrame(data=train_tid, columns=['tid'])
+        self.tid.drop_duplicates(inplace=True)
+
     def generate_ns(self):
         logging.info("generate negative sample...")
         logging.info("negative sample1...")
-        self.tid['ns1'] = self.tid['tid'].map(
-            lambda x: {"st": self._generate_method(x, data='1', method='st'),
-                       "s": self._generate_method(x, data='1', method='s'),
-                       "t": self._generate_method(x, data='1', method='t')
-                       })
+        from pandarallel import pandarallel
+        pandarallel.initialize(nb_workers=12, progress_bar=True)
+        self.tid['ns1'] = self.tid['tid'].parallel_map(lambda x: self._generate_method(x, data='1'))
         logging.info("negative sample2...")
-        self.tid['ns2'] = self.tid['tid'].map(
-            lambda x: {"st": self._generate_method(x, data='2', method='st'),
-                       "s": self._generate_method(x, data='2', method='s'),
-                       "t": self._generate_method(x, data='2', method='t')
-                       })
+        self.tid['ns2'] = self.tid['tid'].parallel_map(lambda x: self._generate_method(x, data='2'))
         self.tid.to_csv(f"{self.path}enhance_ns.csv", index=False)
         logging.info("negative sample completed")
 
-    def _generate_method(self, tid, data='1', method='st'):
-        """
-        st: spatiotemporal
-        s: spatial
-        t: temporal
-        ns: negative sample
-        """
+    def _generate_method(self, tid, data='1'):
+        """ns: negative sample"""
         if data == '1':
-            df = self.data1_group.get_group(tid).copy()
+            df = data1_group.get_group(tid).copy()
         elif data == '2':
-            df = self.data2_group.get_group(tid).copy()
+            df = data2_group.get_group(tid).copy()
         else:
             raise ValueError(f"data={data} 不在方法random_enhance中。")
+        id_list = df["stid"].unique().tolist()
 
-        if method == 'st':
-            id_list = df.stid.unique().tolist()
-            if data == '1':
-                tid_lis = self.stid_tid1.loc[id_list, :].tid.tolist()
-            elif data == '2':
-                tid_lis = self.stid_tid2.loc[id_list, :].tid.tolist()
-            else:
-                raise ValueError(f"data={data} 不在方法st_ns中。")
-
-        elif method == 's':
-            id_list = df.spaceid.unique().tolist()
-            if data == '1':
-                tid_lis = self.space_tid1.loc[id_list, :].tid.tolist()
-            elif data == '2':
-                tid_lis = self.space_tid2.loc[id_list, :].tid.tolist()
-            else:
-                raise ValueError(f"data={data} 不在方法st_ns中。")
-
-        elif method == 't':
-            id_list = df.timeid.unique().tolist()
-            if data == '1':
-                tid_lis = self.time_tid1.loc[id_list, :].tid.tolist()
-            elif data == '2':
-                tid_lis = self.time_tid2.loc[id_list, :].tid.tolist()
-            else:
-                raise ValueError(f"data={data} 不在方法st_ns中。")
+        if data == '1':
+            tid_lis = stid_tid1.loc[id_list, :].tid.tolist()
+        elif data == '2':
+            tid_lis = stid_tid2.loc[id_list, :].tid.tolist()
         else:
-            raise ValueError(f"method={method} 不在方法st_ns中。")
+            raise ValueError(f"data={data} 不在方法st_ns中。")
 
-        dic = {'st': 20, 's': 20, 't': 5}
-        num = dic[method]
-
+        top = 16  # 最多有多少个ns_tid  最少是top/4
         tid_lis = list(chain.from_iterable(map(list, tid_lis)))
-        most_counter = Counter(tid_lis).most_common(num + 1)  # 出现最多的top2 tid
+        most_counter = Counter(tid_lis).most_common(top + 1)  # 出现最多的top tid  起码要在三个点以上重合
         if len(most_counter) == 1:
-            return None
-        ns_tid = [i[0] for i in most_counter if i[0] != tid]
+            return []
+        candidate_ns = [i[0] for i in most_counter if i[0] != tid]
+
+        hold_flag = []
+        if len(candidate_ns) <= int(top / 2):
+            hold_flag = [1 for _ in range(len(candidate_ns))]
+        else:
+            for ns in candidate_ns:
+                if data == '1':
+                    df = data1_group.get_group(ns).copy()
+                elif data == '2':
+                    df = data2_group.get_group(ns).copy()
+                ns_id_list = df["stid"].unique().tolist()
+                comm_id = list(set(id_list).intersection(set(ns_id_list)))
+                if len(comm_id) >= int(math.ceil(len(id_list) * 0.3)) and len(comm_id) >= 3:
+                    hold_flag.append(1)
+                    continue
+                hold_flag.append(0)
+
+            hold_sum = sum(hold_flag)
+            if hold_sum < int(top/4):
+                for i in range(int(top/4)):
+                    hold_flag[i] = 1
+
+        frac = 0.3  # diff id_list 的轨迹点保留比例
+        dir = f"{self.path}ns_traj{data}/"
+        ns_tid = []
+        for i in range(len(candidate_ns)):
+            if hold_flag[i]:
+                ns = candidate_ns[i]
+                ns_tid.append(ns)
+                if data == '1':
+                    df = data1_group.get_group(ns).copy()
+                elif data == '2':
+                    df = data2_group.get_group(ns).copy()
+                same = df[df["stid"].isin(id_list)].copy()
+                same_stid = same.stid.unique().tolist()
+                diff = df[~df["stid"].isin(id_list)].copy()
+                diff_stid = diff.stid.unique().tolist()
+                if len(diff_stid) > 10:
+                    value = int(math.ceil(frac*(len(diff_stid) - 5)))
+                    k = 10 if value > 10 else value
+                    diff_stid = random.sample(diff_stid, k)
+                    diff = diff[diff['stid'].isin(diff_stid)].copy()
+                if len(same_stid) > 15:
+                    value = int(math.ceil(frac * 2 * (len(same_stid) - 5)))
+                    k = 15 if value > 15 else value
+                    same_stid = random.sample(same_stid, k)
+                    same = same[same['stid'].isin(same_stid)].copy()
+                df = pd.concat([same, diff])
+                df.sort_values(['time'], inplace=True)
+                df.to_csv(f"{dir}{tid}_st_{ns}.csv", index=False)
+        ns_tid = [f"{tid}_st_{ns}" for ns in ns_tid]
         return ns_tid
 
 
 def save_graph(path, test_file):
+    # tid graph and ps graph
     train_tid, test_tid, _ = Preprocessor(path, test_file).get(method='load')
     with open(f"{path}stid_counts.pkl", "rb") as f:
         stid_counts = pickle.load(f)
     tid = train_tid.copy()
     for _, v in test_tid.items():
         tid += v
-
     graph_data = GraphSaver(path, tid, stid_counts)
-    data_loader = DataLoader(dataset=graph_data, batch_size=8, num_workers=32, persistent_workers=True)
+    data_loader = DataLoader(dataset=graph_data, batch_size=1, num_workers=32, persistent_workers=True)
     for _ in tqdm(data_loader):  # 每个批次循环
         pass
 
-
-def normal(lis):
-    min_val = 10
-    max_val = 1
-    for i in lis:
-        arr = np.array(i)
-        min_val = min_val if min_val < np.min(arr) else np.min(arr)
-        max_val = max_val if max_val > np.max(arr) else np.max(arr)
-
-    result = []
-    for i in lis:
-        arr = np.array(i)
-        arr = (arr - min_val) / (max_val - min_val)
-        result.append(arr.tolist())
-    return result
-
-
-def spatiotemporal(path):
-    tids = []
-    spatials = []
-    temporals = []
-    dir = ['graph1', 'graph2', 'ps_graph1', 'ps_graph2']
-    for name in dir:
-        files = os.listdir(f'{path}{name}')
-        tid = []
-        spatial = []
-        temporal = []
-        for f in tqdm(files):
-            graph = np.load(f"{path}graph1/{f}")
-            tid.append(f.split(".")[0])
-            spatial.append(graph['space_range'][0])
-            temporal.append(graph['time_range'][0])
-
-        spatial = normal(spatial)
-        temporal = normal(temporal)
-        tids.append(tid)
-        spatials.append(spatial)
-        temporals.append(temporal)
-
-    spatials = normal(spatials)
-    temporals = normal(temporals)
-    st = {name: {k: (s, t) for k, s, t in zip(tids[i], spatials[i], temporals[i])} for i, name in enumerate(dir)}
-
-    with open(f"{path}spatiotemporal.pkl", 'wb') as f:
-        pickle.dump(st, f)
+    # ns graph
+    ns = pd.read_csv(f"{path}enhance_ns.csv")
+    # ns_tid1
+    ns['ns1'] = ns['ns1'].map(lambda x: eval(x))
+    ns['ns2'] = ns['ns2'].map(lambda x: eval(x))
+    tid1 = sum(ns.ns1.values.tolist(), [])
+    tid1 = [f"ns_traj1/{i}" for i in tid1]
+    # ns_tid2
+    tid2 = sum(ns.ns2.values.tolist(), [])
+    tid2 = [f"ns_traj2/{i}" for i in tid2]
+    tid = sum([tid1, tid2], [])
+    # stid_counts
+    with open(f"{path}stid_counts.pkl", "rb") as f:
+        stid_counts = pickle.load(f)
+    graph_data = NSGraphSaver(path, tid, stid_counts)
+    data_loader = DataLoader(dataset=graph_data, batch_size=8, num_workers=32, persistent_workers=True)
+    for _ in tqdm(data_loader):  # 每个批次循环
+        pass
