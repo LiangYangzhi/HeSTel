@@ -1,24 +1,27 @@
 import logging
 import os
+import random
 
+import pandas as pd
+
+from libTrajectory.config.config_parser import parse_config
 from libTrajectory.preprocessing.STEL.preprocessor import Preprocessor
 from libTrajectory.executor.STEL import Executor
 
 
 def pipeline():
-    log_path = f"./libTrajectory/logs/STEL/"
+    path = config['path']
+    test_file = {"test1": "test1K.csv", "test2": "test3K.csv"}
+    log_path = f"./libTrajectory/logs/STEL/taxi/"
     if not os.path.exists(log_path):
         os.makedirs(log_path)
-    name = 'test10'  # random_sample enhance_sample
-    logging.basicConfig(filename=f'{log_path}{name}.log', format='%(asctime)s-%(levelname)s-%(message)s', level=logging.INFO)
-    path = "./libTrajectory/dataset/ais/"
-    test_file = {"test1": "test1K.csv", "test2": "test3K.csv"}
+    logging.basicConfig(filename=f'{log_path}pre1.log', format='%(asctime)s - %(message)s', level=logging.INFO)
 
-    train_tid, test_tid, enhance_ns = Preprocessor(path, test_file).get(method='load')
-    executor = Executor(path, log_path, in_dim=34, cuda=0, net_name=name)
-    executor.train(train_tid, enhance_ns, ns_num=16, test_tid=test_tid,
-                   epoch_num=1, batch_size=128, num_workers=15)
+    train_tid, test_tid, enhance_tid = Preprocessor(path, test_file, config['preprocessing']).get(method='run')
+    executor = Executor(path, log_path, config['executor'])
+    executor.train(train_tid, enhance_tid, test_tid)
 
 
 if __name__ == "__main__":
+    config = parse_config("/STEL_taxi")  # STEL_ais STEL_taxi
     pipeline()

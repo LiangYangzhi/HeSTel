@@ -27,13 +27,11 @@ from sklearn.preprocessing import normalize
 from nltk import ngrams
 from libTrajectory.preprocessing.STEL.preprocessor import Preprocessor as Pre
 
-log_path = "./libTrajectory/logs/STEL_BL/"
-
 
 class Preprocessor(Pre):
-    def __init__(self, data_path, test_path={}):
+    def __init__(self, path, test_path):
         self.inter = 60 * 60
-        super(Preprocessor, self).__init__(data_path, test_path)
+        super(Preprocessor, self).__init__(path, test_path, {})
         self.loader()
         self.cleaner()
 

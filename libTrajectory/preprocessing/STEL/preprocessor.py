@@ -1,6 +1,7 @@
 import os
 import pickle
 import random
+from datetime import datetime
 
 import numpy as np
 import pandas as pd
@@ -13,13 +14,14 @@ import time
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from libTrajectory.preprocessing.STEL.graphDataset import GraphSaver, NSGraphSaver
+from libTrajectory.preprocessing.STEL.graphDataset import GraphSaver, NSGraphSaver, PSGraphSaver
 
 
 class Preprocessor(object):
-    def __init__(self, path, test_file):
+    def __init__(self, path, test_file, config):
         self.path = path
         self.test_file = test_file
+        self.config = config
         test_path = {}
         for k, v in self.test_file.items():
             test_path[k] = f"{path}{v}"
@@ -34,9 +36,9 @@ class Preprocessor(object):
         self.stid()
         self.save()
 
-        enhance_ns = EnhanceNS(self.path).get(method='run')
-        save_graph(self.path, self.test_file)
-        return self.train_tid, self.test_tid, enhance_ns
+        EnhanceNS(self.path).run()
+        enhance_tid = save_graph(self.path, self.test_file, graph_dim=self.config["graph_dim"])
+        return self.train_tid, self.test_tid, enhance_tid
 
     def loader(self, method='run'):
         if method == "run":
@@ -67,11 +69,19 @@ class Preprocessor(object):
                 tid = tid.tid.unique().tolist()
                 test_tid[k] = tid
 
-            logging.info("loading enhance negative sample...")
-            enhance_ns = EnhanceNS(self.path).get(method="load")
-            logging.info("data load completed")
+            logging.info("loading enhance sample...")
+            try:
+                enhance_tid = pd.read_csv(f"{self.path}enhance_tid.csv")
+                enhance_tid['ns1'] = enhance_tid['ns1'].map(lambda x: eval(x))
+                enhance_tid['ns2'] = enhance_tid['ns2'].map(lambda x: eval(x))
+                enhance_tid['ps1'] = enhance_tid['ps1'].map(lambda x: eval(x))
+                enhance_tid['ps2'] = enhance_tid['ps2'].map(lambda x: eval(x))
+                logging.info("data load completed")
+            except FileNotFoundError as e:
+                logging.info(e)
+                enhance_tid = None
 
-            return train_tid, test_tid, enhance_ns
+            return train_tid, test_tid, enhance_tid
 
     def cleaner(self):
         logging.info("data clean...")
@@ -93,11 +103,11 @@ class Preprocessor(object):
 
         # 获取区域的lat、lon步长
         deci = 5  # decimal 小数点后的精度
-        distance = 120 * 1000  # m  120
+        distance = self.config["space_distance"]  # 120 * 1000  # m  120
         r = 6371393  # 地球半径 单位m
         lat_step = (distance / (r * cos(radians(0)))) * (180 / 3.1415926)
         lon_step = (distance / r) * (180 / 3.1415926)
-        lat_len, lon_len = abs(lat0) + abs(lat1), abs(lon0) + abs(lon1)
+        lat_len, lon_len = abs(lat1 - lat0), abs(lon1 - lon0)
         lat_size, lon_size = math.ceil(lat_len / lat_step), math.ceil(lon_len / lon_step)
         logging.info(f"lat_len: {lat_len}, lon_len： {lon_len}， lat_step: {lat_step}, lon_step: {lon_step}")
 
@@ -108,7 +118,7 @@ class Preprocessor(object):
         for _ in range(lon_size):
             lon_lis.append(round(lon_lis[-1] + lon_step, deci))
         lat_lis[-1], lon_lis[-1] = lat1, lon1
-        logging.info(f"lat_lis len:{len(lat_lis)}, lon_lis_len:{len(lon_lis)}")
+        logging.info(f"lat_lis len:{len(lat_lis)}, lon_lis len:{len(lon_lis)}")
 
         logging.info("data1 space coordinate...")
         space_num = SpaceNum(lat_lis, lon_lis)
@@ -117,7 +127,6 @@ class Preprocessor(object):
         self.data1['spaceid'] = self.data1['spaceid'].map(lambda x: f"{x}-0")
         logging.info("data1 space coordinate completed")
         logging.info("data2 space coordinate...")
-
 
         data2 = self.data2.copy()
         self.data2 = space_num.get(data2)
@@ -145,15 +154,19 @@ class Preprocessor(object):
 
     def time2coor(self, groupby='month'):
         logging.info("time coordinate...")
-        interval = 6 * 60 * 60
+        interval = self.config['time_interval']  # 6 * 60 * 60
         logging.info(f"time interval={interval}s")
-        if groupby == 'month':
+        # if groupby == 'month':
+        if 'ais' in self.path:
             self.data1['tgroup'] = self.data1['time'].map(lambda t: time.localtime(t).tm_mon)
             self.data2['tgroup'] = self.data2['time'].map(lambda t: time.localtime(t).tm_mon)
             logging.info("time coordinate group by month")
-        if groupby == 'week':
-            self.data1['tgroup'] = self.data1['time'].map(lambda t: time.localtime(t).tm_wday + 1)
-            self.data2['tgroup'] = self.data2['time'].map(lambda t: time.localtime(t).tm_wday + 1)
+        # if groupby == 'week':  # 一年内第几周
+        if 'taxi' in self.path:
+            self.data1['tgroup'] = self.data1['time'].map(lambda t: datetime.fromtimestamp(t).isocalendar()[1])
+            self.data2['tgroup'] = self.data2['time'].map(lambda t: datetime.fromtimestamp(t).isocalendar()[1])
+            # self.data1['tgroup'] = self.data1['time'].map(lambda t: time.localtime(t).tm_mday + 1)
+            # self.data2['tgroup'] = self.data2['time'].map(lambda t: time.localtime(t).tm_mday + 1)
             logging.info("time coordinate group by week")
 
         df1 = self.data1[['time', 'tgroup']].copy()
@@ -213,20 +226,26 @@ class Preprocessor(object):
         np.save(f'{self.path}traj1.npy', arr)
         group = data.groupby('tid')
         tid = data.tid.unique().tolist()
+        dir_path = f"{self.path}traj1"
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path)
         for i in tid:
             df = group.get_group(i)
             df = df[["time", "lat", "lon", "stid"]]
-            df.to_csv(f"{self.path}traj1/{i}.csv", index=False)
+            df.to_csv(f"{dir_path}/{i}.csv", index=False)
 
         data = self.data2[columns]
         arr = data.to_numpy()
         np.save(f'{self.path}traj2.npy', arr)
         group = data.groupby('tid')
         tid = data.tid.unique().tolist()
+        dir_path = f"{self.path}traj2"
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path)
         for i in tid:
             df = group.get_group(i)
             df = df[["time", "lat", "lon", "stid"]]
-            df.to_csv(f"{self.path}traj2/{i}.csv", index=False)
+            df.to_csv(f"{dir_path}/{i}.csv", index=False)
 
         all_tid = data[['tid']].copy()
         all_tid.drop_duplicates(inplace=True)
@@ -307,51 +326,38 @@ class EnhanceNS(object):  # Enhance negative samples
         self.path = path
 
     def run(self):
-        self.loader(method="run")
+        self.loader()
         NSMultiRun(self.path).generate_ns()
         return self.tid
 
-    def get(self, method="load"):
-        if method == "load":
-            return self.loader(method=method)
-        if method == "run":
-            return self.run()
+    def loader(self):
+        logging.info("EnhanceNS data preparation...")
+        columns = ['tid', 'time', 'lat', 'lon', 'stid']
+        data1 = np.load(f"{self.path}traj1.npy", allow_pickle=True)
+        data1 = pd.DataFrame(data1, columns=columns).infer_objects()
+        data2 = np.load(f"{self.path}traj2.npy", allow_pickle=True)
+        data2 = pd.DataFrame(data2, columns=columns).infer_objects()
 
-    def loader(self, method="run"):
-        if method == "run":
-            logging.info("EnhanceNS data preparation...")
-            columns = ['tid', 'time', 'lat', 'lon', 'stid']
-            data1 = np.load(f"{self.path}traj1.npy", allow_pickle=True)
-            data1 = pd.DataFrame(data1, columns=columns).infer_objects()
-            data2 = np.load(f"{self.path}traj2.npy", allow_pickle=True)
-            data2 = pd.DataFrame(data2, columns=columns).infer_objects()
+        with open(f"{self.path}train_tid.pkl", "rb") as f:
+            train_tid = pickle.load(f)
+        train_tid = [f"{tid}" for tid in train_tid]
+        self.tid = pd.DataFrame(data=train_tid, columns=['tid'])
+        self.tid.drop_duplicates(inplace=True)
 
-            with open(f"{self.path}train_tid.pkl", "rb") as f:
-                train_tid = pickle.load(f)
-            train_tid = [f"{tid}" for tid in train_tid]
-            self.tid = pd.DataFrame(data=train_tid, columns=['tid'])
-            self.tid.drop_duplicates(inplace=True)
+        data1 = data1.query(f"tid in {train_tid}").copy()
+        data2 = data2.query(f"tid in {train_tid}").copy()
 
-            data1 = data1.query(f"tid in {train_tid}").copy()
-            data2 = data2.query(f"tid in {train_tid}").copy()
-
-            logging.info("data group by tid...")
-            global data1_group
-            data1_group = data1.groupby('tid')
-            global data2_group
-            data2_group = data2.groupby('tid')
-            logging.info("data group by stid...")
-            global stid_tid1
-            stid_tid1 = data1.groupby('stid').agg({"tid": set})
-            global stid_tid2
-            stid_tid2 = data2.groupby('stid').agg({"tid": set})
-            logging.info("data preparation completed")
-
-        elif method == "load":
-            ns = pd.read_csv(f"{self.path}enhance_ns.csv")
-            ns['ns1'] = ns['ns1'].map(lambda x: eval(x))
-            ns['ns2'] = ns['ns2'].map(lambda x: eval(x))
-            return ns
+        logging.info("data group by tid...")
+        global data1_group
+        data1_group = data1.groupby('tid')
+        global data2_group
+        data2_group = data2.groupby('tid')
+        logging.info("data group by stid...")
+        global stid_tid1
+        stid_tid1 = data1.groupby('stid').agg({"tid": set})
+        global stid_tid2
+        stid_tid2 = data2.groupby('stid').agg({"tid": set})
+        logging.info("data preparation completed")
 
 
 class NSMultiRun(object):
@@ -368,6 +374,10 @@ class NSMultiRun(object):
         logging.info("negative sample1...")
         from pandarallel import pandarallel
         pandarallel.initialize(nb_workers=12, progress_bar=True)
+        for i in [1, 2]:
+            dir_path = f"{self.path}ns_traj{i}/"
+            if not os.path.exists(dir_path):
+                os.makedirs(dir_path)
         self.tid['ns1'] = self.tid['tid'].parallel_map(lambda x: self._generate_method(x, data='1'))
         logging.info("negative sample2...")
         self.tid['ns2'] = self.tid['tid'].parallel_map(lambda x: self._generate_method(x, data='2'))
@@ -420,7 +430,7 @@ class NSMultiRun(object):
                     hold_flag[i] = 1
 
         frac = 0.3  # diff id_list 的轨迹点保留比例
-        dir = f"{self.path}ns_traj{data}/"
+        dir_path = f"{self.path}ns_traj{data}/"
         ns_tid = []
         for i in range(len(candidate_ns)):
             if hold_flag[i]:
@@ -446,39 +456,74 @@ class NSMultiRun(object):
                     same = same[same['stid'].isin(same_stid)].copy()
                 df = pd.concat([same, diff])
                 df.sort_values(['time'], inplace=True)
-                df.to_csv(f"{dir}{tid}_st_{ns}.csv", index=False)
+                df.to_csv(f"{dir_path}{tid}_st_{ns}.csv", index=False)
         ns_tid = [f"{tid}_st_{ns}" for ns in ns_tid]
         return ns_tid
 
 
-def save_graph(path, test_file):
-    # tid graph and ps graph
-    train_tid, test_tid, _ = Preprocessor(path, test_file).get(method='load')
+def save_graph(path, test_file, graph_dim):
+    # tid graph
+    train_tid, test_tid, _ = Preprocessor(path, test_file, {}).get(method='load')
     with open(f"{path}stid_counts.pkl", "rb") as f:
         stid_counts = pickle.load(f)
     tid = train_tid.copy()
     for _, v in test_tid.items():
         tid += v
-    graph_data = GraphSaver(path, tid, stid_counts)
-    data_loader = DataLoader(dataset=graph_data, batch_size=1, num_workers=32, persistent_workers=True)
+    for i in [1, 2]:
+        dir_path = f"{path}graph{i}"
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path)
+    graph_data = GraphSaver(path, tid, stid_counts, graph_dim)
+    data_loader = DataLoader(dataset=graph_data, batch_size=4, num_workers=36, persistent_workers=True)
     for _ in tqdm(data_loader):  # 每个批次循环
         pass
 
+    # ps graph
+    tid, _, _ = Preprocessor(path, test_file, {}).get(method='load')
+    with open(f"{path}stid_counts.pkl", "rb") as f:
+        stid_counts = pickle.load(f)
+    for i in [1, 2]:
+        dir_path = f"{path}ps_graph{i}"
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path)
+    graph_data = PSGraphSaver(path, tid, stid_counts, graph_dim)
+    data_loader = DataLoader(dataset=graph_data, batch_size=4, num_workers=36,
+                             persistent_workers=True, collate_fn=lambda x: x)
+    ps = []
+    for lis in tqdm(data_loader):  # 每个批次循环
+        for dic in lis:
+            ps.append(dic)
+    ps = pd.DataFrame(ps)
+    ps.to_csv(f"{path}enhance_ps.csv", index=False)
+
     # ns graph
     ns = pd.read_csv(f"{path}enhance_ns.csv")
-    # ns_tid1
     ns['ns1'] = ns['ns1'].map(lambda x: eval(x))
-    ns['ns2'] = ns['ns2'].map(lambda x: eval(x))
     tid1 = sum(ns.ns1.values.tolist(), [])
     tid1 = [f"ns_traj1/{i}" for i in tid1]
-    # ns_tid2
+    ns['ns2'] = ns['ns2'].map(lambda x: eval(x))
     tid2 = sum(ns.ns2.values.tolist(), [])
     tid2 = [f"ns_traj2/{i}" for i in tid2]
     tid = sum([tid1, tid2], [])
-    # stid_counts
     with open(f"{path}stid_counts.pkl", "rb") as f:
         stid_counts = pickle.load(f)
-    graph_data = NSGraphSaver(path, tid, stid_counts)
-    data_loader = DataLoader(dataset=graph_data, batch_size=8, num_workers=32, persistent_workers=True)
+    for i in [1, 2]:
+        dir_path = f"{path}ns_graph{i}"
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path)
+    graph_data = NSGraphSaver(path, tid, stid_counts, graph_dim)
+    data_loader = DataLoader(dataset=graph_data, batch_size=4, num_workers=36, persistent_workers=True)
     for _ in tqdm(data_loader):  # 每个批次循环
         pass
+
+    # ns_tid
+    ns = pd.read_csv(f"{path}enhance_ns.csv")
+    ns['ns1'] = ns['ns1'].map(lambda x: eval(x))
+    ns['ns2'] = ns['ns2'].map(lambda x: eval(x))
+    ps = pd.read_csv(f"{path}enhance_ps.csv")
+    ps['ps1'] = ps['ps1'].map(lambda x: eval(x))
+    ps['ps2'] = ps['ps2'].map(lambda x: eval(x))
+    enhance_tid = pd.merge(ps, ns, on='tid', how='outer')
+    enhance_tid.to_csv(f"{path}enhance_tid.csv", index=False)
+
+    return enhance_tid

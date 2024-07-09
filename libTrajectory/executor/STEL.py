@@ -1,6 +1,6 @@
 import logging
-import torch.nn.functional as F
 import pickle
+
 import numpy as np
 from tqdm import tqdm
 from libTrajectory.model.GraphTransformer import GraphTransformer
@@ -13,46 +13,52 @@ from torch.utils.data import DataLoader
 
 
 class Executor(object):
-    def __init__(self, path, log_path, in_dim=34, out_dim=32, cuda=1, net_name='net'):
+    def __init__(self, path, log_path, config):
+        logging.info(f"Executor...")
+        logging.info(f"config: {config}")
         self.path = path
         self.log_path = log_path
-        logging.info(f"Executor...")
+        self.config = config
+        cuda = self.config['cuda']
         self.device = torch.device(f"cuda:{cuda}" if torch.cuda.is_available() else "cpu")
-        # self.device = torch.device("cpu")
-        self.in_dim = in_dim
-        self.out_dim = out_dim
-        self.net_name = net_name
+        self.in_dim = self.config['in_dim']
+        self.out_dim = self.config['out_dim']
+        self.net_name = self.config['net_name']
         logging.info(f"device={self.device}, in_dim={self.in_dim}, out_dim={self.out_dim}")
 
-    def train(self, train_tid, enhance_ns, ns_num, test_tid=None, epoch_num=1, batch_size=64, num_workers=16):
-        logging.info(f"train, epoch_num={epoch_num}, batch_size={batch_size}, num_workers={num_workers}")
-        graph_data = GraphLoader(self.path, train_tid, train=True, enhance_ns=enhance_ns, ns_num=ns_num)
+    def train(self, train_tid, enhance_tid, test_tid=None):
+        logging.info(f"train...")
+        epoch_num = self.config['epoch_num']
+        num_workers = self.config['num_workers']
+        batch_size = self.config['batch_size']
+        ps_num = self.config['ps_num']
+        ns_num = self.config['ns_num']
+        graph_data = GraphLoader(self.path, train_tid, True, enhance_tid, ps_num, ns_num)
         data_loader = DataLoader(dataset=graph_data, batch_size=batch_size, num_workers=num_workers,
-                                 collate_fn=train_coll, persistent_workers=True)
+                                 collate_fn=train_coll, persistent_workers=True, shuffle=True)
         # net
         self.heads = 4
         net = GraphTransformer(self.in_dim, self.out_dim, self.heads).to(self.device)
-        lr = 0.001
+        lr = self.config['lr']  # 0.001
         optimizer = torch.optim.Adam(net.parameters(), lr=lr)
         net.train()
 
         logging.info(f"lr={lr}, head={self.heads}")
-        penalty1 = 0.1
-        logging.info(f"loss1: sim_loss penalty = {penalty1}")
+        penalty = self.config['penalty']  # 0.1
+        logging.info(f"full_loss: dis_loss penalty = {penalty}")
         tids = []
+        ratio_full = self.config['ratio_full']
+        ratio_ns2 = self.config['ratio_ns2'] if ns_num else 0
+        ratio_ns1 = self.config['ratio_ns1'] if ns_num else 0
+        ratio_ps1 = self.config['ratio_ps1'] if ps_num else 0
+        ratio_ps2 = self.config['ratio_ps2'] if ps_num else 0
 
         for epoch in range(epoch_num):  # 每个epoch循环
             logging.info(f'Epoch {epoch}/{epoch_num}')
             epoch_loss = 0
-            epoch_loss1 = []
-            epoch_loss2 = []
-            epoch_loss3 = []
-            epoch_loss4 = []
-            epoch_loss5 = []
-            for (node, edge, edge_attr, global_spatial, global_temporal,
-                 tid1, tid2, ps1, ps2, ns1, ns2, batch_tid) in tqdm(data_loader):  # 每个批次循环
+            epoch_full, epoch_ns2, epoch_ns1, epoch_ps1, epoch_ps2 = [], [], [], [], []
+            for node, edge, edge_attr, global_spatial, global_temporal, tid1, tid2, ps1, ps2, ns1, ns2, batch_tid in tqdm(data_loader):  # 每个批次循环
                 tids += batch_tid
-
                 if 'cuda' in str(self.device):
                     node = node.to(device=self.device)
                     edge = edge.to(device=self.device)
@@ -65,86 +71,101 @@ class Executor(object):
                 tid1_vec = x[tid1].to(device=self.device)
                 tid2_vec = x[tid2].to(device=self.device)
 
-                # loss1: A -- B random sample
-                sim1 = torch.matmul(tid1_vec, tid2_vec.T)
-                loss1 = dis_loss(sim1, penalty=penalty1)
-                epoch_loss1.append(loss1.data.item())
+                # full_loss: A -- B random sample
+                full_loss = 0
+                if ratio_full:
+                    sim1 = torch.matmul(tid1_vec, tid2_vec.T)
+                    full_loss = dis_loss(sim1, penalty=penalty)
+                    epoch_full.append(full_loss.data.item())
 
-                # loss2: A --- enhance negative B
-                sim2 = []
-                for ind, i in enumerate(ns2):
-                    ns2_vec = x[i]
-                    sim2.append(torch.matmul(tid1_vec[ind], ns2_vec.T))
-                sim2 = torch.stack(sim2)
-                loss2 = dis_loss(sim2, penalty=penalty1)
-                epoch_loss2.append(loss2.data.item())
+                # ns2_loss: A --- enhance negative B
+                ns2_loss = 0
+                if ratio_ns2:
+                    sim2 = []
+                    for ind, i in enumerate(ns2):
+                        ns2_vec = x[i]
+                        sim2.append(torch.matmul(tid1_vec[ind], ns2_vec.T))
+                    sim2 = torch.stack(sim2)
+                    ns2_loss = dis_loss(sim2, penalty=penalty)
+                    epoch_ns2.append(ns2_loss.data.item())
 
-                # loss3: B --- enhance negative A
-                sim3 = []
-                for ind, i in enumerate(ns1):
-                    ns1_vec = x[i]
-                    sim3.append(torch.matmul(tid2_vec[ind], ns1_vec.T))
-                sim3 = torch.stack(sim3)
-                loss3 = dis_loss(sim3, penalty=penalty1)
-                epoch_loss3.append(loss3.data.item())
+                # ns1_loss: B --- enhance negative A
+                ns1_loss = 0
+                if ratio_ns1:
+                    sim3 = []
+                    for ind, i in enumerate(ns1):
+                        ns1_vec = x[i]
+                        sim3.append(torch.matmul(tid2_vec[ind], ns1_vec.T))
+                    sim3 = torch.stack(sim3)
+                    ns1_loss = dis_loss(sim3, penalty=penalty)
+                    epoch_ns1.append(ns1_loss.data.item())
 
-                # loss4: enhance positive A --- enhance negative B
-                sim4 = []
-                ps1_vec = x[ps1].to(device=self.device)
-                for ind, i in enumerate(ns2):
-                    ns2_vec = x[i]
-                    sim4.append(torch.matmul(ps1_vec[ind], ns2_vec.T))
-                sim4 = torch.stack(sim4)
-                loss4 = dis_loss(sim4, penalty=penalty1)
-                epoch_loss4.append(loss4.data.item())
+                # ps1_loss: enhance positive A --- enhance negative B
+                ps1_loss = 0
+                if ratio_ps1:
+                    ps1_loss = 0
+                    for i in range(ps_num):
+                        columns = [row[i] for row in ps1]
+                        ps1_col_vec = x[columns]
+                        sim4 = []
+                        for ind, j in enumerate(ns2):
+                            ns2_vec = x[j]
+                            sim4.append(torch.matmul(ps1_col_vec[ind], ns2_vec.T))  # ns2_vec   tid2_vec
+                        sim4 = torch.stack(sim4)
+                        ps1_loss += dis_loss(sim4, penalty=penalty)
+                    epoch_ps1.append(ps1_loss.data.item())
 
                 # loo5: enhance positive B --- enhance negative A
-                sim5 = []
-                ps2_vec = x[ps2].to(device=self.device)
-                for ind, i in enumerate(ns1):
-                    ns1_vec = x[i]
-                    sim5.append(torch.matmul(ps2_vec[ind], ns1_vec.T))
-                sim5 = torch.stack(sim5)
-                loss5 = dis_loss(sim5, penalty=penalty1)
-                epoch_loss5.append(loss5.data.item())
+                ps2_loss = 0
+                if ratio_ps2:
+                    ps2_loss = 0
+                    for i in range(ps_num):
+                        columns = [row[i] for row in ps2]
+                        ps2_col_vec = x[columns]
+                        sim5 = []
+                        for ind, j in enumerate(ns2):
+                            ns1_vec = x[j]
+                            sim5.append(torch.matmul(ps2_col_vec[ind], ns1_vec.T))  # ns1_vec   tid1_vec
+                        sim5 = torch.stack(sim5)
+                        ps2_loss += dis_loss(sim5, penalty=penalty)
+                    epoch_ps2.append(ps2_loss.data.item())
 
-                # loss = loss1
-                # loss = loss2 + loss3
-                loss = 50*loss1 + 10*loss2 + 10*loss3 + loss4 + loss5
+                # loss = 50*full_loss + 10*ns2_loss + 10*ns1_loss + ps1_loss + ps2_loss
+                loss = ratio_full * full_loss + ratio_ns2 * ns2_loss + ratio_ns1 * ns1_loss + ratio_ps1 * ps1_loss + ratio_ps2 * ps2_loss
                 epoch_loss += loss.data.item()
                 # 反向传播
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
-                # logging.info(f"loss1:{loss1}")
-                # logging.info(f"loss2:{loss2} + loss3:{loss3} = {loss.data.item()}")
-                logging.info(f"loss1:{loss1} + loss2:{loss2} + loss3:{loss3} + loss4:{loss4} + loss5:{loss5} = {loss.data.item()}")
+                logging.info(f"{full_loss} + {ns2_loss} + {ns1_loss} + {ps1_loss} + {ps2_loss} = {loss.data.item()}")
+            torch.save(net.state_dict(), f'{self.log_path}{self.net_name}.pth')
 
             epoch_loss = epoch_loss / len(data_loader)
-            epoch_loss1 = sorted(epoch_loss1)
-            epoch_loss2 = sorted(epoch_loss2)
-            epoch_loss3 = sorted(epoch_loss3)
-            epoch_loss4 = sorted(epoch_loss4)
-            epoch_loss5 = sorted(epoch_loss5)
+            epoch_full, epoch_ns2, epoch_ns1, epoch_ps1, epoch_ps2 = sorted(epoch_full), sorted(epoch_ns2), sorted(epoch_ns1), sorted(epoch_ps1), sorted(epoch_ps2)
             logging.info(f"epoch loss:{epoch_loss}")
-            logging.info(f"epoch loss1 min:{epoch_loss1[:2]}, max:{epoch_loss1[-1]}, mean:{sum(epoch_loss1)/len(epoch_loss1)}")
-            logging.info(f"epoch loss2 min:{epoch_loss2[:2]}, max:{epoch_loss2[-1]}, mean:{sum(epoch_loss2)/len(epoch_loss2)}")
-            logging.info(f"epoch loss3 min:{epoch_loss3[:2]}, max:{epoch_loss3[-1]}, mean:{sum(epoch_loss3)/len(epoch_loss3)}")
-            logging.info(f"epoch loss4 min:{epoch_loss4[:2]}, max:{epoch_loss4[-1]}, mean:{sum(epoch_loss4)/len(epoch_loss4)}")
-            logging.info(f"epoch loss5 min:{epoch_loss5[:2]}, max:{epoch_loss5[-1]}, mean:{sum(epoch_loss5)/len(epoch_loss5)}")
+            if ratio_full:
+                mean_full = sum(epoch_full)/len(epoch_full)
+                logging.info(f"full_loss min:{epoch_full[:2]}, max:{epoch_full[-1]}, mean:{mean_full}")
+                print(f"full_loss min:{epoch_full[:2]}, max:{epoch_full[-1]}, mean:{mean_full}")
+            if ratio_ns2:
+                mean_ns2 = sum(epoch_ns2)/len(epoch_ns2)
+                logging.info(f"ns2_loss min:{epoch_ns2[:2]}, max:{epoch_ns2[-1]}, mean:{mean_ns2}")
+                print(f"ns2_loss min:{epoch_ns2[:2]}, max:{epoch_ns2[-1]}, mean:{mean_ns2}")
+            if ratio_ps1:
+                mean_ns1 = sum(epoch_ns1)/len(epoch_ns1)
+                logging.info(f"ns1_loss min:{epoch_ns1[:2]}, max:{epoch_ns1[-1]}, mean:{mean_ns1}")
+                print(f"ns1_loss min:{epoch_ns1[:2]}, max:{epoch_ns1[-1]}, mean:{mean_ns1}")
+            if ratio_ps1:
+                mean_ps1 = sum(epoch_ps1)/len(epoch_ps1)
+                logging.info(f"ps1_loss min:{epoch_ps1[:2]}, max:{epoch_ps1[-1]}, mean:{mean_ps1}")
+                print(f"ps1_loss min:{epoch_ps1[:2]}, max:{epoch_ps1[-1]}, mean:{mean_ps1}")
+            if ratio_ps2:
+                mean_ps2 = sum(epoch_ps2)/len(epoch_ps2)
+                logging.info(f"ps2_loss min:{epoch_ps2[:2]}, max:{epoch_ps2[-1]}, mean:{mean_ps2}")
+                print(f"ps2_loss min:{epoch_ps2[:2]}, max:{epoch_ps2[-1]}, mean:{mean_ps2}")
 
-            print(f"epoch loss1 min:{epoch_loss1[:2]}, max:{epoch_loss1[-1]}, mean:{sum(epoch_loss1)/len(epoch_loss1)}")
-            print(f"epoch loss2 min:{epoch_loss2[:2]}, max:{epoch_loss2[-1]}, mean:{sum(epoch_loss2)/len(epoch_loss2)}")
-            print(f"epoch loss3 min:{epoch_loss3[:2]}, max:{epoch_loss3[-1]}, mean:{sum(epoch_loss3)/len(epoch_loss3)}")
-            print(f"epoch loss4 min:{epoch_loss4[:2]}, max:{epoch_loss4[-1]}, mean:{sum(epoch_loss4)/len(epoch_loss4)}")
-            print(f"epoch loss5 min:{epoch_loss5[:2]}, max:{epoch_loss5[-1]}, mean:{sum(epoch_loss5)/len(epoch_loss5)}")
-            net_name = f"{self.net_name}"
-            torch.save(net.state_dict(), f'{self.log_path}{net_name}.pth')
             if test_tid is not None:
-                self.infer(test_tid, net_name=net_name)
-        # torch.save(net.state_dict(), f'{self.log_path}{self.net_name}.pth')
-        # with open(f"{self.log_path}{self.net_name}_train_tid.pkl", 'wb') as f:
-        #     pickle.dump(tids, f)
+                self.infer(test_tid, net_name=self.net_name)
 
     def infer(self, test_data, net_name=None):
         logging.info("test")

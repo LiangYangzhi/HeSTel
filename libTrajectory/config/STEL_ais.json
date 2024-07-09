@@ -1,0 +1,33 @@
+{
+  "path": "./libTrajectory/dataset/ais/",
+  "preprocessing":{
+    "space_distance": 120000,
+    "time_interval": 21600,
+    "graph_dim": {
+      "dim1": 8,
+      "dim2": 10,
+      "dim3": 2,
+      "dim4": 4,
+      "dim5": 10
+    }
+  },
+  "executor":{
+    "in_dim": 34,
+    "head": 4,
+    "out_dim": 32,
+    "cuda": 1,
+    "net_name": "net",
+    "num_workers": 14,
+    "epoch_num": 1,
+    "batch_size": 128,
+    "ns_num": 16,
+    "ps_num": 8,
+    "lr": 0.001,
+    "penalty": 0.1,
+    "ratio_full": 50,
+    "ratio_ns2": 10,
+    "ratio_ns1": 10,
+    "ratio_ps1": 1,
+    "ratio_ps2": 1
+  }
+}

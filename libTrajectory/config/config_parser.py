@@ -3,11 +3,11 @@ import json
 
 
 def parse_config(path):
-    if os.path.exists(f'./libtrajectory/config/{path}.json'):
-        with open(f'./libtrajectory/config/{path}.json', 'r') as f:
+    if os.path.exists(f'./libTrajectory/config/{path}.json'):
+        with open(f'./libTrajectory/config/{path}.json', 'r') as f:
             config = json.load(f)
     else:
-        print(f'./libtrajectory/config/{path}.json')
+        print(f'./libTrajectory/config/{path}.json')
         raise FileNotFoundError(f'Config file {path}.json is not found.')
     return config
 
