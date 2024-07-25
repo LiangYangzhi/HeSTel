@@ -11,7 +11,7 @@ from torch_geometric.typing import Adj, OptTensor, PairTensor, SparseTensor
 from torch_geometric.utils import softmax
 
 
-class TransformerConv(MessagePassing):
+class HSTConv(MessagePassing):
     r"""The graph transformer operator from the `"Masked Label Prediction:
     Unified Message Passing Model for Semi-Supervised Classification"
     <https://arxiv.org/abs/2009.03509>`_ paper

@@ -17,20 +17,7 @@ def pipeline():
                         level=logging.INFO)
     preprocessor = Preprocessor(f"{path}", {"test1": "test1K.csv", "test2": "test3K.csv"})
 
-    if "taxi" in path:
-        methods = ['year_month', 'month_day', 'week_day', 'day_hour']
-    elif "ais" in path:
-        methods = ['year_month', 'month_day', 'week_day', 'day_hour']
-    else:
-        raise
-
-    # 时空signature
-    for method in methods:
-        test_data = preprocessor.spatiotemporal(method=method)
-        for k, v in test_data.items():
-            logging.info(f"{k}")
-            v1, v2 = v
-            distances, indices = evaluator(v1, v2)
+    methods = ['year_month', 'month_day', 'week_day', 'day_hour']
 
     # 序列signature
     test_data = preprocessor.sequential()
@@ -53,6 +40,14 @@ def pipeline():
         logging.info(f"{k}")
         v1, v2 = v
         distances, indices = evaluator(v1, v2)
+
+    # 时空signature
+    for method in methods:
+        test_data = preprocessor.spatiotemporal(method=method)
+        for k, v in test_data.items():
+            logging.info(f"{k}")
+            v1, v2 = v
+            distances, indices = evaluator(v1, v2)
 
 
 if __name__ == "__main__":

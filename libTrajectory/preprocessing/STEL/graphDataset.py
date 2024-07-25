@@ -350,6 +350,41 @@ class GraphLoader(Dataset):
         attr = graph['edge_attr'].tolist()
         space_range = graph['space_range'].tolist()
         time_range = graph['time_range'].tolist()
+
+        # if "2" in folder:  # 保留 edge
+        #     edge1 = [[], []]
+        #     attr1 = []
+        #     for i, j, z in zip(edge[0], edge[1], attr):
+        #         if i == 0:
+        #             edge1[0].append(i)
+        #             edge1[1].append(j)
+        #             attr1.append(z)
+        #             continue
+        #         if i != j:
+        #             edge1[0].append(i)
+        #             edge1[1].append(j)
+        #             attr1.append(z)
+        #     edge = edge1
+        #     attr = attr1
+        #     space_range = [1 for _ in space_range]
+        #
+        # if "2" in folder:  # 保留 loop
+        #     edge1 = [[], []]
+        #     attr1 = []
+        #     for i, j, z in zip(edge[0], edge[1], attr):
+        #         if i == 0:
+        #             edge1[0].append(i)
+        #             edge1[1].append(j)
+        #             attr1.append(z)
+        #             continue
+        #         if i == j:
+        #             edge1[0].append(i)
+        #             edge1[1].append(j)
+        #             attr1.append(z)
+        #     edge = edge1
+        #     attr = attr1
+        #     space_range = [1 for _ in space_range]
+
         return node, edge, attr, space_range, time_range
 
     def get_sample(self, index):

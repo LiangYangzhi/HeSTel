@@ -103,7 +103,7 @@ class ProTra(object):
                 sub_df = df.loc[start_i: end_i]
                 start_i = i + 1
                 sub_df["tid"] = sub_df["uid"].map(lambda u: f"{u}_{site + 1}")
-                time_shift = [14, 7, 0, -7, -14]
+                time_shift =  week
                 shift = random.sample(time_shift, 1)[0] * 24 * 60 * 60
                 sub_df['time'] = sub_df['time'].map(lambda t: t+shift)
                 df_list.append(sub_df)
