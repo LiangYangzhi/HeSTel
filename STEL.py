@@ -10,7 +10,6 @@ def pipeline():
     log_path = f"./libTrajectory/logs/STEL/{name.split('_')[-1]}/"
     logging.basicConfig(filename=f'{log_path}{config["executor"]["net_name"]}.log',
                         format='%(asctime)s - %(message)s', level=logging.INFO)
-    logging.info(f"ablation_set: Deletion strategy and retention strategy, parameter compare")
 
     train_tid, test_tid, enhance_tid = Preprocessor(path, test_file, config['preprocessing']).get(method='load')
     executor = Executor(path, log_path, config['executor'])
@@ -18,6 +17,6 @@ def pipeline():
 
 
 if __name__ == "__main__":
-    name = "STEL_ais"  # "STEL_ais", "STEL_taxi"
+    name = "STEL_taxi"  # "STEL_ais", "STEL_taxi"
     config = parse_config(name)
     pipeline()

@@ -11,7 +11,7 @@ def infoNCE_loss(q, k, temperature=0.1):
     return loss
 
 
-def dis_loss(sim, penalty=0.1):
+def decision_loss(sim, penalty=0.1):
     diag = torch.diag(sim)
     non_diag = sim - torch.diagflat(diag)
     max_non_diag = non_diag.max(dim=1)[0]

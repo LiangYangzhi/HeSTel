@@ -323,7 +323,7 @@ class NSGraphSaver(GraphSaver):
 
 
 class GraphLoader(Dataset):
-    def __init__(self, path: str, tid: list, train=True, enhance_tid=None, ns_num=None, ps_num=None):
+    def __init__(self, path: str, tid: list, train=True, enhance_tid=None, ns_num=None, ps_num=None, graph=None):
         """
         tid: trajectory id
         enhance_tid: 包含A tid 和 B tid的 enhance negative sample and enhance passive sample， train=True时起作用
@@ -336,6 +336,7 @@ class GraphLoader(Dataset):
         self.enhance_tid = enhance_tid
         self.ns_num = ns_num
         self.ps_num = ps_num
+        self.graph = graph
 
     def __len__(self):
         return self.tid.__len__()
@@ -351,39 +352,54 @@ class GraphLoader(Dataset):
         space_range = graph['space_range'].tolist()
         time_range = graph['time_range'].tolist()
 
-        # if "2" in folder:  # 保留 edge
-        #     edge1 = [[], []]
-        #     attr1 = []
-        #     for i, j, z in zip(edge[0], edge[1], attr):
-        #         if i == 0:
-        #             edge1[0].append(i)
-        #             edge1[1].append(j)
-        #             attr1.append(z)
-        #             continue
-        #         if i != j:
-        #             edge1[0].append(i)
-        #             edge1[1].append(j)
-        #             attr1.append(z)
-        #     edge = edge1
-        #     attr = attr1
-        #     space_range = [1 for _ in space_range]
-        #
-        # if "2" in folder:  # 保留 loop
-        #     edge1 = [[], []]
-        #     attr1 = []
-        #     for i, j, z in zip(edge[0], edge[1], attr):
-        #         if i == 0:
-        #             edge1[0].append(i)
-        #             edge1[1].append(j)
-        #             attr1.append(z)
-        #             continue
-        #         if i == j:
-        #             edge1[0].append(i)
-        #             edge1[1].append(j)
-        #             attr1.append(z)
-        #     edge = edge1
-        #     attr = attr1
-        #     space_range = [1 for _ in space_range]
+        # 保留node
+        if self.graph == "node":
+            edge = [[], []]
+            attr = []
+            space_range = [1 for _ in space_range]
+            time_range = [1 for _ in time_range]
+
+        # 保留loop
+        if self.graph == "loop":
+            edge1 = [[], []]
+            attr1 = []
+            for i, j, z in zip(edge[0], edge[1], attr):
+                if i == 0:  # num edge
+                    edge1[0].append(i)
+                    edge1[1].append(j)
+                    attr1.append(z)
+                    continue
+                if i == j:
+                    edge1[0].append(i)
+                    edge1[1].append(j)
+                    attr1.append(z)
+            edge = edge1
+            attr = attr1
+            if "1" in folder:  # 去掉space_range注意力
+                space_range = [1 for _ in space_range]
+            elif "2" in folder:  # 去掉time_range注意力
+                time_range = [1 for _ in time_range]
+
+        # 保留edge
+        elif self.graph == "edge":
+            edge1 = [[], []]
+            attr1 = []
+            for i, j, z in zip(edge[0], edge[1], attr):
+                if i == 0:
+                    edge1[0].append(i)
+                    edge1[1].append(j)
+                    attr1.append(z)
+                    continue
+                if i != j:
+                    edge1[0].append(i)
+                    edge1[1].append(j)
+                    attr1.append(z)
+            edge = edge1
+            attr = attr1
+            if "1" in folder:  # 去掉space_range注意力
+                time_range = [1 for _ in time_range]
+            elif "2" in folder:  # 去掉time_range注意力
+                space_range = [1 for _ in space_range]
 
         return node, edge, attr, space_range, time_range
 
