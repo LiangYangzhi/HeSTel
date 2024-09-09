@@ -15,12 +15,12 @@ from torch.utils.data import DataLoader
 
 
 class Executor(object):
-    def __init__(self, path, log_path, config):
+    def __init__(self, log_path, config):
         logging.info(f"Executor...")
-        logging.info(f"config: {config}")
-        self.path = path
+        self.path = config['path']
         self.log_path = log_path
-        self.config = config
+        self.config = config['executor']
+
         cuda = self.config['cuda']
         self.device = torch.device(f"cuda:{cuda}" if torch.cuda.is_available() else "cpu")
         self.in_dim = self.config['in_dim']

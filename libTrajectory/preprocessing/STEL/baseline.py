@@ -1,20 +1,4 @@
-"""
-<< Trajectory-Based Spatiotemporal Entity Linking >> 实验复现
 
-signature
-sequential signature：时空点作为词，grams设置为2，进行TF-IDF提取向量并进行L2 normalization
-temporal signature：一天中的1h作为时间间隔，统计在每个时间间隔内出现的频率并进行L1 normalization
-spatial signature：空间点作为词，进行TF-IDF提取向量进行L2 normalizations
-spatiotemporal signature：时间间隔+空间点作为词，进行TF-IDF提取向量进行L2 normalization。
-
-similarity
-sequential similarity：dot product
-temporal similarity：(1- EMD) distance
-spatial similarity: dot product
-spatiotemporal similarity: dot product
-
-base knn query
-"""
 import logging
 import time
 from datetime import datetime
@@ -25,20 +9,46 @@ from sklearn.decomposition import TruncatedSVD
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.preprocessing import normalize
 from nltk import ngrams
-from libTrajectory.preprocessing.STEL.preprocessor import Preprocessor as Pre
+from torch.utils.data import Dataset
+import torch
+
+from libTrajectory.preprocessing.STEL.preprocessor import Preprocessor
 
 
-class Preprocessor(Pre):
-    def __init__(self, path, test_path):
+class SignaturePre(Preprocessor):
+    """
+    << Trajectory-Based Spatiotemporal Entity Linking >> 实验复现
+
+    signature
+    sequential signature：时空点作为词，grams设置为2，进行TF-IDF提取向量并进行L2 normalization
+    temporal signature：一天中的1h作为时间间隔，统计在每个时间间隔内出现的频率并进行L1 normalization
+    spatial signature：空间点作为词，进行TF-IDF提取向量进行L2 normalizations
+    spatiotemporal signature：时间间隔+空间点作为词，进行TF-IDF提取向量进行L2 normalization。
+
+    similarity
+    sequential similarity：dot product
+    temporal similarity：(1- EMD) distance
+    spatial similarity: dot product
+    spatiotemporal similarity: dot product
+
+    base knn query
+    """
+    def __init__(self, config):
         self.inter = 60 * 60
-        super(Preprocessor, self).__init__(path, test_path, {})
+        super(SignaturePre, self).__init__(config)
         self.loader()
         self.cleaner()
 
+        train_tid, _, _ = self.get(method='load')
+        all_tid = train_tid
+        self.train_tid = train_tid.copy()
         self.test_data = {}
         for k, v in self.test_path.items():
-            tid = pd.read_csv(f"{v}", dtype={'tid': str, 'time': int}).tid.unique().tolist()
-            self.test_data[k] = tid
+            test_tid = pd.read_csv(f"{v}", dtype={'tid': str, 'time': int}).tid.unique().tolist()
+            self.test_data[k] = test_tid
+            all_tid += test_tid
+        self.data1 = self.data1[self.data1['tid'].isin(all_tid)]
+        self.data2 = self.data2[self.data2['tid'].isin(all_tid)]
 
     def _vector_format(self, v1, v2, name):
         tid = v1.tid.unique().tolist()
@@ -67,15 +77,19 @@ class Preprocessor(Pre):
         group2 = self._deal_seq(self.data2)
         group2['data'] = 'data2'
         group = pd.concat([group1, group2])
-        group.reset_index(drop=True, inplace=True)
-        group1 = group[group['data'] == 'data1']
+
+        train_group = group[group['tid'].isin(self.train_tid)]
+        test_group = group[~group['tid'].isin(self.train_tid)]
+        test_group.reset_index(drop=True, inplace=True)
+        group1 = test_group[test_group['data'] == 'data1']
         group1 = group1.drop(columns=['data'])
-        group2 = group[group['data'] == 'data2']
+        group2 = test_group[test_group['data'] == 'data2']
         group2 = group2.drop(columns=['data'])
 
         logging.info("sequential fit transform...")
-        vectorizer = TfidfVectorizer()
-        matrix = vectorizer.fit_transform(group['seq'])
+        vectorizer = TfidfVectorizer()  # stop_words=None
+        vectorizer.fit(train_group['seq'])
+        matrix = vectorizer.transform(test_group['seq'])
         logging.info(f"data sequential matrix shape {matrix.shape}")
         # perform SVD dimensionality reduction
         svd = TruncatedSVD(n_components=128, algorithm='arpack')
@@ -178,14 +192,18 @@ class Preprocessor(Pre):
         group = pd.concat([group1, group2])
         group.reset_index(drop=True, inplace=True)
 
-        group1 = group[group['data'] == 'data1']
+        train_group = group[group['tid'].isin(self.train_tid)]
+        test_group = group[~group['tid'].isin(self.train_tid)]
+        test_group.reset_index(drop=True, inplace=True)
+        group1 = test_group[test_group['data'] == 'data1']
         group1 = group1.drop(columns=['data'])
-        group2 = group[group['data'] == 'data2']
+        group2 = test_group[test_group['data'] == 'data2']
         group2 = group2.drop(columns=['data'])
 
         logging.info("spatial fit transform...")
         vectorizer = TfidfVectorizer()
-        matrix = vectorizer.fit_transform(group['point'])
+        vectorizer.fit(train_group['point'])
+        matrix = vectorizer.transform(test_group['point'])
         logging.info(f"data spatial matrix shape {matrix.shape}")
         # perform SVD dimensionality reduction
         svd = TruncatedSVD(n_components=128, algorithm='arpack')
@@ -233,13 +251,18 @@ class Preprocessor(Pre):
         group = pd.concat([group1, group2])
         group.reset_index(drop=True, inplace=True)
 
-        group1 = group[group['data'] == 'data1']
+        train_group = group[group['tid'].isin(self.train_tid)]
+        test_group = group[~group['tid'].isin(self.train_tid)]
+        test_group.reset_index(drop=True, inplace=True)
+        group1 = test_group[test_group['data'] == 'data1']
         group1 = group1.drop(columns=['data'])
-        group2 = group[group['data'] == 'data2']
+        group2 = test_group[test_group['data'] == 'data2']
         group2 = group2.drop(columns=['data'])
 
+        logging.info("spatiotemporal fit transform...")
         vectorizer = TfidfVectorizer()
-        matrix = vectorizer.fit_transform(group['st'])
+        vectorizer.fit(train_group['st'])
+        matrix = vectorizer.transform(test_group['st'])
         logging.info(f"data spatiotemporal matrix shape {matrix.shape}")
         # perform SVD dimensionality reduction
         svd = TruncatedSVD(n_components=128, algorithm='arpack')
@@ -259,3 +282,57 @@ class Preprocessor(Pre):
             embedding1, embedding2 = self._vector_format(test1, test2, name='st')
             test_data[k] = [embedding1, embedding2]
         return test_data
+
+
+class NetPre(Preprocessor):
+    def __init__(self, config):
+        super(NetPre, self).__init__(config)
+
+
+class GraphLoader(Dataset):
+    def __init__(self, path: str, tid: list):
+        self.path = path
+        self.tid = tid
+
+    def __len__(self):
+        return self.tid.__len__()
+
+    def __getitem__(self, index):
+        return self.get_sample(index)
+
+    def _load_graph(self, tid, folder):
+        graph = np.load(f"{self.path}{folder}/{tid}.npz")
+        node = graph['node'].tolist()
+        edge = graph['edge'].tolist()
+        attr = graph['edge_attr'].tolist()
+        return node, edge, attr
+
+    def get_sample(self, index):
+        tid = self.tid[index]
+        struct = {
+            "tid": tid,
+            "g1": self._load_graph(tid, folder="graph1"),
+            "g2": self._load_graph(tid, folder="graph2")
+        }
+        return struct
+
+
+def rnn_coll(batch):
+    """
+    tid: [tid1用户索引, tid2用户索引, tid3用户索引]
+    """
+    tid1, tid2 = [], []
+    node = []
+
+    for dic in batch:    # dic[key] = (node, edge_ind, edge_attr) or None
+        for name in ['g1', 'g2']:
+            add_len = len(node)
+            # dic[name][0] is node vector, dic[name][0][0] is represent node of trajectory
+            node = node + [dic[name][0][0]]
+            if name == "g1":
+                tid1.append(add_len)
+            elif name == "g2":
+                tid2.append(add_len)
+
+    node = torch.tensor(node, dtype=torch.float32)
+    return node, tid1, tid2

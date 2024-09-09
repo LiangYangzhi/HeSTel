@@ -1,6 +1,8 @@
 {
-  "path": "./libTrajectory/dataset/taxi/",
+  "path": "./libTrajectory/dataset/small_taxi/",
   "preprocessing":{
+    "train": "train_tid",
+    "test": {"test1": "test1K.csv", "test2": "test3K.csv"},
     "space_distance": 3333,
     "time_interval": 600,
     "graph_dim": {
@@ -15,9 +17,8 @@
     "in_dim": 36,
     "head": 4,
     "out_dim": 32,
-    "cuda": 0,
-    "net_name": "AB_node",
-    "graph": "node",
+    "cuda": 1,
+    "net_name": "test",
     "num_workers": 14,
     "epoch_num": 1,
     "batch_size": 128,

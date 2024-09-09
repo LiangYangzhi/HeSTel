@@ -5,14 +5,13 @@ from libTrajectory.executor.STEL import Executor
 
 
 def pipeline():
-    path = config['path']
-    test_file = {"test1": "test1K.csv", "test2": "test3K.csv"}
     log_path = f"./libTrajectory/logs/STEL/{name.split('_')[-1]}/"
     logging.basicConfig(filename=f'{log_path}{config["executor"]["net_name"]}.log',
                         format='%(asctime)s - %(message)s', level=logging.INFO)
+    logging.info(f"config: {config}")
 
-    train_tid, test_tid, enhance_tid = Preprocessor(path, test_file, config['preprocessing']).get(method='load')
-    executor = Executor(path, log_path, config['executor'])
+    train_tid, test_tid, enhance_tid = Preprocessor(config).get(method='load')
+    executor = Executor(log_path, config)
     executor.train(train_tid, enhance_tid, test_tid)
 
 

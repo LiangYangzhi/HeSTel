@@ -11,20 +11,20 @@ from itertools import chain
 import logging
 import math
 import time
-from torch.utils.data import DataLoader
+# from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from libTrajectory.preprocessing.STEL.graphDataset import GraphSaver, NSGraphSaver, PSGraphSaver
+# from libTrajectory.preprocessing.STEL.graphDataset import GraphSaver, NSGraphSaver, PSGraphSaver
 
 
 class Preprocessor(object):
-    def __init__(self, path, test_file, config):
-        self.path = path
-        self.test_file = test_file
-        self.config = config
+    def __init__(self, config):
+        self.path = config['path']
+        self.config = config['preprocessing']
+        self.test_file = self.config['test']
         test_path = {}
         for k, v in self.test_file.items():
-            test_path[k] = f"{path}{v}"
+            test_path[k] = f"{self.path}{v}"
         self.test_path = test_path
         logging.info(f"self.path={self.path}")
 
@@ -58,7 +58,7 @@ class Preprocessor(object):
 
         elif method == "load":
             logging.info("loading train tid...")
-            with open(f"{self.path}train_tid.pkl", "rb") as f:
+            with open(f"{self.path}{self.config['train']}.pkl", "rb") as f:
                 train_tid = pickle.load(f)
             train_tid = [f"{tid}" for tid in train_tid]
 
@@ -257,6 +257,9 @@ class Preprocessor(object):
         self.train_tid = train_tid.tid.unique().tolist()
         with open(f"{self.path}train_tid.pkl", 'wb') as f:
             pickle.dump(self.train_tid, f)
+        small_train_tid = random.sample(self.train_tid, 6000)
+        with open(f"{self.path}small_train_tid.pkl", 'wb') as f:
+            pickle.dump(small_train_tid, f)
         logging.info("data save completed")
 
     def get(self, method="load"):
