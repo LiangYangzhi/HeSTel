@@ -91,10 +91,11 @@ def bl_rnn():
             tid1 = np.array(tid1)
             print(node)
             print(tid1)
-            x = net(node)
-            print(x)
-            tid1_vec = [x[i].to(device=device) for i in tid1]
-            tid2_vec = x[tid2].to(device=device)
+            output, hn = net(node)
+            print(output)
+            print(hn)
+            tid1_vec = [output[i].to(device=device) for i in tid1]
+            tid2_vec = output[tid2].to(device=device)
 
             label = torch.tensor([i for i in range(len(tid1))]).to(device=device)
             sim1 = torch.matmul(tid1_vec, tid2_vec.T)
