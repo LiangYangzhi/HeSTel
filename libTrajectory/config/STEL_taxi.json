@@ -18,7 +18,7 @@
     "head": 4,
     "out_dim": 32,
     "cuda": 1,
-    "net_name": "test",
+    "net_name": "rnn",
     "num_workers": 14,
     "epoch_num": 1,
     "batch_size": 128,

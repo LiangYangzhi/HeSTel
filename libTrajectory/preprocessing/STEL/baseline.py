@@ -327,7 +327,7 @@ def rnn_coll(batch):
     for dic in batch:    # dic[key] = (node, edge_ind, edge_attr) or None
         for name in ['g1', 'g2']:
             add_len = len(node)
-            # dic[name][0] is node vector, dic[name][0][0] is represent node of trajectory
+            # dic[name][0] is node vector, dic[name][0][0] is represented node of trajectory
             node = node + [dic[name][0][0]]
             if name == "g1":
                 tid1.append(add_len)

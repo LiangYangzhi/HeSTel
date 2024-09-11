@@ -9,18 +9,18 @@ from tqdm import tqdm
 
 
 def small():
-    # with open(f"{path}train_tid.pkl", "rb") as f:
-    #     train_tid = pickle.load(f)
-    # train_tid = [f"{tid}" for tid in train_tid]
-    # small_train_tid = random.sample(train_tid, 7000)
-    # with open(f"{path}small_train_tid.pkl", 'wb') as f:
-    #     pickle.dump(small_train_tid, f)
+    with open(f"{path}train_tid.pkl", "rb") as f:
+        train_tid = pickle.load(f)
+    train_tid = [f"{tid}" for tid in train_tid]
+    small_train_tid = random.sample(train_tid, 7000)
+    with open(f"{path}small_train_tid.pkl", 'wb') as f:
+        pickle.dump(small_train_tid, f)
 
     small_path = path.replace('./', './small_')
-    # shutil.copyfile(f"{path}small_train_tid.pkl", f"{small_path}train_tid.pkl")
-    # shutil.copyfile(f"{path}test1K.csv", f"{small_path}test1K.csv")
-    # shutil.copyfile(f"{path}test3K.csv", f"{small_path}test3K.csv")
-    # shutil.copyfile(f"{path}enhance_tid.csv", f"{small_path}enhance_tid.csv")
+    shutil.copyfile(f"{path}small_train_tid.pkl", f"{small_path}train_tid.pkl")
+    shutil.copyfile(f"{path}test1K.csv", f"{small_path}test1K.csv")
+    shutil.copyfile(f"{path}test3K.csv", f"{small_path}test3K.csv")
+    shutil.copyfile(f"{path}enhance_tid.csv", f"{small_path}enhance_tid.csv")
 
     with open(f"{small_path}train_tid.pkl", "rb") as f:
         train_tid = pickle.load(f)
@@ -31,25 +31,25 @@ def small():
     test3 = test3.tid.unique().tolist()
     tids = train_tid + test1 + test3
 
-    # columns = ['tid', 'time', 'lat', 'lon', 'did']
-    # arr1 = np.load(f"{path}data1.npy", allow_pickle=True)
-    # data1 = pd.DataFrame(arr1, columns=columns).infer_objects()
-    # data1 = data1[data1['tid'].isin(tids)]
-    # arr1 = data1.to_numpy()
-    # np.save(f"{small_path}data1.npy", arr1)
-    #
-    # arr2 = np.load(f"{path}data2.npy", allow_pickle=True)
-    # data2 = pd.DataFrame(arr2, columns=columns).infer_objects()
-    # data2 = data2[data2['tid'].isin(tids)]
-    # arr2 = data2.to_numpy()
-    # np.save(f"{small_path}data2.npy", arr2)
+    columns = ['tid', 'time', 'lat', 'lon', 'did']
+    arr1 = np.load(f"{path}data1.npy", allow_pickle=True)
+    data1 = pd.DataFrame(arr1, columns=columns).infer_objects()
+    data1 = data1[data1['tid'].isin(tids)]
+    arr1 = data1.to_numpy()
+    np.save(f"{small_path}data1.npy", arr1)
 
-    # print("graph...")
-    # os.mkdir(f"{small_path}graph1")
-    # os.mkdir(f"{small_path}graph2")
-    # for tid in tqdm(tids):
-    #     shutil.copyfile(f"{path}graph1/{tid}.npz", f"{small_path}graph1/{tid}.npz")
-    #     shutil.copyfile(f"{path}graph2/{tid}.npz", f"{small_path}graph2/{tid}.npz")
+    arr2 = np.load(f"{path}data2.npy", allow_pickle=True)
+    data2 = pd.DataFrame(arr2, columns=columns).infer_objects()
+    data2 = data2[data2['tid'].isin(tids)]
+    arr2 = data2.to_numpy()
+    np.save(f"{small_path}data2.npy", arr2)
+
+    print("graph...")
+    os.mkdir(f"{small_path}graph1")
+    os.mkdir(f"{small_path}graph2")
+    for tid in tqdm(tids):
+        shutil.copyfile(f"{path}graph1/{tid}.npz", f"{small_path}graph1/{tid}.npz")
+        shutil.copyfile(f"{path}graph2/{tid}.npz", f"{small_path}graph2/{tid}.npz")
 
     enhance_tid = pd.read_csv(f"{small_path}enhance_tid.csv")
     enhance_tid = enhance_tid[enhance_tid['tid'].isin(tids)]
@@ -64,5 +64,5 @@ def small():
 
 
 if __name__ == "__main__":
-    path = "./taxi/"
+    path = "./ais/"
     small()

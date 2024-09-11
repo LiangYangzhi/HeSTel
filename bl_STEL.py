@@ -2,10 +2,13 @@ import logging
 import pickle
 import random
 
+import numpy as np
+import torch
+
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-
 from libTrajectory.config.config_parser import parse_config
+from libTrajectory.model.rnn import rnn as rnnModel
 from libTrajectory.preprocessing.STEL.baseline import SignaturePre, NetPre, GraphLoader, rnn_coll
 from libTrajectory.evaluator.knn_query import evaluator
 # import torch
@@ -70,29 +73,69 @@ def bl_rnn():
     graph_data = GraphLoader(config['path'], train_tid)
     data_loader = DataLoader(dataset=graph_data, batch_size=2, num_workers=8,
                              collate_fn=rnn_coll, persistent_workers=True, shuffle=True)
+
+    device = torch.device(f"cuda:0" if torch.cuda.is_available() else "cpu")
+    paramter = {"input_size": config['executor']['in_dim'], "hidden_size": 4, }
+    net = rnnModel(paramter).to(device)
+    lr = 0.001
+    cost = torch.nn.CrossEntropyLoss().to(device=device)
+    optimizer = torch.optim.Adam(net.parameters(), lr=lr)
+    net.train()
+    epoch_loss = []
     epoch_num = 1
     for epoch in range(epoch_num):  # 每个epoch循环
         logging.info(f'Epoch {epoch}/{epoch_num}')
         for node, tid1, tid2 in tqdm(data_loader):  # 每个批次循环
+            if 'cuda' in str(device):
+                node = node.to(device=device)
+            tid1 = np.array(tid1)
             print(node)
             print(tid1)
-            print(tid2)
+            x = net(node)
+            print(x)
+            tid1_vec = [x[i].to(device=device) for i in tid1]
+            tid2_vec = x[tid2].to(device=device)
 
-    # rnn = torch.nn.RNN(10, 20, 2)
-    #
-    # input = torch.randn(5, 3, 10)
-    # print(input.size())
-    # h0 = torch.randn(2, 3, 20)
-    # print(h0.size())
-    # output, hn = rnn(input, h0)
-    # print(output.size())
-    # print(hn.size())
+            label = torch.tensor([i for i in range(len(tid1))]).to(device=device)
+            sim1 = torch.matmul(tid1_vec, tid2_vec.T)
+            loss = cost(sim1, label)
+            epoch_loss.append(loss.data.item())
+            # 反向传播
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            logging.info(f"loss = {loss.data.item()}")
+        epoch_loss = epoch_loss / len(data_loader)
+        logging.info(f"epoch loss:{epoch_loss}")
+        torch.save(net.state_dict(), f'{log_path}rnn.pth')
+
+        graph_data = GraphLoader(config['path'], test_tid)
+        data_loader = DataLoader(dataset=graph_data, batch_size=2, num_workers=8,
+                                 collate_fn=rnn_coll, persistent_workers=True, shuffle=True)
+        embedding_1 = []
+        embedding_2 = []
+        for node, tid1, tid2 in data_loader:  # 每个批次循环
+            if 'cuda' in str(device):
+                node = node.to(device=device)
+            x = net(node)
+            vec1 = x[tid1]
+            vec2 = x[tid2]
+            if 'cuda' in str(device):
+                vec1 = vec1.to(device='cpu')
+                vec2 = vec2.to(device='cpu')
+
+            for i in vec1:
+                embedding_1.append(i.detach().numpy())
+            for i in vec2:
+                embedding_2.append(i.detach().numpy())
+        embedding_1 = np.array(embedding_1)
+        embedding_2 = np.array(embedding_2)
+        evaluator(embedding_1, embedding_2)
+
 
 
 def pipeline():
-    log_path = "./libTrajectory/logs/STEL/baseline/"
-    logging.basicConfig(filename=f'{log_path}test_rnn_{name.split("_")[-1]}.log',
-                        format='%(asctime)s - %(message)s', level=logging.INFO)
+
     # signature()
     bl_rnn()
     # bl_gnn()
@@ -102,4 +145,7 @@ def pipeline():
 if __name__ == "__main__":
     name = "STEL_taxi"  # "STEL_ais", "STEL_taxi"
     config = parse_config(name)
+    log_path = "./libTrajectory/logs/STEL/baseline/"
+    logging.basicConfig(filename=f'{log_path}rnn_{name.split("_")[-1]}.log',
+                        format='%(asctime)s - %(message)s', level=logging.INFO)
     pipeline()

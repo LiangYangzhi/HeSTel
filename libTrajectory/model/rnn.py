@@ -2,5 +2,5 @@ import torch
 # from torch_geometric.nn import TransformerConv
 
 
-class RNN(torch.nn.Module):
-    def
+def rnn(config):
+    return torch.nn.RNN(**config)  #
