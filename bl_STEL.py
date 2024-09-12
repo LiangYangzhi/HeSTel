@@ -69,19 +69,20 @@ def signature():
 
 
 def bl_rnn():
-    train_tid, test_tid, enhance_tid = NetPre(config).get(method='load')
+    train_tid, test_data, enhance_tid = NetPre(config).get(method='load')
     graph_data = GraphLoader(config['path'], train_tid)
-    data_loader = DataLoader(dataset=graph_data, batch_size=2, num_workers=8,
+    data_loader = DataLoader(dataset=graph_data, batch_size=config['executor']['batch_size'], num_workers=8,
                              collate_fn=rnn_coll, persistent_workers=True, shuffle=True)
 
     device = torch.device(f"cuda:0" if torch.cuda.is_available() else "cpu")
-    paramter = {"input_size": config['executor']['in_dim'], "hidden_size": 4, }
+    paramter = {"input_size": config['executor']['in_dim'], "num_layers": config['executor']['head'],
+                "hidden_size": config['executor']['out_dim'] * config['executor']['head']}
     net = rnnModel(paramter).to(device)
     lr = 0.001
     cost = torch.nn.CrossEntropyLoss().to(device=device)
     optimizer = torch.optim.Adam(net.parameters(), lr=lr)
     net.train()
-    epoch_loss = []
+    epoch_loss = 0
     epoch_num = 1
     for epoch in range(epoch_num):  # 每个epoch循环
         logging.info(f'Epoch {epoch}/{epoch_num}')
@@ -89,18 +90,15 @@ def bl_rnn():
             if 'cuda' in str(device):
                 node = node.to(device=device)
             tid1 = np.array(tid1)
-            print(node)
-            print(tid1)
             output, hn = net(node)
-            print(output)
-            print(hn)
-            tid1_vec = [output[i].to(device=device) for i in tid1]
+
+            tid1_vec = output[tid1].to(device=device)
             tid2_vec = output[tid2].to(device=device)
 
             label = torch.tensor([i for i in range(len(tid1))]).to(device=device)
             sim1 = torch.matmul(tid1_vec, tid2_vec.T)
             loss = cost(sim1, label)
-            epoch_loss.append(loss.data.item())
+            epoch_loss += loss.data.item()
             # 反向传播
             optimizer.zero_grad()
             loss.backward()
@@ -108,19 +106,22 @@ def bl_rnn():
             logging.info(f"loss = {loss.data.item()}")
         epoch_loss = epoch_loss / len(data_loader)
         logging.info(f"epoch loss:{epoch_loss}")
-        torch.save(net.state_dict(), f'{log_path}rnn.pth')
+        torch.save(net.state_dict(), f'{log_path}rnn_{name.split("_")[-1]}.pth')
 
-        graph_data = GraphLoader(config['path'], test_tid)
-        data_loader = DataLoader(dataset=graph_data, batch_size=2, num_workers=8,
+    for k, v in test_data.items():  # file_name: tid
+        logging.info(f"{k}...")
+        print(f"{k}...")
+        graph_data = GraphLoader(config['path'], v)
+        data_loader = DataLoader(dataset=graph_data, batch_size=16, num_workers=4,
                                  collate_fn=rnn_coll, persistent_workers=True, shuffle=True)
         embedding_1 = []
         embedding_2 = []
         for node, tid1, tid2 in data_loader:  # 每个批次循环
             if 'cuda' in str(device):
                 node = node.to(device=device)
-            x = net(node)
-            vec1 = x[tid1]
-            vec2 = x[tid2]
+            output, hn = net(node)
+            vec1 = output[tid1]
+            vec2 = output[tid2]
             if 'cuda' in str(device):
                 vec1 = vec1.to(device='cpu')
                 vec2 = vec2.to(device='cpu')
