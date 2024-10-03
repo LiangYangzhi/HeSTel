@@ -2,18 +2,14 @@ import torch
 import torch.nn as nn
 
 
-def rnn(config):
-    return torch.nn.RNN(**config)  #
-
-
-class LSTMModel(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size, num_layers=1):
+class LSTM(nn.Module):
+    def __init__(self, input_size, output_size, head, num_layers=1):
         # input_size输入特征的维度。
         # hidden_size隐藏层的维度，即每个LSTM单元的隐藏状态向量的维度。
         # output_size：输出的维度。
         # num_layers：LSTM层的数量，默认为1。
-        super(LSTMModel, self).__init__()
-        self.hidden_size = hidden_size
+        super(LSTM, self).__init__()
+        self.hidden_size = input_size
         self.num_layers = num_layers
 
         # 定义lsmt层
@@ -21,10 +17,10 @@ class LSTMModel(nn.Module):
         # 而不是默认的(sequence_length, batch_size, input_size)。
         # batch_size是指每个训练批次中包含的样本数量
         # sequence_length是指输入序列的长度
-        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True)
+        self.lstm = nn.LSTM(input_size, self.hidden_size, num_layers, batch_first=True)
 
         # 定义全连接层，将LSTM层的输出映射到最终的输出空间。
-        self.fc = nn.Linear(hidden_size, output_size)
+        self.fc = nn.Linear(self.hidden_size, output_size*head)
 
     def forward(self, x):
         # 初始化了隐藏状态h0和细胞状态c0，并将其设为零向量。

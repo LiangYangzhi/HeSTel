@@ -1,5 +1,6 @@
 from random import sample
 import torch
+import torch.nn.functional as F
 
 
 def train_coll(batch):
@@ -147,3 +148,104 @@ def infer_coll(batch):
     global_spatial = torch.tensor(global_spatial, dtype=torch.float32)
     global_temporal = torch.tensor(global_temporal, dtype=torch.float32)
     return node, edge, edge_attr, global_spatial, global_temporal, tid1, tid2
+
+
+def baseline_single_coll(batch):
+    tid1, tid2 = [], []
+    node = []
+    edge = [[], []]
+    edge_attr = []
+
+    for ind, dic in enumerate(batch):  # dic[key] = (node, edge_ind, edge_attr) or None
+        add_len = len(node)
+        node = node + dic['g1'][0]
+        edge0, edge1 = dic['g1'][1]
+        edge[0] += [i + add_len for i in edge0]
+        edge[1] += [i + add_len for i in edge1]
+        edge_attr.extend(dic['g1'][2])
+        tid1.append(add_len)
+
+        add_len = len(node)
+        node = node + dic['g2'][0]
+        edge0, edge1 = dic['g2'][1]
+        edge[0] += [i + add_len for i in edge0]
+        edge[1] += [i + add_len for i in edge1]
+        edge_attr.extend(dic['g2'][2])
+        tid2.append(add_len)
+
+    node = torch.tensor(node, dtype=torch.float32)
+    edge = torch.tensor(edge, dtype=torch.long)
+    edge_attr = torch.tensor(edge_attr, dtype=torch.float32)
+    return node, edge, edge_attr, tid1, tid2
+
+
+def baseline_twin_coll(batch):
+    """
+    tid: [tid1用户索引, tid2用户索引, tid3用户索引]
+    ps: [[ps_tid1用户索引, ps_tid1用户索引， ps_tid1用户索引],
+        [ps_tid2用户索引, ps_tid2用户索引， ps_tid2户索引],
+        [ps_tid3用户索引, ps_tid3用户索引， ps_tid3用户索引]]
+    ns: [[tid1用户索引, ns_tid用户索引， 随机tid用户索引]，
+         [ns_tid用户索引， tid2用户索引, 随机tid用户索引]，
+         [ns_tid用户索引， 随机tid用户索引, tid3用户索引]]
+    """
+    tid1, tid2 = [], []
+    node1 = []
+    edge1 = [[], []]
+    edge_attr1 = []
+
+    node2 = []
+    edge2 = [[], []]
+    edge_attr2 = []
+
+    for dic in batch:    # dic[key] = (node, edge_ind, edge_attr) or None
+        add_len1 = len(node1)
+        node1 = node1 + dic["g1"][0]
+        edge1_0, edge1_1 = dic["g1"][1]
+        edge1[0] += [i + add_len1 for i in edge1_0]
+        edge1[1] += [i + add_len1 for i in edge1_1]
+        edge_attr1.extend(dic["g1"][2])
+        tid1.append(add_len1)
+
+        add_len2 = len(node2)
+        node2 = node2 + dic["g2"][0]
+        edge2_0, edge2_1 = dic["g2"][1]
+        edge2[0] += [i + add_len2 for i in edge2_0]
+        edge2[1] += [i + add_len2 for i in edge2_1]
+        edge_attr2.extend(dic["g2"][2])
+        tid2.append(add_len2)
+
+    node1 = torch.tensor(node1, dtype=torch.float32)
+    edge1 = torch.tensor(edge1, dtype=torch.long)
+    edge_attr1 = torch.tensor(edge_attr1, dtype=torch.float32)
+
+    node2 = torch.tensor(node2, dtype=torch.float32)
+    edge2 = torch.tensor(edge2, dtype=torch.long)
+    edge_attr2 = torch.tensor(edge_attr2, dtype=torch.float32)
+
+    return node1, edge1, edge_attr1, tid1, node2, edge2, edge_attr2, tid2
+
+
+def baseline_seq_coll(batch):
+    node_len = 1500  # small_taxi max: 1198
+    tid1, tid2 = [], []
+    node = []
+    for dic in batch:  # dic[key] = (node, edge_ind, edge_attr) or None
+        add_len = len(node)
+        # vec = dic['g1'][0]
+        # add_vec = [[0] * len(vec[0]) for _ in range(node_len - len(vec))]
+        # vec = vec + add_vec
+        vec = [dic['g1'][0][0]]
+        node.append(vec)
+        tid1.append(add_len)
+
+        add_len = len(node)
+        # vec = dic['g2'][0]
+        # add_vec = [[0] * len(vec[0]) for _ in range(node_len - len(vec))]
+        # vec = vec + add_vec
+        vec = [dic['g2'][0][0]]
+        node.append(vec)
+        tid2.append(add_len)
+
+    node = torch.tensor(node, dtype=torch.float32)
+    return node, tid1, tid2

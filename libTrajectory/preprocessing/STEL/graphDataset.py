@@ -410,7 +410,7 @@ class GraphLoader(Dataset):
             "g1": self._load_graph(tid, folder="graph1"),
             "g2": self._load_graph(tid, folder="graph2")
         }
-        if self.train:
+        if self.train and self.enhance_tid is not None:
             enhance_tid = self.enhance_tid[self.enhance_tid["tid"] == tid]
             for name, num, folder in zip(
                     ['ps1', 'ps2', 'ns1', 'ns2'],

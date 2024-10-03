@@ -322,50 +322,42 @@ def rnn_coll(batch):
     tid: [tid1用户索引, tid2用户索引, tid3用户索引]
     return:  vector
     """
+    node_len = 1200  # max: 1198
     tid1, tid2 = [], []
     node = []
 
-    for dic in batch:    # dic[key] = (node, edge_ind, edge_attr) or None
+    for dic in batch:  # dic[key] = (node, edge_ind, edge_attr) or None
         for name in ['g1', 'g2']:
             add_len = len(node)
-            node = node + dic[name][0]
-            # node = node + [np.mean(np.array(dic[name][0]), axis=0).tolist()]
+            vec = dic['g1'][0]
+            add_vec = [[0] * len(vec[0]) for i in range(node_len - len(vec))]
+            vec = vec + add_vec
+            node.append(vec)
             if name == "g1":
                 tid1.append(add_len)
             elif name == "g2":
                 tid2.append(add_len)
-
     node = torch.tensor(node, dtype=torch.float32)
     return node, tid1, tid2
-
-
-def gnn_coll(batch):
-    """
-    tid: [tid1用户索引, tid2用户索引, tid3用户索引]
-    return:  graph
-    """
-    tid1, tid2 = [], []
-    node = []
-    edge = [[], []]
-    edge_attr = []
-
-    for dic in batch:    # dic[key] = (node, edge_ind, edge_attr) or None
-        for name in ['g1', 'g2']:
-            add_len = len(node)
-            node = node + dic[name][0]
-            edge0, edge1 = dic[name][1]
-            edge[0] += [i + add_len for i in edge0]
-            edge[1] += [i + add_len for i in edge1]
-            edge_attr.extend(dic[name][2])
-            if name == "g1":
-                tid1.append(add_len)
-            elif name == "g2":
-                tid2.append(add_len)
-
-    node = torch.tensor(node, dtype=torch.float32)
-    edge = torch.tensor(edge, dtype=torch.long)
-    edge_attr = torch.tensor(edge_attr, dtype=torch.float32)
-    return node, edge, edge_attr, tid1, tid2
+    # """
+    # tid: [tid1用户索引, tid2用户索引, tid3用户索引]
+    # return:  vector
+    # """
+    # tid1, tid2 = [], []
+    # node = []
+    #
+    # for dic in batch:    # dic[key] = (node, edge_ind, edge_attr) or None
+    #     for name in ['g1', 'g2']:
+    #         add_len = len(node)
+    #         node = node + dic[name][0]
+    #         # node = node + [np.mean(np.array(dic[name][0]), axis=0).tolist()]
+    #         if name == "g1":
+    #             tid1.append(add_len)
+    #         elif name == "g2":
+    #             tid2.append(add_len)
+    #
+    # node = torch.tensor(node, dtype=torch.float32)
+    # return node, tid1, tid2
 
 
 def transformer_coll(batch):

@@ -9,13 +9,15 @@ import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from libTrajectory.config.config_parser import parse_config
-from libTrajectory.model.rnn import rnn as rnnModel
-# from libTrajectory.model.transformer import TwinTowerTransformer as TransformerModel
-from libTrajectory.model.transformer import Transformer as TransformerModel
+from libTrajectory.model.transformerModel import Transformer as TransformerModel
 from libTrajectory.model.ab_hst_net import GAT, GCN
 from libTrajectory.preprocessing.STEL.baseline import \
-    SignaturePre, NetPre, GraphLoader, rnn_coll, gnn_coll, transformer_coll
+    SignaturePre, NetPre, GraphLoader, rnn_coll, transformer_coll
 from libTrajectory.evaluator.knn_query import evaluator
+import logging
+from libTrajectory.config.config_parser import parse_config
+from libTrajectory.preprocessing.STEL.preprocessor import Preprocessor
+from libTrajectory.executor.STEL import BaselineExecutor
 
 # lab 环境
 # scikit-learn             1.3.0
@@ -72,149 +74,6 @@ def signature():
         logging.info(f"{k}")
         v1, v2 = v
         evaluator(v1, v2)
-
-
-def bl_rnn():
-    logging.basicConfig(filename=f'{log_path}rnn_{name.split("_")[-1]}.log',
-                        format='%(asctime)s - %(message)s', level=logging.INFO)
-    train_tid, test_data, enhance_tid = NetPre(config).get(method='load')
-    graph_data = GraphLoader(config['path'], train_tid)
-    data_loader = DataLoader(dataset=graph_data, batch_size=config['executor']['batch_size'], num_workers=8,
-                             collate_fn=rnn_coll, persistent_workers=True, shuffle=True)
-
-    device = torch.device(f"cuda:0" if torch.cuda.is_available() else "cpu")
-    paramter = {"input_size": config['executor']['in_dim'], "num_layers": config['executor']['head'],
-                "hidden_size": config['executor']['out_dim'] * config['executor']['head']}
-    net = rnnModel(paramter).to(device)
-    lr = 0.0001
-    entropy = torch.nn.CrossEntropyLoss().to(device=device)
-    optimizer = torch.optim.Adam(net.parameters(), lr=lr)
-    net.train()
-    epoch_loss = 0
-    epoch_num = 1
-    for epoch in range(epoch_num):  # 每个epoch循环
-        logging.info(f'Epoch {epoch}/{epoch_num}')
-        for node, tid1, tid2 in tqdm(data_loader):  # 每个批次循环
-            if 'cuda' in str(device):
-                node = node.to(device=device)
-            output, hn = net(node)
-
-            tid1_vec = output[tid1].to(device=device)
-            tid2_vec = output[tid2].to(device=device)
-            label = torch.tensor([i for i in range(len(tid1))]).to(device=device)
-            sim1 = torch.matmul(tid1_vec, tid2_vec.T)
-            loss = entropy(sim1, label)
-
-            epoch_loss += loss.data.item()
-            # 反向传播
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-            logging.info(f"loss = {loss.data.item()}")
-
-        epoch_loss = epoch_loss / len(data_loader)
-        logging.info(f"epoch loss:{epoch_loss}")
-        torch.save(net.state_dict(), f'{log_path}rnn_{name.split("_")[-1]}.pth')
-
-    for k, v in test_data.items():  # file_name: tid
-        logging.info(f"{k}...")
-        print(f"{k}...")
-        graph_data = GraphLoader(config['path'], v)
-        data_loader = DataLoader(dataset=graph_data, batch_size=16, num_workers=4,
-                                 collate_fn=rnn_coll, persistent_workers=True, shuffle=True)
-        embedding_1 = []
-        embedding_2 = []
-        for node, tid1, tid2 in data_loader:  # 每个批次循环
-            if 'cuda' in str(device):
-                node = node.to(device=device)
-            output, hn = net(node)
-            vec1 = output[tid1]
-            vec2 = output[tid2]
-            if 'cuda' in str(device):
-                vec1 = vec1.to(device='cpu')
-                vec2 = vec2.to(device='cpu')
-
-            for i in vec1:
-                embedding_1.append(i.detach().numpy())
-            for i in vec2:
-                embedding_2.append(i.detach().numpy())
-        embedding_1 = np.array(embedding_1)
-        embedding_2 = np.array(embedding_2)
-        evaluator(embedding_1, embedding_2)
-
-
-def bl_gnn():
-    logging.basicConfig(filename=f'{log_path}gnn_{name.split("_")[-1]}.log',
-                        format='%(asctime)s - %(message)s', level=logging.INFO)
-    train_tid, test_data, enhance_tid = NetPre(config).get(method='load')
-    graph_data = GraphLoader(config['path'], train_tid)
-    data_loader = DataLoader(dataset=graph_data, batch_size=config['executor']['batch_size'], num_workers=8,
-                             collate_fn=gnn_coll, persistent_workers=True, shuffle=True)
-
-    device = torch.device(f"cuda:0" if torch.cuda.is_available() else "cpu")
-    # net = GCN(config['executor']['in_dim'], config['executor']['out_dim'] * config['executor']['head']).to(device)
-    net = GAT(config['executor']['in_dim'], config['executor']['out_dim'], config['executor']['head']).to(device)
-    lr = 0.001
-    cost = torch.nn.CrossEntropyLoss().to(device=device)
-    optimizer = torch.optim.Adam(net.parameters(), lr=lr)
-    net.train()
-    epoch_loss = 0
-    epoch_num = 1
-    for epoch in range(epoch_num):  # 每个epoch循环
-        logging.info(f'Epoch {epoch}/{epoch_num}')
-        for node, edge, edge_attr, tid1, tid2 in tqdm(data_loader):  # 每个批次循环
-            if 'cuda' in str(device):
-                node = node.to(device=device)
-                edge = edge.to(device=device)
-                edge_attr = edge_attr.to(device=device)
-            x = net(node, edge, edge_attr)
-
-            tid1_vec = x[tid1].to(device=device)
-            tid2_vec = x[tid2].to(device=device)
-
-            label = torch.tensor([i for i in range(len(tid1))]).to(device=device)
-            sim1 = torch.matmul(tid1_vec, tid2_vec.T)
-            loss = cost(sim1, label)
-
-            epoch_loss += loss.data.item()
-            # 反向传播
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-            logging.info(f"loss = {loss.data.item()}")
-        epoch_loss = epoch_loss / len(data_loader)
-        logging.info(f"epoch loss:{epoch_loss}")
-        print(epoch_loss)
-        torch.save(net.state_dict(), f'{log_path}gnn_{name.split("_")[-1]}.pth')
-
-    for k, v in test_data.items():  # file_name: tid
-        logging.info(f"{k}...")
-        print(f"{k}...")
-        graph_data = GraphLoader(config['path'], v)
-        data_loader = DataLoader(dataset=graph_data, batch_size=16, num_workers=4,
-                                 collate_fn=gnn_coll, persistent_workers=True, shuffle=True)
-        embedding_1 = []
-        embedding_2 = []
-        for node, edge, edge_attr, tid1, tid2 in data_loader:  # 每个批次循环
-            if 'cuda' in str(device):
-                node = node.to(device=device)
-                edge = edge.to(device=device)
-                edge_attr = edge_attr.to(device=device)
-            x = net(node, edge, edge_attr)
-            vec1 = x[tid1]
-            vec2 = x[tid2]
-            if 'cuda' in str(device):
-                vec1 = vec1.to(device='cpu')
-                vec2 = vec2.to(device='cpu')
-
-            for i in vec1:
-                embedding_1.append(i.detach().numpy())
-            for i in vec2:
-                embedding_2.append(i.detach().numpy())
-        embedding_1 = np.array(embedding_1)
-        embedding_2 = np.array(embedding_2)
-        evaluator(embedding_1, embedding_2)
-        break
 
 
 def bl_transformer():
@@ -305,8 +164,33 @@ def bl_transformer():
 def pipeline():
     # signature()
     # bl_rnn()
-    # bl_gnn()
-    bl_transformer()
+    # bl_transformer()
+
+    logging.basicConfig(filename=f'{log_path}transformer_cross_entropy.log',
+                        format='%(asctime)s - %(message)s', level=logging.INFO)
+    logging.info(f"config: {config}")
+    train_tid, test_tid, _ = Preprocessor(config).get(method='load')
+    executor = BaselineExecutor(log_path, config)
+
+    # gat
+    # executor.gat_cross_entropy(train_tid, test_tid)
+    # executor.gat_cosine_embedding(train_tid, test_tid)
+
+    # gcn
+    # executor.gcn_cross_entropy(train_tid, test_tid)
+    # executor.gcn_cosine_embedding(train_tid, test_tid)
+
+    # graph
+    # executor.graph_cross_entropy(train_tid, test_tid)  # batch_size不宜过大
+    # executor.graph_cosine_embedding(train_tid, test_tid)
+
+    # lstm
+    # executor.lstm_cross_entropy(train_tid, test_tid)
+    # executor.lstm_cosine_embedding(train_tid, test_tid)
+
+    # transformer
+    executor.transformer_cross_entropy(train_tid, test_tid)
+    # executor.transformer_cosine_embedding(train_tid, test_tid)
 
 
 if __name__ == "__main__":

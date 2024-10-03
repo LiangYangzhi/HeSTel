@@ -6,13 +6,14 @@ from libTrajectory.executor.STEL import Executor
 
 def pipeline():
     log_path = f"./libTrajectory/logs/STEL/{name.split('_')[-1]}/"
-    logging.basicConfig(filename=f'{log_path}{config["executor"]["net_name"]}.log',
+    logging.basicConfig(filename=f'{log_path}test_{config["executor"]["net_name"]}.log',
                         format='%(asctime)s - %(message)s', level=logging.INFO)
     logging.info(f"config: {config}")
 
     train_tid, test_tid, enhance_tid = Preprocessor(config).get(method='load')
     executor = Executor(log_path, config)
     executor.train(train_tid, enhance_tid, test_tid)
+    # executor.infer(test_tid, "small_HST2gra")
 
 
 if __name__ == "__main__":

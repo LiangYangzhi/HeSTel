@@ -6,8 +6,15 @@ from tqdm import tqdm
 
 from libTrajectory.model.hst import HST
 from libTrajectory.model.ab_hst_net import GCN, GTransformer, GAT
+from libTrajectory.model.GATModel import GAT as baselineGAT
+from libTrajectory.model.GCNModel import GCN as baselineGCN, TwinTowerGCN
+from libTrajectory.model.GraphModel import Graph as baselineGraph
+from libTrajectory.model.LSTMModel import LSTM as baselineLSTM
+from libTrajectory.model.transformerModel import Transformer as baselineTransformer
+
 from libTrajectory.model.loss import decision_loss, infoNCE_loss
-from libTrajectory.preprocessing.STEL.batch_collate import train_coll, infer_coll
+from libTrajectory.preprocessing.STEL.batch_collate import train_coll, infer_coll, baseline_single_coll, \
+    baseline_twin_coll, baseline_seq_coll
 from libTrajectory.preprocessing.STEL.graphDataset import GraphLoader
 from libTrajectory.evaluator.faiss_cosine import evaluator
 import torch
@@ -26,6 +33,7 @@ class Executor(object):
         self.in_dim = self.config['in_dim']
         self.out_dim = self.config['out_dim']
         self.net_name = self.config['net_name']
+        self.heads = self.config['head']
         logging.info(f"device={self.device}, in_dim={self.in_dim}, out_dim={self.out_dim}")
 
     def train(self, train_tid, enhance_tid, test_tid=None):
@@ -52,7 +60,6 @@ class Executor(object):
         data_loader = DataLoader(dataset=graph_data, batch_size=batch_size, num_workers=num_workers,
                                  collate_fn=train_coll, persistent_workers=True, shuffle=True)
         # net
-        self.heads = 4
         net = HST(self.in_dim, self.out_dim, self.heads).to(self.device)
         if self.config.get("net") == "GCN":
             net = GCN(self.in_dim, self.out_dim*self.heads).to(self.device)
@@ -191,7 +198,7 @@ class Executor(object):
         logging.info("test")
         if net_name is None:
             net_name = self.net_name
-        state_dict1 = torch.load(f'{self.log_path}{net_name}.pth')
+        state_dict1 = torch.load(f'{self.log_path}{net_name}.pth', map_location='cpu')
         # net = GCN(self.in_dim, self.out_dim).to(self.device)
         net = HST(self.in_dim, self.out_dim, self.heads).to(self.device)
         if self.config.get("net") == "GCN":
@@ -245,7 +252,6 @@ class Executor(object):
         data_loader = DataLoader(dataset=graph_data, batch_size=batch_size, num_workers=num_workers,
                                  collate_fn=train_coll, persistent_workers=True, shuffle=True)
         # net
-        self.heads = 4
         net = HST(self.in_dim, self.out_dim, self.heads).to(self.device)
         lr = self.config['lr']  # 0.001
         optimizer = torch.optim.Adam(net.parameters(), lr=lr)
@@ -385,7 +391,6 @@ class Executor(object):
         data_loader = DataLoader(dataset=graph_data, batch_size=batch_size, num_workers=num_workers,
                                  collate_fn=train_coll, persistent_workers=True, shuffle=True)
         # net
-        self.heads = 4
         net = HST(self.in_dim, self.out_dim, self.heads).to(self.device)
         lr = self.config['lr']  # 0.001
         optimizer = torch.optim.Adam(net.parameters(), lr=lr)
@@ -532,7 +537,6 @@ class Executor(object):
         data_loader = DataLoader(dataset=graph_data, batch_size=batch_size, num_workers=num_workers,
                                  collate_fn=train_coll, persistent_workers=True, shuffle=True)
         # net
-        self.heads = 4
         net = HST(self.in_dim, self.out_dim, self.heads).to(self.device)
         lr = self.config['lr']  # 0.001
         optimizer = torch.optim.Adam(net.parameters(), lr=lr)
@@ -659,7 +663,6 @@ class Executor(object):
         data_loader = DataLoader(dataset=graph_data, batch_size=batch_size, num_workers=num_workers,
                                  collate_fn=train_coll, persistent_workers=True, shuffle=True)
         # net
-        self.heads = 4
         net = HST(self.in_dim, self.out_dim, self.heads).to(self.device)
         lr = self.config['lr']  # 0.001
         optimizer = torch.optim.Adam(net.parameters(), lr=lr)
@@ -776,3 +779,835 @@ class Executor(object):
 
             if test_tid is not None:
                 self.infer(test_tid, net_name=self.net_name)
+
+
+class BaselineExecutor(object):
+    def __init__(self, log_path, config):
+        logging.info(f"Executor...")
+        self.path = config['path']
+        self.log_path = log_path
+        self.config = config['executor']
+
+        cuda = self.config['cuda']
+        self.device = torch.device(f"cuda:{cuda}" if torch.cuda.is_available() else "cpu")
+        self.in_dim = self.config['in_dim']
+        self.out_dim = self.config['out_dim']
+        self.net_name = self.config['net_name']
+        self.heads = self.config['head']
+        logging.info(f"device={self.device}, in_dim={self.in_dim}, out_dim={self.out_dim}")
+
+    def gat_infer(self, test_data, net_name=None):
+        logging.info("test")
+        if net_name is None:
+            net_name = self.net_name
+        state_dict1 = torch.load(f'{self.log_path}{net_name}.pth', map_location='cpu')
+        net = baselineGAT(self.in_dim, self.out_dim, self.heads).to(self.device)
+        net.load_state_dict(state_dict1)
+        net.eval()
+        logging.info(f"net={self.net_name}")
+
+        for k, v in test_data.items():  # file_name: tid
+            logging.info(f"{k}...")
+            print(f"{k}...")
+            graph_data = GraphLoader(self.path, v, train=False)  # , self.st_vec
+            data_loader = DataLoader(graph_data, batch_size=16, num_workers=2, collate_fn=baseline_single_coll,
+                                     persistent_workers=True)
+            embedding_1 = []
+            embedding_2 = []
+            for node, edge, edge_attr, tid1, tid2 in data_loader:  # 每个批次循环
+                if 'cuda' in str(self.device):
+                    node = node.to(device=self.device)
+                    edge = edge.to(device=self.device)
+                    edge_attr = edge_attr.to(device=self.device)
+                x = net(node, edge, edge_attr)
+                vec1 = x[tid1]
+                vec2 = x[tid2]
+                if 'cuda' in str(self.device):
+                    vec1 = vec1.to(device='cpu')
+                    vec2 = vec2.to(device='cpu')
+
+                for i in vec1:
+                    embedding_1.append(i.detach().numpy())
+                for i in vec2:
+                    embedding_2.append(i.detach().numpy())
+            embedding_1 = np.array(embedding_1)
+            embedding_2 = np.array(embedding_2)
+            evaluator(embedding_1, embedding_2)
+
+    def gat_cross_entropy(self, train_tid, test_tid=None):
+        logging.info(f"train...")
+        epoch_num = self.config['epoch_num']
+        num_workers = self.config['num_workers']
+        batch_size = self.config['batch_size']
+        graph_data = GraphLoader(self.path, train_tid, True, None, 0, 0)
+        data_loader = DataLoader(dataset=graph_data, batch_size=batch_size, num_workers=num_workers,
+                                 collate_fn=baseline_single_coll, persistent_workers=True, shuffle=True)
+        # net
+        net = baselineGAT(self.in_dim, self.out_dim, self.heads).to(self.device)
+        lr = self.config['lr']  # 0.001
+        optimizer = torch.optim.Adam(net.parameters(), lr=lr)
+        net.train()
+
+        logging.info(f"lr={lr}, head={self.heads}")
+        cost = torch.nn.CrossEntropyLoss().to(device=self.device)
+
+        for epoch in range(epoch_num):  # 每个epoch循环
+            logging.info(f'Epoch {epoch}/{epoch_num}')
+            epoch_loss = 0
+            for node, edge, edge_attr, tid1, tid2 in tqdm(data_loader):  # 每个批次循环
+                if 'cuda' in str(self.device):
+                    node = node.to(device=self.device)
+                    edge = edge.to(device=self.device)
+                    edge_attr = edge_attr.to(device=self.device)
+
+                # 前向传播
+                x = net(node, edge, edge_attr)
+                tid1_vec = x[tid1].to(device=self.device)
+                tid2_vec = x[tid2].to(device=self.device)
+                label = torch.tensor([i for i in range(len(tid1))]).to(device=self.device)
+                sim1 = torch.matmul(tid1_vec, tid2_vec.T)
+                loss = cost(sim1, label)
+                epoch_loss += loss.data.item()
+                # 反向传播
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                logging.info(loss.data.item())
+
+            torch.save(net.state_dict(), f'{self.log_path}{self.net_name}.pth')
+            epoch_loss = epoch_loss / len(data_loader)
+            logging.info(f"epoch loss:{epoch_loss}")
+
+            if test_tid is not None:
+                self.gat_infer(test_tid, net_name=self.net_name)
+
+    def gat_cosine_embedding(self, train_tid, test_tid=None):
+        logging.info(f"train...")
+        epoch_num = self.config['epoch_num']
+        num_workers = self.config['num_workers']
+        batch_size = self.config['batch_size']
+        graph_data = GraphLoader(self.path, train_tid, True, None, 0, 0)
+        data_loader = DataLoader(dataset=graph_data, batch_size=batch_size, num_workers=num_workers,
+                                 collate_fn=baseline_single_coll, persistent_workers=True, shuffle=True)
+        # net
+        net = baselineGAT(self.in_dim, self.out_dim, self.heads).to(self.device)
+        lr = self.config['lr']  # 0.001
+        optimizer = torch.optim.Adam(net.parameters(), lr=lr)
+        net.train()
+
+        logging.info(f"lr={lr}, head={self.heads}")
+        cost = torch.nn.CosineEmbeddingLoss().to(device=self.device)
+
+        for epoch in range(epoch_num):  # 每个epoch循环
+            logging.info(f'Epoch {epoch}/{epoch_num}')
+            epoch_loss = 0
+            for node, edge, edge_attr, tid1, tid2 in tqdm(data_loader):  # 每个批次循环
+                if 'cuda' in str(self.device):
+                    node = node.to(device=self.device)
+                    edge = edge.to(device=self.device)
+                    edge_attr = edge_attr.to(device=self.device)
+
+                # 前向传播
+                x = net(node, edge, edge_attr)
+                tid1_vec = x[tid1].to(device=self.device)
+                tid2_vec = x[tid2].to(device=self.device)
+
+                size = tid1_vec.shape[0]
+                loss = 0
+                for i in range(size):
+                    label = -torch.ones(size).to(device=self.device)
+                    label[i] = 1
+                    embedding1 = tid1_vec[i].repeat(size, 1)
+                    loss += cost(embedding1, tid2_vec, label)
+                epoch_loss += loss.data.item()
+                # 反向传播
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                logging.info(loss.data.item())
+
+            torch.save(net.state_dict(), f'{self.log_path}{self.net_name}.pth')
+            epoch_loss = epoch_loss / len(data_loader)
+            logging.info(f"epoch loss:{epoch_loss}")
+
+            if test_tid is not None:
+                self.gat_infer(test_tid, net_name=self.net_name)
+
+    def gcn_infer(self, test_data, net_name=None):
+        logging.info("test")
+        if net_name is None:
+            net_name = self.net_name
+        state_dict1 = torch.load(f'{self.log_path}{net_name}.pth', map_location='cpu')
+        net = baselineGCN(self.in_dim, self.out_dim, self.heads).to(self.device)
+        net.load_state_dict(state_dict1)
+        net.eval()
+        logging.info(f"net={self.net_name}")
+
+        for k, v in test_data.items():  # file_name: tid
+            logging.info(f"{k}...")
+            print(f"{k}...")
+            graph_data = GraphLoader(self.path, v, train=False)  # , self.st_vec
+            data_loader = DataLoader(graph_data, batch_size=16, num_workers=2, collate_fn=baseline_single_coll,
+                                     persistent_workers=True)
+            embedding_1 = []
+            embedding_2 = []
+            for node, edge, edge_attr, tid1, tid2 in data_loader:  # 每个批次循环
+                if 'cuda' in str(self.device):
+                    node = node.to(device=self.device)
+                    edge = edge.to(device=self.device)
+                    edge_attr = edge_attr.to(device=self.device)
+                x = net(node, edge, edge_attr)
+                vec1 = x[tid1]
+                vec2 = x[tid2]
+                if 'cuda' in str(self.device):
+                    vec1 = vec1.to(device='cpu')
+                    vec2 = vec2.to(device='cpu')
+
+                for i in vec1:
+                    embedding_1.append(i.detach().numpy())
+                for i in vec2:
+                    embedding_2.append(i.detach().numpy())
+            embedding_1 = np.array(embedding_1)
+            embedding_2 = np.array(embedding_2)
+            evaluator(embedding_1, embedding_2)
+
+    def gcn_cross_entropy(self, train_tid, test_tid=None):
+        logging.info(f"train...")
+        epoch_num = self.config['epoch_num']
+        num_workers = self.config['num_workers']
+        batch_size = self.config['batch_size']
+        graph_data = GraphLoader(self.path, train_tid, True, None, 0, 0)
+        data_loader = DataLoader(dataset=graph_data, batch_size=batch_size, num_workers=num_workers,
+                                 collate_fn=baseline_single_coll, persistent_workers=True, shuffle=True)
+        # net
+        net = baselineGCN(self.in_dim, self.out_dim, self.heads).to(self.device)
+        lr = self.config['lr']  # 0.001
+        optimizer = torch.optim.Adam(net.parameters(), lr=lr)
+        net.train()
+
+        logging.info(f"lr={lr}, head={self.heads}")
+        cost = torch.nn.CrossEntropyLoss().to(device=self.device)
+
+        for epoch in range(epoch_num):  # 每个epoch循环
+            logging.info(f'Epoch {epoch}/{epoch_num}')
+            epoch_loss = 0
+            for node, edge, edge_attr, tid1, tid2 in tqdm(data_loader):  # 每个批次循环
+                if 'cuda' in str(self.device):
+                    node = node.to(device=self.device)
+                    edge = edge.to(device=self.device)
+                    edge_attr = edge_attr.to(device=self.device)
+
+                # 前向传播
+                x = net(node, edge, edge_attr)
+                tid1_vec = x[tid1].to(device=self.device)
+                tid2_vec = x[tid2].to(device=self.device)
+                label = torch.tensor([i for i in range(len(tid1))]).to(device=self.device)
+                sim1 = torch.matmul(tid1_vec, tid2_vec.T)
+                loss = cost(sim1, label)
+
+                # 反向传播
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                logging.info(loss.data.item())
+
+            torch.save(net.state_dict(), f'{self.log_path}{self.net_name}.pth')
+            epoch_loss = epoch_loss / len(data_loader)
+            logging.info(f"epoch loss:{epoch_loss}")
+
+            if test_tid is not None:
+                self.gcn_infer(test_tid, net_name=self.net_name)
+
+    def gcn_cosine_embedding(self, train_tid, test_tid=None):
+        logging.info(f"train...")
+        epoch_num = self.config['epoch_num']
+        num_workers = self.config['num_workers']
+        batch_size = self.config['batch_size']
+        graph_data = GraphLoader(self.path, train_tid, True, None, 0, 0)
+        data_loader = DataLoader(dataset=graph_data, batch_size=batch_size, num_workers=num_workers,
+                                 collate_fn=baseline_single_coll, persistent_workers=True, shuffle=True)
+        # net
+        net = baselineGCN(self.in_dim, self.out_dim*self.heads).to(self.device)
+        lr = self.config['lr']  # 0.001
+        optimizer = torch.optim.Adam(net.parameters(), lr=lr)
+        net.train()
+
+        logging.info(f"lr={lr}, head={self.heads}")
+        cost = torch.nn.CosineEmbeddingLoss().to(device=self.device)
+
+        for epoch in range(epoch_num):  # 每个epoch循环
+            logging.info(f'Epoch {epoch}/{epoch_num}')
+            epoch_loss = 0
+            for node, edge, edge_attr, tid1, tid2 in tqdm(data_loader):  # 每个批次循环
+                if 'cuda' in str(self.device):
+                    node = node.to(device=self.device)
+                    edge = edge.to(device=self.device)
+                    edge_attr = edge_attr.to(device=self.device)
+
+                # 前向传播
+                x = net(node, edge, edge_attr)
+                tid1_vec = x[tid1].to(device=self.device)
+                tid2_vec = x[tid2].to(device=self.device)
+
+                size = tid1_vec.shape[0]
+                loss = 0
+                for i in range(size):
+                    label = -torch.ones(size).to(device=self.device)
+                    label[i] = 1
+                    embedding1 = tid1_vec[i].repeat(size, 1)
+                    loss += cost(embedding1, tid2_vec, label)
+                epoch_loss += loss.data.item()
+                # 反向传播
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                logging.info(loss.data.item())
+
+            torch.save(net.state_dict(), f'{self.log_path}{self.net_name}.pth')
+            epoch_loss = epoch_loss / len(data_loader)
+            logging.info(f"epoch loss:{epoch_loss}")
+
+            if test_tid is not None:
+                self.gcn_infer(test_tid, net_name=self.net_name)
+
+    def graph_infer(self, test_data, net_name=None):
+        logging.info("test")
+        if net_name is None:
+            net_name = self.net_name
+        state_dict1 = torch.load(f'{self.log_path}{net_name}.pth', map_location='cpu')
+        net = baselineGraph(self.in_dim, self.out_dim, self.heads).to(self.device)
+        net.load_state_dict(state_dict1)
+        net.eval()
+        logging.info(f"net={self.net_name}")
+
+        for k, v in test_data.items():  # file_name: tid
+            logging.info(f"{k}...")
+            print(f"{k}...")
+            graph_data = GraphLoader(self.path, v, train=False)  # , self.st_vec
+            data_loader = DataLoader(graph_data, batch_size=16, num_workers=2, collate_fn=baseline_single_coll,
+                                     persistent_workers=True)
+            embedding_1 = []
+            embedding_2 = []
+            for node, edge, edge_attr, tid1, tid2 in data_loader:  # 每个批次循环
+                if 'cuda' in str(self.device):
+                    node = node.to(device=self.device)
+                    edge = edge.to(device=self.device)
+                    edge_attr = edge_attr.to(device=self.device)
+                x = net(node, edge, edge_attr)
+                vec1 = x[tid1]
+                vec2 = x[tid2]
+                if 'cuda' in str(self.device):
+                    vec1 = vec1.to(device='cpu')
+                    vec2 = vec2.to(device='cpu')
+
+                for i in vec1:
+                    embedding_1.append(i.detach().numpy())
+                for i in vec2:
+                    embedding_2.append(i.detach().numpy())
+            embedding_1 = np.array(embedding_1)
+            embedding_2 = np.array(embedding_2)
+            evaluator(embedding_1, embedding_2)
+
+    def graph_cross_entropy(self, train_tid, test_tid=None):
+        logging.info(f"train...")
+        epoch_num = self.config['epoch_num']
+        num_workers = self.config['num_workers']
+        batch_size = self.config['batch_size']
+        graph_data = GraphLoader(self.path, train_tid, True, None, 0, 0)
+        data_loader = DataLoader(dataset=graph_data, batch_size=batch_size, num_workers=num_workers,
+                                 collate_fn=baseline_single_coll, persistent_workers=True, shuffle=True)
+        # net
+        net = baselineGraph(self.in_dim, self.out_dim, self.heads).to(self.device)
+        lr = self.config['lr']  # 0.001
+        optimizer = torch.optim.Adam(net.parameters(), lr=lr)
+        net.train()
+
+        logging.info(f"lr={lr}, head={self.heads}")
+        cost = torch.nn.CrossEntropyLoss().to(device=self.device)
+
+        for epoch in range(epoch_num):  # 每个epoch循环
+            logging.info(f'Epoch {epoch}/{epoch_num}')
+            epoch_loss = 0
+            for node, edge, edge_attr, tid1, tid2 in tqdm(data_loader):  # 每个批次循环
+                if 'cuda' in str(self.device):
+                    node = node.to(device=self.device)
+                    edge = edge.to(device=self.device)
+                    edge_attr = edge_attr.to(device=self.device)
+
+                # 前向传播
+                x = net(node, edge, edge_attr)
+                tid1_vec = x[tid1].to(device=self.device)
+                tid2_vec = x[tid2].to(device=self.device)
+                label = torch.tensor([i for i in range(len(tid1))]).to(device=self.device)
+                sim1 = torch.matmul(tid1_vec, tid2_vec.T)
+                loss = cost(sim1, label)
+
+                # 反向传播
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                logging.info(loss.data.item())
+
+            torch.save(net.state_dict(), f'{self.log_path}{self.net_name}.pth')
+            epoch_loss = epoch_loss / len(data_loader)
+            logging.info(f"epoch loss:{epoch_loss}")
+
+            if test_tid is not None:
+                self.graph_infer(test_tid, net_name=self.net_name)
+
+    def graph_cosine_embedding(self, train_tid, test_tid=None):
+        logging.info(f"train...")
+        epoch_num = self.config['epoch_num']
+        num_workers = self.config['num_workers']
+        batch_size = self.config['batch_size']
+        graph_data = GraphLoader(self.path, train_tid, None, [], 0, 0)
+        data_loader = DataLoader(dataset=graph_data, batch_size=batch_size, num_workers=num_workers,
+                                 collate_fn=baseline_single_coll, persistent_workers=True, shuffle=True)
+        # net
+        net = baselineGraph(self.in_dim, self.out_dim, self.heads).to(self.device)
+        lr = self.config['lr']  # 0.001
+        optimizer = torch.optim.Adam(net.parameters(), lr=lr)
+        net.train()
+
+        logging.info(f"lr={lr}, head={self.heads}")
+        cost = torch.nn.CosineEmbeddingLoss().to(device=self.device)
+
+        for epoch in range(epoch_num):  # 每个epoch循环
+            logging.info(f'Epoch {epoch}/{epoch_num}')
+            epoch_loss = 0
+            for node, edge, edge_attr, tid1, tid2 in tqdm(data_loader):  # 每个批次循环
+                if 'cuda' in str(self.device):
+                    node = node.to(device=self.device)
+                    edge = edge.to(device=self.device)
+                    edge_attr = edge_attr.to(device=self.device)
+
+                # 前向传播
+                x = net(node, edge, edge_attr)
+                tid1_vec = x[tid1].to(device=self.device)
+                tid2_vec = x[tid2].to(device=self.device)
+
+                size = tid1_vec.shape[0]
+                loss = 0
+                for i in range(size):
+                    label = -torch.ones(size).to(device=self.device)
+                    label[i] = 1
+                    embedding1 = tid1_vec[i].repeat(size, 1)
+                    loss += cost(embedding1, tid2_vec, label)
+                epoch_loss += loss.data.item()
+                # 反向传播
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                logging.info(loss.data.item())
+
+            torch.save(net.state_dict(), f'{self.log_path}{self.net_name}.pth')
+            epoch_loss = epoch_loss / len(data_loader)
+            logging.info(f"epoch loss:{epoch_loss}")
+
+            if test_tid is not None:
+                self.graph_infer(test_tid, net_name=self.net_name)
+
+    def twin_gcn_infer(self, test_data, net_name=None):
+        logging.info("test")
+        if net_name is None:
+            net_name = self.net_name
+        state_dict1 = torch.load(f'{self.log_path}{net_name}.pth', map_location='cpu')
+        net = TwinTowerGCN(self.in_dim, self.out_dim*self.heads).to(self.device)
+        net.load_state_dict(state_dict1)
+        net.eval()
+        logging.info(f"net={self.net_name}")
+
+        for k, v in test_data.items():  # file_name: tid
+            logging.info(f"{k}...")
+            print(f"{k}...")
+            graph_data = GraphLoader(self.path, v, train=False)  # , self.st_vec
+            data_loader = DataLoader(graph_data, batch_size=16, num_workers=12, collate_fn=baseline_twin_coll,
+                                     persistent_workers=True)
+            embedding_1 = []
+            embedding_2 = []
+            for node1, edge1, edge_attr1, tid1, node2, edge2, edge_attr2, tid2 in tqdm(data_loader):  # 每个批次循环
+                if 'cuda' in str(self.device):
+                    node1 = node1.to(device=self.device)
+                    edge1 = edge1.to(device=self.device)
+                    edge_attr1 = edge_attr1.to(device=self.device)
+                    node2 = node2.to(device=self.device)
+                    edge2 = edge2.to(device=self.device)
+                    edge_attr2 = edge_attr2.to(device=self.device)
+                x1, x2 = net(node1, edge1, edge_attr1, node2, edge2, edge_attr2)
+                vec1 = x1[tid1]
+                vec2 = x2[tid2]
+                if 'cuda' in str(self.device):
+                    vec1 = vec1.to(device='cpu')
+                    vec2 = vec2.to(device='cpu')
+
+                for i in vec1:
+                    embedding_1.append(i.detach().numpy())
+                for i in vec2:
+                    embedding_2.append(i.detach().numpy())
+            embedding_1 = np.array(embedding_1)
+            embedding_2 = np.array(embedding_2)
+            evaluator(embedding_1, embedding_2)
+
+    def twin_gcn_cross_entropy(self, train_tid, test_tid=None):
+        logging.info(f"train...")
+        epoch_num = self.config['epoch_num']
+        num_workers = self.config['num_workers']
+        batch_size = self.config['batch_size']
+        graph_data = GraphLoader(self.path, train_tid, True, None, 0, 0)
+        data_loader = DataLoader(dataset=graph_data, batch_size=batch_size, num_workers=num_workers,
+                                 collate_fn=baseline_twin_coll, persistent_workers=True, shuffle=True)
+        # net
+        net = TwinTowerGCN(self.in_dim, self.out_dim*self.heads).to(self.device)
+        lr = self.config['lr']  # 0.001
+        optimizer = torch.optim.Adam(net.parameters(), lr=lr)
+        net.train()
+
+        logging.info(f"lr={lr}, head={self.heads}")
+        cost = torch.nn.CrossEntropyLoss().to(device=self.device)
+
+        for epoch in range(epoch_num):  # 每个epoch循环
+            logging.info(f'Epoch {epoch}/{epoch_num}')
+            epoch_loss = 0
+            for node1, edge1, edge_attr1, tid1, node2, edge2, edge_attr2, tid2 in tqdm(data_loader):  # 每个批次循环
+                if 'cuda' in str(self.device):
+                    node1 = node1.to(device=self.device)
+                    edge1 = edge1.to(device=self.device)
+                    edge_attr1 = edge_attr1.to(device=self.device)
+                    node2 = node2.to(device=self.device)
+                    edge2 = edge2.to(device=self.device)
+                    edge_attr2 = edge_attr2.to(device=self.device)
+                x1, x2 = net(node1, edge1, edge_attr1, node2, edge2, edge_attr2)
+                tid1_vec = x1[tid1].to(device=self.device)
+                tid2_vec = x2[tid2].to(device=self.device)
+
+                label = torch.tensor([i for i in range(len(tid1))]).to(device=self.device)
+                sim1 = torch.matmul(tid1_vec, tid2_vec.T)
+                loss = cost(sim1, label)
+                epoch_loss += loss.data.item()
+                # 反向传播
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                logging.info(loss.data.item())
+
+            torch.save(net.state_dict(), f'{self.log_path}{self.net_name}.pth')
+            epoch_loss = epoch_loss / len(data_loader)
+            logging.info(f"epoch loss:{epoch_loss}")
+
+            if test_tid is not None:
+                self.twin_gcn_infer(test_tid, net_name=self.net_name)
+
+    def twin_gcn_cosine_embedding(self, train_tid, test_tid=None):
+        logging.info(f"train...")
+        epoch_num = self.config['epoch_num']
+        num_workers = self.config['num_workers']
+        batch_size = self.config['batch_size']
+        graph_data = GraphLoader(self.path, train_tid, True, None, 0, 0)
+        data_loader = DataLoader(dataset=graph_data, batch_size=batch_size, num_workers=num_workers,
+                                 collate_fn=baseline_twin_coll, persistent_workers=True, shuffle=True)
+        # net
+        net = TwinTowerGCN(self.in_dim, self.out_dim*self.heads).to(self.device)
+        lr = self.config['lr']  # 0.001
+        optimizer = torch.optim.Adam(net.parameters(), lr=lr)
+        net.train()
+
+        logging.info(f"lr={lr}, head={self.heads}")
+        cost = torch.nn.CosineEmbeddingLoss().to(device=self.device)
+
+        for epoch in range(epoch_num):  # 每个epoch循环
+            logging.info(f'Epoch {epoch}/{epoch_num}')
+            epoch_loss = 0
+            for node1, edge1, edge_attr1, tid1, node2, edge2, edge_attr2, tid2 in tqdm(data_loader):  # 每个批次循环
+                if 'cuda' in str(self.device):
+                    node1 = node1.to(device=self.device)
+                    edge1 = edge1.to(device=self.device)
+                    edge_attr1 = edge_attr1.to(device=self.device)
+                    node2 = node2.to(device=self.device)
+                    edge2 = edge2.to(device=self.device)
+                    edge_attr2 = edge_attr2.to(device=self.device)
+                x1, x2 = net(node1, edge1, edge_attr1, node2, edge2, edge_attr2)
+                tid1_vec = x1[tid1].to(device=self.device)
+                tid2_vec = x2[tid2].to(device=self.device)
+
+                size = tid1_vec.shape[0]
+                loss = 0
+                for i in range(size):
+                    label = -torch.ones(size).to(device=self.device)
+                    label[i] = 1
+                    embedding1 = tid1_vec[i].repeat(size, 1)
+                    loss += cost(embedding1, tid2_vec, label)
+                epoch_loss += loss.data.item()
+                # 反向传播
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                logging.info(loss.data.item())
+
+            torch.save(net.state_dict(), f'{self.log_path}{self.net_name}.pth')
+            epoch_loss = epoch_loss / len(data_loader)
+            logging.info(f"epoch loss:{epoch_loss}")
+
+            if test_tid is not None:
+                self.twin_gcn_infer(test_tid, net_name=self.net_name)
+
+    def lstm_infer(self, test_data, net_name=None):
+        logging.info("test")
+        if net_name is None:
+            net_name = self.net_name
+        state_dict1 = torch.load(f'{self.log_path}{net_name}.pth', map_location='cpu')
+        net = baselineLSTM(self.in_dim, self.out_dim, self.heads).to(self.device)
+        net.load_state_dict(state_dict1)
+        net.eval()
+        logging.info(f"net={self.net_name}")
+
+        for k, v in test_data.items():  # file_name: tid
+            logging.info(f"{k}...")
+            print(f"{k}...")
+            graph_data = GraphLoader(self.path, v, train=False)  # , self.st_vec
+            data_loader = DataLoader(graph_data, batch_size=16, num_workers=2, collate_fn=baseline_seq_coll,
+                                     persistent_workers=True)
+            embedding_1 = []
+            embedding_2 = []
+            for node, tid1, tid2 in data_loader:  # 每个批次循环
+                if 'cuda' in str(self.device):
+                    node = node.to(device=self.device)
+                x = net(node)
+                vec1 = x[tid1]
+                vec2 = x[tid2]
+                if 'cuda' in str(self.device):
+                    vec1 = vec1.to(device='cpu')
+                    vec2 = vec2.to(device='cpu')
+
+                for i in vec1:
+                    embedding_1.append(i.detach().numpy())
+                for i in vec2:
+                    embedding_2.append(i.detach().numpy())
+            embedding_1 = np.array(embedding_1)
+            embedding_2 = np.array(embedding_2)
+            evaluator(embedding_1, embedding_2)
+
+    def lstm_cross_entropy(self, train_tid, test_tid=None):
+        logging.info(f"train...")
+        epoch_num = self.config['epoch_num']
+        num_workers = self.config['num_workers']
+        batch_size = self.config['batch_size']
+        graph_data = GraphLoader(self.path, train_tid, True, None, 0, 0)
+        data_loader = DataLoader(dataset=graph_data, batch_size=batch_size, num_workers=num_workers,
+                                 collate_fn=baseline_seq_coll, persistent_workers=True, shuffle=True)
+        # net
+        net = baselineLSTM(self.in_dim, self.out_dim, self.heads).to(self.device)
+        lr = self.config['lr']  # 0.001
+        optimizer = torch.optim.Adam(net.parameters(), lr=lr)
+        net.train()
+
+        logging.info(f"lr={lr}, head={self.heads}")
+        cost = torch.nn.CrossEntropyLoss().to(device=self.device)
+
+        for epoch in range(epoch_num):  # 每个epoch循环
+            logging.info(f'Epoch {epoch}/{epoch_num}')
+            epoch_loss = 0
+            for node, tid1, tid2 in tqdm(data_loader):  # 每个批次循环
+                if 'cuda' in str(self.device):
+                    node = node.to(device=self.device)
+
+                # 前向传播
+                x = net(node)
+                tid1_vec = x[tid1].to(device=self.device)
+                tid2_vec = x[tid2].to(device=self.device)
+                label = torch.tensor([i for i in range(len(tid1))]).to(device=self.device)
+                sim1 = torch.matmul(tid1_vec, tid2_vec.T)
+                loss = cost(sim1, label)
+                epoch_loss += loss.data.item()
+                # 反向传播
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                logging.info(loss.data.item())
+
+            torch.save(net.state_dict(), f'{self.log_path}{self.net_name}.pth')
+            epoch_loss = epoch_loss / len(data_loader)
+            logging.info(f"epoch loss:{epoch_loss}")
+
+            if test_tid is not None:
+                self.lstm_infer(test_tid, net_name=self.net_name)
+
+    def lstm_cosine_embedding(self, train_tid, test_tid=None):
+        logging.info(f"train...")
+        epoch_num = self.config['epoch_num']
+        num_workers = self.config['num_workers']
+        batch_size = self.config['batch_size']
+        graph_data = GraphLoader(self.path, train_tid, True, None, 0, 0)
+        data_loader = DataLoader(dataset=graph_data, batch_size=batch_size, num_workers=num_workers,
+                                 collate_fn=baseline_seq_coll, persistent_workers=True, shuffle=True)
+        # net
+        net = baselineLSTM(self.in_dim, self.out_dim, self.heads).to(self.device)
+        lr = self.config['lr']  # 0.001
+        optimizer = torch.optim.Adam(net.parameters(), lr=lr)
+        net.train()
+
+        logging.info(f"lr={lr}, head={self.heads}")
+        cost = torch.nn.CosineEmbeddingLoss().to(device=self.device)
+
+        for epoch in range(epoch_num):  # 每个epoch循环
+            logging.info(f'Epoch {epoch}/{epoch_num}')
+            epoch_loss = 0
+            for node, tid1, tid2 in tqdm(data_loader):  # 每个批次循环
+                if 'cuda' in str(self.device):
+                    node = node.to(device=self.device)
+
+                # 前向传播
+                x = net(node)
+                tid1_vec = x[tid1].to(device=self.device)
+                tid2_vec = x[tid2].to(device=self.device)
+
+                size = tid1_vec.shape[0]
+                loss = 0
+                for i in range(size):
+                    label = -torch.ones(size).to(device=self.device)
+                    label[i] = 1
+                    embedding1 = tid1_vec[i].repeat(size, 1)
+                    loss += cost(embedding1, tid2_vec, label)
+                epoch_loss += loss.data.item()
+                # 反向传播
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                logging.info(loss.data.item())
+
+            torch.save(net.state_dict(), f'{self.log_path}{self.net_name}.pth')
+            epoch_loss = epoch_loss / len(data_loader)
+            logging.info(f"epoch loss:{epoch_loss}")
+
+            if test_tid is not None:
+                self.lstm_infer(test_tid, net_name=self.net_name)
+
+    def transformer_infer(self, test_data, net_name=None):
+        logging.info("test")
+        if net_name is None:
+            net_name = self.net_name
+        state_dict1 = torch.load(f'{self.log_path}{net_name}.pth', map_location='cpu')
+        net = baselineTransformer(input_dim=self.in_dim, d_model=self.out_dim, nhead=self.heads).to(self.device)
+        net.load_state_dict(state_dict1)
+        net.eval()
+        logging.info(f"net={self.net_name}")
+
+        for k, v in test_data.items():  # file_name: tid
+            logging.info(f"{k}...")
+            print(f"{k}...")
+            graph_data = GraphLoader(self.path, v, train=False)  # , self.st_vec
+            data_loader = DataLoader(graph_data, batch_size=16, num_workers=2, collate_fn=baseline_seq_coll,
+                                     persistent_workers=True)
+            embedding_1 = []
+            embedding_2 = []
+            for node, tid1, tid2 in data_loader:  # 每个批次循环
+                if 'cuda' in str(self.device):
+                    node = node.to(device=self.device)
+                x = net(node)
+                vec1 = x[tid1]
+                vec2 = x[tid2]
+                if 'cuda' in str(self.device):
+                    vec1 = vec1.to(device='cpu')
+                    vec2 = vec2.to(device='cpu')
+
+                for i in vec1:
+                    embedding_1.append(i.detach().numpy())
+                for i in vec2:
+                    embedding_2.append(i.detach().numpy())
+            embedding_1 = np.array(embedding_1)
+            embedding_2 = np.array(embedding_2)
+            evaluator(embedding_1, embedding_2)
+
+    def transformer_cross_entropy(self, train_tid, test_tid=None):
+        logging.info(f"train...")
+        epoch_num = self.config['epoch_num']
+        num_workers = self.config['num_workers']
+        batch_size = self.config['batch_size']
+        graph_data = GraphLoader(self.path, train_tid, True, None, 0, 0)
+        data_loader = DataLoader(dataset=graph_data, batch_size=batch_size, num_workers=num_workers,
+                                 collate_fn=baseline_seq_coll, persistent_workers=True, shuffle=True)
+        # net
+        net = baselineTransformer(input_dim=self.in_dim, d_model=self.out_dim, nhead=self.heads).to(self.device)
+        lr = self.config['lr']  # 0.001
+        optimizer = torch.optim.Adam(net.parameters(), lr=lr)
+        net.train()
+
+        logging.info(f"lr={lr}, head={self.heads}")
+        cost = torch.nn.CrossEntropyLoss().to(device=self.device)
+
+        for epoch in range(epoch_num):  # 每个epoch循环
+            logging.info(f'Epoch {epoch}/{epoch_num}')
+            epoch_loss = 0
+            for node, tid1, tid2 in tqdm(data_loader):  # 每个批次循环
+                if 'cuda' in str(self.device):
+                    node = node.to(device=self.device)
+
+                # 前向传播
+                x = net(node)
+                tid1_vec = x[tid1].to(device=self.device)
+                tid2_vec = x[tid2].to(device=self.device)
+                label = torch.tensor([i for i in range(len(tid1))]).to(device=self.device)
+                sim1 = torch.matmul(tid1_vec, tid2_vec.T)
+                loss = cost(sim1, label)
+                epoch_loss += loss.data.item()
+                # 反向传播
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                logging.info(loss.data.item())
+
+            torch.save(net.state_dict(), f'{self.log_path}{self.net_name}.pth')
+            epoch_loss = epoch_loss / len(data_loader)
+            logging.info(f"epoch loss:{epoch_loss}")
+
+            if test_tid is not None:
+                self.transformer_infer(test_tid, net_name=self.net_name)
+
+    def transformer_cosine_embedding(self, train_tid, test_tid=None):
+        logging.info(f"train...")
+        epoch_num = self.config['epoch_num']
+        num_workers = self.config['num_workers']
+        batch_size = self.config['batch_size']
+        graph_data = GraphLoader(self.path, train_tid, True, None, 0, 0)
+        data_loader = DataLoader(dataset=graph_data, batch_size=batch_size, num_workers=num_workers,
+                                 collate_fn=baseline_seq_coll, persistent_workers=True, shuffle=True)
+        # net
+        net = baselineTransformer(input_dim=self.in_dim, d_model=self.out_dim, nhead=self.heads).to(self.device)
+        lr = self.config['lr']  # 0.001
+        optimizer = torch.optim.Adam(net.parameters(), lr=lr)
+        net.train()
+
+        logging.info(f"lr={lr}, head={self.heads}")
+        cost = torch.nn.CosineEmbeddingLoss().to(device=self.device)
+
+        for epoch in range(epoch_num):  # 每个epoch循环
+            logging.info(f'Epoch {epoch}/{epoch_num}')
+            epoch_loss = 0
+            for node, tid1, tid2 in tqdm(data_loader):  # 每个批次循环
+                if 'cuda' in str(self.device):
+                    node = node.to(device=self.device)
+
+                # 前向传播
+                x = net(node)
+                tid1_vec = x[tid1].to(device=self.device)
+                tid2_vec = x[tid2].to(device=self.device)
+
+                size = tid1_vec.shape[0]
+                loss = 0
+                for i in range(size):
+                    label = -torch.ones(size).to(device=self.device)
+                    label[i] = 1
+                    embedding1 = tid1_vec[i].repeat(size, 1)
+                    loss += cost(embedding1, tid2_vec, label)
+                epoch_loss += loss.data.item()
+                # 反向传播
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                logging.info(loss.data.item())
+
+            torch.save(net.state_dict(), f'{self.log_path}{self.net_name}.pth')
+            epoch_loss = epoch_loss / len(data_loader)
+            logging.info(f"epoch loss:{epoch_loss}")
+
+            if test_tid is not None:
+                self.transformer_infer(test_tid, net_name=self.net_name)
