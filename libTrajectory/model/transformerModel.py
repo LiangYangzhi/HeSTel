@@ -3,8 +3,9 @@ from torch.nn import TransformerEncoder, TransformerEncoderLayer
 
 
 class Transformer(nn.Module):
-    def __init__(self, input_dim, d_model, nhead, num_layers=15, dim_feedforward=128):
+    def __init__(self, input_dim, d_model, nhead, num_layers=4, dim_feedforward=128):
         """
+        # ais: num_layers=16, dim_feedforward=128
         input_dim: 输入数据的维度。在将数据传递给Transformer编码器之前，需要将输入数据线性投影到模型期望的维度d_model。
         num_layers: Transformer编码器中编码器层的数量。每个编码器层包含一个自注意力层和一个前馈网络。4
         d_model: Transformer模型中嵌入向量的维度，也是所有层中特征向量的维度。

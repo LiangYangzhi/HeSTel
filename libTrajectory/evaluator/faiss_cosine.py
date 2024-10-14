@@ -6,6 +6,8 @@ import faiss
 
 
 def evaluator(vector1, vector2, k=10):
+    vector1 = np.array(vector1, dtype=np.float32)
+    vector2 = np.array(vector2, dtype=np.float32)
     logging.info(f"k = {k}")
     admin = vector1.shape[1]
     indexIP = faiss.IndexFlatIP(admin)  # L2 normalization after inner product == cosine

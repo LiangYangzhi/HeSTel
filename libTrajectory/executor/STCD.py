@@ -182,7 +182,7 @@ class Executor(object):
             lambda row: True if row['userid0'] in user_set and row['userid1'] in user_set else False, axis=1)
         self.label_edge = self.label_edge[self.label_edge['select'] == True]
 
-        G_real = nx.Graph()
+        G_real = nx.Graph1()
         G_real.add_nodes_from(user_set)
         edge_list_construct = [(row['userid0'], row['userid1']) for i, row in self.label_edge.iterrows()]
         G_real.add_edges_from(edge_list_construct)

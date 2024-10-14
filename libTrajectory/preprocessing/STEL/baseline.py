@@ -19,19 +19,25 @@ class SignaturePre(Preprocessor):
     """
     << Trajectory-Based Spatiotemporal Entity Linking >> 实验复现
 
-    signature
+    1.signature
     sequential signature：时空点作为词，grams设置为2，进行TF-IDF提取向量并进行L2 normalization
     temporal signature：一天中的1h作为时间间隔，统计在每个时间间隔内出现的频率并进行L1 normalization
     spatial signature：空间点作为词，进行TF-IDF提取向量进行L2 normalizations
     spatiotemporal signature：时间间隔+空间点作为词，进行TF-IDF提取向量进行L2 normalization。
 
-    similarity
+    2.similarity
     sequential similarity：dot product
     temporal similarity：(1- EMD) distance
     spatial similarity: dot product
     spatiotemporal similarity: dot product
 
-    base knn query
+    3.base knn query
+
+    tag.environment:
+    scikit-learn             1.3.0
+    scipy                    1.11.2
+    numpy                    1.25.2
+
     """
     def __init__(self, config):
         self.inter = 60 * 60
@@ -70,6 +76,7 @@ class SignaturePre(Preprocessor):
 
     def sequential(self):
         logging.info("sequential signature...")
+        print("sequential signature...")
         logging.info("data1 sequential...")
         group1 = self._deal_seq(self.data1)
         group1['data'] = 'data1'
@@ -161,6 +168,7 @@ class SignaturePre(Preprocessor):
 
     def temporal(self, method="month_day"):  # year_month month_day week_day day_hour
         logging.info(f"temporal signature, method={method}...")
+        print(f"temporal signature, method={method}...")
         test_data = {}
         for k, tid in self.test_data.items():
             logging.info(f"{k}, data1--->temporal vector....")
@@ -183,6 +191,7 @@ class SignaturePre(Preprocessor):
 
     def spatial(self):
         logging.info(f"spatial signature...")
+        print(f"spatial signature...")
         logging.info("data1 spatial...")
         group1 = self._deal_spa(self.data1)
         group1['data'] = 'data1'
@@ -242,6 +251,7 @@ class SignaturePre(Preprocessor):
 
     def spatiotemporal(self, method="month_day"):  # year_month month_day week_day day_hour
         logging.info(f"spatiotemporal signature, method={method}...")
+        print(f"spatiotemporal signature, method={method}...")
         logging.info("data1 spatiotemporal...")
         group1 = self._deal_st(self.data1, method)
         group1['data'] = 'data1'

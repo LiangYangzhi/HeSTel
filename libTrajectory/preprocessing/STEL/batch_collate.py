@@ -227,15 +227,13 @@ def baseline_twin_coll(batch):
 
 
 def baseline_seq_coll(batch):
-    node_len = 1500  # small_taxi max: 1198
     tid1, tid2 = [], []
     node = []
     for dic in batch:  # dic[key] = (node, edge_ind, edge_attr) or None
         add_len = len(node)
-        # vec = dic['g1'][0]
-        # add_vec = [[0] * len(vec[0]) for _ in range(node_len - len(vec))]
-        # vec = vec + add_vec
-        vec = [dic['g1'][0][0]]
+        vec = dic['g1'][0]
+        vec = [[sum(x) for x in zip(*vec)]]
+        # vec = [dic['g1'][0][0]]
         node.append(vec)
         tid1.append(add_len)
 

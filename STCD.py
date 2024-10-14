@@ -9,4 +9,3 @@ def pipeline(config):
     preprocessor.pretrian()
     preprocessor.generate_hypergraph()
     data, label, placeid_model, spatial_model, node, spatial_edge, temporal_edge = preprocessor.get_data()
-

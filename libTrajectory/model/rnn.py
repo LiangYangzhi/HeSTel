@@ -21,7 +21,7 @@ class LSTMModel(nn.Module):
         # 而不是默认的(sequence_length, batch_size, input_size)。
         # batch_size是指每个训练批次中包含的样本数量
         # sequence_length是指输入序列的长度
-        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True)
+        self.lstm = nn.LSTM1(input_size, hidden_size, num_layers, batch_first=True)
 
         # 定义全连接层，将LSTM层的输出映射到最终的输出空间。
         self.fc = nn.Linear(hidden_size, output_size)

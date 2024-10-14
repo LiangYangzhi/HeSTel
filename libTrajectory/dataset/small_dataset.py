@@ -9,6 +9,7 @@ from tqdm import tqdm
 
 
 def small():
+    print("small_train_tid....")
     with open(f"{path}train_tid.pkl", "rb") as f:
         train_tid = pickle.load(f)
     train_tid = [f"{tid}" for tid in train_tid]
@@ -16,6 +17,7 @@ def small():
     with open(f"{path}small_train_tid.pkl", 'wb') as f:
         pickle.dump(small_train_tid, f)
 
+    print("test1K,3K,enhance_tid....")
     small_path = path.replace('./', './small_')
     shutil.copyfile(f"{path}small_train_tid.pkl", f"{small_path}train_tid.pkl")
     shutil.copyfile(f"{path}test1K.csv", f"{small_path}test1K.csv")
@@ -31,6 +33,7 @@ def small():
     test3 = test3.tid.unique().tolist()
     tids = train_tid + test1 + test3
 
+    print("graph...")
     columns = ['tid', 'time', 'lat', 'lon', 'did']
     arr1 = np.load(f"{path}data1.npy", allow_pickle=True)
     data1 = pd.DataFrame(arr1, columns=columns).infer_objects()
@@ -44,13 +47,13 @@ def small():
     arr2 = data2.to_numpy()
     np.save(f"{small_path}data2.npy", arr2)
 
-    print("graph...")
     os.mkdir(f"{small_path}graph1")
     os.mkdir(f"{small_path}graph2")
     for tid in tqdm(tids):
         shutil.copyfile(f"{path}graph1/{tid}.npz", f"{small_path}graph1/{tid}.npz")
         shutil.copyfile(f"{path}graph2/{tid}.npz", f"{small_path}graph2/{tid}.npz")
 
+    print("enhance graph...")
     enhance_tid = pd.read_csv(f"{small_path}enhance_tid.csv")
     enhance_tid = enhance_tid[enhance_tid['tid'].isin(tids)]
     for name, folder in zip(['ps1', 'ps2', 'ns1', 'ns2'], ["ps_graph1", "ps_graph2", "ns_graph1", "ns_graph2"]):

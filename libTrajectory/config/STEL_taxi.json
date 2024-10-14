@@ -1,5 +1,5 @@
 {
-  "path": "./libTrajectory/dataset/small_taxi/",
+  "path": "./libTrajectory/dataset/taxi/",
   "preprocessing":{
     "train": "train_tid",
     "test": {"test1": "test1K.csv", "test2": "test3K.csv"},
@@ -18,8 +18,8 @@
     "head": 4,
     "out_dim": 32,
     "cuda": 0,
-    "net_name": "transformer_cross_entropy",
-    "num_workers": 2,
+    "net_name": "model",
+    "num_workers": 6,
     "epoch_num": 1,
     "batch_size": 128,
     "ns_num": 16,
