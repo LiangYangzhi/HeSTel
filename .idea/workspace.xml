@@ -5,47 +5,27 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="4b84637f-3d39-4b12-b899-915a4a26ac60" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/libTrajectory/config/STEL_ais_bl_gTransformer_cosine.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/libTrajectory/config/STEL_ais_bl_gTransformer_cross.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/libTrajectory/config/STEL_ais_bl_gcn_cosine.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/libTrajectory/config/STEL_ais_bl_gcn_cross.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/libTrajectory/config/STEL_ais_bl_graph_cosine.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/libTrajectory/config/STEL_ais_bl_graph_cross.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/libTrajectory/config/STEL_ais_bl_lstm_cosine.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/libTrajectory/config/STEL_ais_bl_lstm_cross.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/libTrajectory/config/STEL_ais_bl_signature.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/libTrajectory/config/STEL_ais_bl_transformer_cosine.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/libTrajectory/config/STEL_ais_bl_transformer_cross.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/libTrajectory/config/STEL_taxi_bl_gTransformer_cosine.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/libTrajectory/config/STEL_taxi_bl_gTransformer_cross.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/libTrajectory/config/STEL_taxi_bl_gcn_cosine.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/libTrajectory/config/STEL_taxi_bl_gcn_cross.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/libTrajectory/config/STEL_taxi_bl_graph_cosine.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/libTrajectory/config/STEL_taxi_bl_graph_cross.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/libTrajectory/config/STEL_taxi_bl_lstm_cosine.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/libTrajectory/config/STEL_taxi_bl_lstm_cross.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/libTrajectory/config/STEL_taxi_bl_signature.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/libTrajectory/config/STEL_taxi_bl_transformer_cosine.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/libTrajectory/config/STEL_taxi_bl_transformer_cross.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/libTrajectory/config/STEL_ais_ab_augment_parameter_1_10_1.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/libTrajectory/config/STEL_ais_ab_augment_parameter_1_1_1.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/libTrajectory/config/STEL_ais_ab_augment_parameter_1_1_10.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/libTrajectory/config/STEL_taxi_ab_augment_parameter_1_10_1.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/libTrajectory/config/STEL_taxi_ab_augment_parameter_1_1_1.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/libTrajectory/config/STEL_taxi_ab_augment_parameter_1_1_10.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/libTrajectory/evaluator/chart.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/STCD.py" beforeDir="false" afterPath="$PROJECT_DIR$/STCD.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/STEL.py" beforeDir="false" afterPath="$PROJECT_DIR$/STEL.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/bl_STEL.py" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/libTrajectory/config/STEL_ais.json" beforeDir="false" afterPath="$PROJECT_DIR$/libTrajectory/config/STEL_ais.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/libTrajectory/config/STEL_ais_bl_graph_cross.json" beforeDir="false" afterPath="$PROJECT_DIR$/libTrajectory/config/STEL_ais_bl_graph_cross.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/libTrajectory/config/STEL_taxi.json" beforeDir="false" afterPath="$PROJECT_DIR$/libTrajectory/config/STEL_taxi.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/libTrajectory/dataset/small_dataset.py" beforeDir="false" afterPath="$PROJECT_DIR$/libTrajectory/dataset/small_dataset.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/libTrajectory/config/STEL_taxi_bl_graph_cosine.json" beforeDir="false" afterPath="$PROJECT_DIR$/libTrajectory/config/STEL_taxi_bl_graph_cosine.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/libTrajectory/evaluator/faiss_cosine.py" beforeDir="false" afterPath="$PROJECT_DIR$/libTrajectory/evaluator/faiss_cosine.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/libTrajectory/executor/STCD.py" beforeDir="false" afterPath="$PROJECT_DIR$/libTrajectory/executor/STCD.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/libTrajectory/evaluator/knn_query.py" beforeDir="false" afterPath="$PROJECT_DIR$/libTrajectory/evaluator/knn_query.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/libTrajectory/executor/STEL.py" beforeDir="false" afterPath="$PROJECT_DIR$/libTrajectory/executor/STEL.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/libTrajectory/model/GATModel.py" beforeDir="false" afterPath="$PROJECT_DIR$/libTrajectory/model/GATModel.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/libTrajectory/model/GCNModel.py" beforeDir="false" afterPath="$PROJECT_DIR$/libTrajectory/model/GCNModel.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/libTrajectory/model/GraphModel.py" beforeDir="false" afterPath="$PROJECT_DIR$/libTrajectory/model/GraphModel.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/libTrajectory/model/LSTMModel.py" beforeDir="false" afterPath="$PROJECT_DIR$/libTrajectory/model/LSTMModel.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/libTrajectory/model/hst.py" beforeDir="false" afterPath="$PROJECT_DIR$/libTrajectory/model/hst.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/libTrajectory/model/rnn.py" beforeDir="false" afterPath="$PROJECT_DIR$/libTrajectory/model/rnn.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/libTrajectory/model/transformerModel.py" beforeDir="false" afterPath="$PROJECT_DIR$/libTrajectory/model/transformerModel.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/libTrajectory/preprocessing/STEL/baseline.py" beforeDir="false" afterPath="$PROJECT_DIR$/libTrajectory/preprocessing/STEL/baseline.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/libTrajectory/preprocessing/STEL/batch_collate.py" beforeDir="false" afterPath="$PROJECT_DIR$/libTrajectory/preprocessing/STEL/batch_collate.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/libTrajectory/utils/log2df.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/libTrajectory/utils/visualization.py" beforeDir="false" afterPath="$PROJECT_DIR$/libTrajectory/utils/visualization.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/test.py" beforeDir="false" afterPath="$PROJECT_DIR$/test.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -84,7 +64,28 @@
       <recent name="D:\stTrajectory\libTrajectory\config" />
     </key>
   </component>
-  <component name="RunManager">
+  <component name="RunManager" selected="Python.test">
+    <configuration name="chart" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="STtrajectory" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/libTrajectory/evaluator" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/libTrajectory/evaluator/chart.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
     <configuration name="test" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="STtrajectory" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -106,9 +107,32 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
+    <configuration name="visualization" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="STtrajectory" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/libTrajectory/utils" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/libTrajectory/utils/visualization.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
     <recent_temporary>
       <list>
         <item itemvalue="Python.test" />
+        <item itemvalue="Python.chart" />
+        <item itemvalue="Python.visualization" />
       </list>
     </recent_temporary>
   </component>

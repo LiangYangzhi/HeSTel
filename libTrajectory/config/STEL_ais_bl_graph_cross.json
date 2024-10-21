@@ -8,7 +8,7 @@
     "in_dim": 34,
     "out_dim": 128,
     "cuda": 0,
-    "net_name": "bl_gcn_cross",
+    "net_name": "bl_graph_cross",
     "num_workers": 6,
     "epoch_num": 1,
     "batch_size": 128,

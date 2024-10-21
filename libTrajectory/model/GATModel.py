@@ -12,6 +12,8 @@ class GAT(torch.nn.Module):
                              fill_value='max')
 
     def forward(self, x, edge_index, edge_weight=None):
+        if edge_weight is not None:
+            edge_weight = torch.unsqueeze(edge_weight, dim=-1)
         x = self.conv1(x=x, edge_index=edge_index, edge_attr=edge_weight)
         x = self.conv2(x=x, edge_index=edge_index, edge_attr=edge_weight)
         return x

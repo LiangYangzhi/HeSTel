@@ -232,7 +232,7 @@ def baseline_seq_coll(batch):
     for dic in batch:  # dic[key] = (node, edge_ind, edge_attr) or None
         add_len = len(node)
         vec = dic['g1'][0]
-        vec = [[sum(x) for x in zip(*vec)]]
+        vec = [[sum(x) / len(vec) for x in zip(*vec)]]
         # vec = [dic['g1'][0][0]]
         node.append(vec)
         tid1.append(add_len)

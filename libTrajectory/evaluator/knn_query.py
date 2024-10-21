@@ -72,11 +72,15 @@ def evaluator(vector1, vector2, k=10, method='dot'):
             result.append(k+1)
     result = pd.DataFrame(data=result, columns=['rank'])
     total = len(result)
+    acc = {}
     for i in range(k):
-        score = len(result[result['rank'] <= i])
-        logging.info(f"top{i+1}={score}/{total}={round(score/total, 6)}")
-        print(f"top{i + 1}={score}/{total}={round(score / total, 6)}")
+        num = len(result[result['rank'] <= i])
+        score = round(num / total, 6)
+        logging.info(f"Acc@{i+1}={num}/{total}={score}")
+        print(f"Acc@{i + 1}={num}/{total}={score}")
+        acc[f"Acc@{i + 1}"] = score
 
     distances = pd.DataFrame(data=distances, columns=[f"dis{i}" for i in range(1, k + 1)])
     indices = pd.DataFrame(data=indices, columns=[f"rank{i}" for i in range(1, k+1)])
-    return distances, indices
+
+    return distances, indices, acc

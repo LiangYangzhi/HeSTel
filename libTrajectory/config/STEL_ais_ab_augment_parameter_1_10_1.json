@@ -1,24 +1,15 @@
 {
-  "path": "./libTrajectory/dataset/small_taxi/",
+  "path": "./libTrajectory/dataset/small_ais/",
   "preprocessing":{
     "train": "train_tid",
-    "test": {"test1": "test1K.csv", "test2": "test3K.csv"},
-    "space_distance": 3333,
-    "time_interval": 600,
-    "graph_dim": {
-      "dim1": 8,
-      "dim2": 10,
-      "dim3": 2,
-      "dim4": 6,
-      "dim5": 10
-    }
+    "test": {"test1": "test1K.csv", "test2": "test3K.csv"}
   },
   "executor":{
-    "in_dim": 36,
+    "in_dim": 34,
     "head": 4,
     "out_dim": 32,
     "cuda": 0,
-    "net_name": "STEL",
+    "net_name": "ab_augment_parameter_1_10_1",
     "num_workers": 6,
     "epoch_num": 1,
     "batch_size": 128,
@@ -26,7 +17,7 @@
     "ps_num": 8,
     "lr": 0.001,
     "penalty": 0.1,
-    "ratio_full": 50,
+    "ratio_full": 1,
     "ratio_ns2": 10,
     "ratio_ns1": 10,
     "ratio_ps1": 1,

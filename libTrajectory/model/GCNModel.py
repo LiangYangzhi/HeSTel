@@ -12,12 +12,7 @@ class GCN1(torch.nn.Module):
     def forward(self, x, edge_index, edge_weight=None):
         if edge_weight is not None:
             edge_weight = torch.unsqueeze(edge_weight, dim=-1)
-            edge_weight = F.relu(edge_weight)
         x = self.conv1(x, edge_index, edge_weight=edge_weight)
-        x = self.conv2(x, edge_index, edge_weight=edge_weight)
-        x = self.conv2(x, edge_index, edge_weight=edge_weight)
-        x = self.conv2(x, edge_index, edge_weight=edge_weight)
-        x = self.conv2(x, edge_index, edge_weight=edge_weight)
         return x
 
 
