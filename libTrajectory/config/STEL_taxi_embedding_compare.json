@@ -1,0 +1,9 @@
+{
+  "path": "./libTrajectory/dataset/small_taxi/",
+  "test_file": "test1K.csv",
+  "device": "cpu",
+  "in_dim": 36,
+  "head": 4,
+  "out_dim": 32,
+  "model_path": "./libTrajectory/logs/STEL/taxi/model.pth"
+}

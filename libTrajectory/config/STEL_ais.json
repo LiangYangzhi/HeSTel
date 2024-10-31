@@ -19,7 +19,7 @@
     "out_dim": 32,
     "cuda": 0,
     "net_name": "STEL",
-    "num_workers": 14,
+    "num_workers": 6,
     "epoch_num": 1,
     "batch_size": 128,
     "ns_num": 16,

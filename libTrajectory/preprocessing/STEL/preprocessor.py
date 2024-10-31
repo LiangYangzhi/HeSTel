@@ -40,7 +40,7 @@ class Preprocessor(object):
         enhance_tid = save_graph(self.path, self.test_file, graph_dim=self.config["graph_dim"])
         return self.train_tid, self.test_tid, enhance_tid
 
-    def loader(self, method='run'):
+    def loader(self, method='run', is_train=True):
         if method == "run":
             logging.info("data loading...")
             columns = ['tid', 'time', 'lat', 'lon', 'did']
@@ -57,30 +57,31 @@ class Preprocessor(object):
                 logging.info("data load completed")
 
         elif method == "load":
-            logging.info("loading train tid...")
-            with open(f"{self.path}{self.config['train']}.pkl", "rb") as f:
-                train_tid = pickle.load(f)
-            train_tid = [f"{tid}" for tid in train_tid]
-
             logging.info("loading test tid...")
             test_tid = {}
             for k, v in self.test_path.items():
                 tid = pd.read_csv(v, usecols=['tid'], dtype={'tid': str})
                 tid = tid.tid.unique().tolist()
                 test_tid[k] = tid
+            if is_train:
+                logging.info("loading train tid...")
+                with open(f"{self.path}{self.config['train']}.pkl", "rb") as f:
+                    train_tid = pickle.load(f)
+                train_tid = [f"{tid}" for tid in train_tid]
 
-            logging.info("loading enhance sample...")
-            try:
-                enhance_tid = pd.read_csv(f"{self.path}enhance_tid.csv")
-                enhance_tid['ns1'] = enhance_tid['ns1'].map(lambda x: eval(x))
-                enhance_tid['ns2'] = enhance_tid['ns2'].map(lambda x: eval(x))
-                enhance_tid['ps1'] = enhance_tid['ps1'].map(lambda x: eval(x))
-                enhance_tid['ps2'] = enhance_tid['ps2'].map(lambda x: eval(x))
-                logging.info("data load completed")
-            except FileNotFoundError as e:
-                logging.info(e)
-                enhance_tid = None
-
+                logging.info("loading enhance sample...")
+                try:
+                    enhance_tid = pd.read_csv(f"{self.path}enhance_tid.csv")
+                    enhance_tid['ns1'] = enhance_tid['ns1'].map(lambda x: eval(x))
+                    enhance_tid['ns2'] = enhance_tid['ns2'].map(lambda x: eval(x))
+                    enhance_tid['ps1'] = enhance_tid['ps1'].map(lambda x: eval(x))
+                    enhance_tid['ps2'] = enhance_tid['ps2'].map(lambda x: eval(x))
+                    logging.info("data load completed")
+                except FileNotFoundError as e:
+                    logging.info(e)
+                    enhance_tid = None
+            else:
+                return test_tid
             return train_tid, test_tid, enhance_tid
 
     def cleaner(self):

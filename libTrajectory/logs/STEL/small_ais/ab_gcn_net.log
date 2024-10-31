@@ -1,0 +1,288 @@
+2024-10-26 18:21:53,340 - name: STEL_ais_ab_gcn_net
+2024-10-26 18:21:53,340 - config: {'path': './libTrajectory/dataset/small_ais/', 'preprocessing': {'train': 'train_tid', 'test': {'test1': 'test1K.csv', 'test2': 'test3K.csv'}}, 'executor': {'in_dim': 34, 'head': 4, 'out_dim': 32, 'cuda': 0, 'net_name': 'ab_gcn_net', 'num_workers': 6, 'epoch_num': 1, 'batch_size': 128, 'ns_num': 16, 'ps_num': 8, 'lr': 0.001, 'penalty': 0.1, 'ratio_full': 50, 'ratio_ns2': 10, 'ratio_ns1': 10, 'ratio_ps1': 1, 'ratio_ps2': 1}}
+2024-10-26 18:21:53,340 - self.path=./libTrajectory/dataset/small_ais/
+2024-10-26 18:21:53,340 - loading train tid...
+2024-10-26 18:21:53,342 - loading test tid...
+2024-10-26 18:21:53,991 - loading enhance sample...
+2024-10-26 18:22:03,288 - data load completed
+2024-10-26 18:22:03,288 - gcn_net
+2024-10-26 18:22:03,288 - Executor...
+2024-10-26 18:22:03,288 - device=cuda:0, in_dim=34, out_dim=32
+2024-10-26 18:22:03,288 - train...
+2024-10-26 18:22:04,142 - lr=0.001, head=4
+2024-10-26 18:22:04,142 - full_loss: dis_loss penalty = 0.1
+2024-10-26 18:22:04,142 - Epoch 0/1
+2024-10-26 18:22:20,526 - 3.324154853820801 + 3.3638854026794434 + 3.2278621196746826 + 27.149091720581055 + 25.117279052734375 = 284.3916015625
+2024-10-26 18:22:22,334 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:22:23,440 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:22:24,749 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:22:26,054 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:22:27,164 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:22:34,447 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:22:36,775 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:22:39,272 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:22:40,629 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:22:41,853 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:22:42,974 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:22:55,248 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:22:56,375 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:22:57,578 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:22:58,687 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:22:59,834 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:23:01,049 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:23:09,142 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:23:10,343 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:23:13,391 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:23:14,836 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:23:15,976 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:23:17,064 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:23:22,928 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:23:23,992 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:23:29,492 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:23:30,576 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:23:31,687 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:23:32,696 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:23:35,715 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:23:36,852 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:23:45,344 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:23:46,443 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:23:47,629 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:23:48,728 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:23:53,142 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:23:55,894 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:23:58,951 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:24:00,145 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:24:01,335 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:24:02,466 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:24:10,933 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:24:12,025 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:24:13,180 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:24:14,318 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:24:15,444 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:24:16,650 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:24:27,593 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:24:28,529 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:24:30,165 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:24:31,150 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:24:32,122 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:24:33,054 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:24:35,936 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:24:35,956 - epoch loss:nan
+2024-10-26 18:24:35,956 - full_loss min:[3.324154853820801, nan], max:nan, mean:nan
+2024-10-26 18:24:35,956 - ns1_loss min:[3.2278621196746826, nan], max:nan, mean:nan
+2024-10-26 18:24:35,956 - ns2_loss min:[3.3638854026794434, nan], max:nan, mean:nan
+2024-10-26 18:24:35,956 - ps1_loss min:[27.149091720581055, nan], max:nan, mean:nan
+2024-10-26 18:24:35,956 - ps2_loss min:[25.117279052734375, nan], max:nan, mean:nan
+2024-10-26 18:24:35,956 - test
+2024-10-26 18:24:35,959 - add_self_loops=True
+2024-10-26 18:27:38,666 - name: STEL_ais_ab_gcn_net
+2024-10-26 18:27:38,666 - config: {'path': './libTrajectory/dataset/small_ais/', 'preprocessing': {'train': 'train_tid', 'test': {'test1': 'test1K.csv', 'test2': 'test3K.csv'}}, 'executor': {'in_dim': 34, 'head': 4, 'out_dim': 32, 'cuda': 0, 'net_name': 'ab_gcn_net', 'num_workers': 6, 'epoch_num': 1, 'batch_size': 128, 'ns_num': 16, 'ps_num': 8, 'lr': 0.001, 'penalty': 0.1, 'ratio_full': 50, 'ratio_ns2': 10, 'ratio_ns1': 10, 'ratio_ps1': 1, 'ratio_ps2': 1}}
+2024-10-26 18:27:38,666 - self.path=./libTrajectory/dataset/small_ais/
+2024-10-26 18:27:38,666 - loading train tid...
+2024-10-26 18:27:38,668 - loading test tid...
+2024-10-26 18:27:39,409 - loading enhance sample...
+2024-10-26 18:27:49,086 - data load completed
+2024-10-26 18:27:49,086 - gcn_net
+2024-10-26 18:27:49,086 - Executor...
+2024-10-26 18:27:49,086 - device=cuda:0, in_dim=34, out_dim=32
+2024-10-26 18:27:49,086 - train...
+2024-10-26 18:27:49,931 - lr=0.001, head=4
+2024-10-26 18:27:49,932 - full_loss: dis_loss penalty = 0.1
+2024-10-26 18:27:49,932 - Epoch 0/1
+2024-10-26 18:28:10,725 - 2.047203540802002 + 2.1880767345428467 + 2.2839906215667725 + 18.66059684753418 + 16.664813995361328 = 182.40626525878906
+2024-10-26 18:28:11,859 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:28:12,976 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:28:14,061 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:28:15,233 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:28:16,421 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:28:26,295 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:28:27,494 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:28:28,660 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:28:29,866 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:28:30,979 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:28:32,196 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:28:41,938 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:28:43,199 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:28:44,270 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:28:45,365 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:28:46,661 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:28:47,753 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:29:01,289 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:29:02,194 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:29:03,092 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:29:04,144 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:29:05,243 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:29:06,416 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:29:20,669 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:29:21,739 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:29:22,669 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:29:23,587 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:29:24,521 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:29:25,628 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:29:34,190 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:29:35,351 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:29:36,447 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:29:37,531 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:29:38,581 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:29:39,648 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:29:51,785 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:29:52,782 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:29:53,807 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:29:55,075 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:29:56,300 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:29:57,578 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:30:04,870 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:30:05,831 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:30:06,780 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:30:07,714 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:30:08,681 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:30:09,628 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:30:17,122 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:30:18,052 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:30:19,130 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:30:20,137 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:30:21,071 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:30:21,989 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:30:22,799 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:30:22,807 - epoch loss:nan
+2024-10-26 18:30:22,808 - full_loss min:[2.047203540802002, nan], max:nan, mean:nan
+2024-10-26 18:30:22,808 - ns1_loss min:[2.2839906215667725, nan], max:nan, mean:nan
+2024-10-26 18:30:22,808 - ns2_loss min:[2.1880767345428467, nan], max:nan, mean:nan
+2024-10-26 18:30:22,808 - ps1_loss min:[18.66059684753418, nan], max:nan, mean:nan
+2024-10-26 18:30:22,808 - ps2_loss min:[16.664813995361328, nan], max:nan, mean:nan
+2024-10-26 18:30:22,808 - test
+2024-10-26 18:30:22,812 - net=ab_gcn_net
+2024-10-26 18:30:22,812 - test1...
+2024-10-26 18:30:26,488 - k = 10
+2024-10-26 18:30:26,508 - Acc@1=0/1000=0.0
+2024-10-26 18:30:26,508 - Acc@2=0/1000=0.0
+2024-10-26 18:30:26,509 - Acc@3=0/1000=0.0
+2024-10-26 18:30:26,509 - Acc@4=0/1000=0.0
+2024-10-26 18:30:26,510 - Acc@5=0/1000=0.0
+2024-10-26 18:30:26,510 - Acc@6=0/1000=0.0
+2024-10-26 18:30:26,510 - Acc@7=0/1000=0.0
+2024-10-26 18:30:26,511 - Acc@8=0/1000=0.0
+2024-10-26 18:30:26,511 - Acc@9=0/1000=0.0
+2024-10-26 18:30:26,512 - Acc@10=0/1000=0.0
+2024-10-26 18:30:26,512 - test2...
+2024-10-26 18:30:37,741 - k = 10
+2024-10-26 18:30:37,789 - Acc@1=0/3000=0.0
+2024-10-26 18:30:37,790 - Acc@2=0/3000=0.0
+2024-10-26 18:30:37,790 - Acc@3=0/3000=0.0
+2024-10-26 18:30:37,791 - Acc@4=0/3000=0.0
+2024-10-26 18:30:37,791 - Acc@5=0/3000=0.0
+2024-10-26 18:30:37,792 - Acc@6=0/3000=0.0
+2024-10-26 18:30:37,792 - Acc@7=0/3000=0.0
+2024-10-26 18:30:37,793 - Acc@8=0/3000=0.0
+2024-10-26 18:30:37,793 - Acc@9=0/3000=0.0
+2024-10-26 18:30:37,794 - Acc@10=0/3000=0.0
+2024-10-26 18:34:50,907 - name: STEL_ais_ab_gcn_net
+2024-10-26 18:34:50,907 - config: {'path': './libTrajectory/dataset/small_ais/', 'preprocessing': {'train': 'train_tid', 'test': {'test1': 'test1K.csv', 'test2': 'test3K.csv'}}, 'executor': {'in_dim': 34, 'out_dim': 128, 'cuda': 0, 'net_name': 'ab_gcn_net', 'num_workers': 6, 'epoch_num': 1, 'batch_size': 128, 'ns_num': 16, 'ps_num': 8, 'lr': 0.001, 'penalty': 0.1, 'ratio_full': 50, 'ratio_ns2': 10, 'ratio_ns1': 10, 'ratio_ps1': 1, 'ratio_ps2': 1}}
+2024-10-26 18:34:50,907 - self.path=./libTrajectory/dataset/small_ais/
+2024-10-26 18:34:50,907 - loading train tid...
+2024-10-26 18:34:50,909 - loading test tid...
+2024-10-26 18:34:51,557 - loading enhance sample...
+2024-10-26 18:35:00,915 - data load completed
+2024-10-26 18:35:00,915 - gcn_net
+2024-10-26 18:35:00,915 - Executor...
+2024-10-26 18:37:16,550 - name: STEL_ais_ab_gcn_net
+2024-10-26 18:37:16,551 - config: {'path': './libTrajectory/dataset/small_ais/', 'preprocessing': {'train': 'train_tid', 'test': {'test1': 'test1K.csv', 'test2': 'test3K.csv'}}, 'executor': {'in_dim': 34, 'head': 4, 'out_dim': 32, 'cuda': 0, 'net_name': 'ab_gcn_net', 'num_workers': 6, 'epoch_num': 1, 'batch_size': 128, 'ns_num': 16, 'ps_num': 8, 'lr': 0.001, 'penalty': 0.1, 'ratio_full': 50, 'ratio_ns2': 10, 'ratio_ns1': 10, 'ratio_ps1': 1, 'ratio_ps2': 1}}
+2024-10-26 18:37:16,551 - self.path=./libTrajectory/dataset/small_ais/
+2024-10-26 18:37:16,551 - loading train tid...
+2024-10-26 18:37:16,552 - loading test tid...
+2024-10-26 18:37:17,189 - loading enhance sample...
+2024-10-26 18:37:26,462 - data load completed
+2024-10-26 18:37:26,463 - gcn_net
+2024-10-26 18:37:26,463 - Executor...
+2024-10-26 18:37:26,463 - device=cuda:0, in_dim=34, out_dim=32
+2024-10-26 18:37:26,463 - train...
+2024-10-26 18:37:27,297 - lr=0.001, head=4
+2024-10-26 18:37:27,297 - full_loss: dis_loss penalty = 0.1
+2024-10-26 18:37:27,297 - Epoch 0/1
+2024-10-26 18:37:46,491 - 3.7342092990875244 + 3.8604862689971924 + 4.086685657501221 + 31.347064971923828 + 28.542057037353516 = 326.0713195800781
+2024-10-26 18:37:48,314 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:37:50,123 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:37:51,875 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:37:53,530 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:37:54,865 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:38:01,880 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:38:03,289 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:38:05,828 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:38:07,289 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:38:08,635 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:38:10,058 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:38:23,182 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:38:24,614 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:38:26,188 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:38:27,299 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:38:28,656 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:38:29,987 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:38:35,514 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:38:37,574 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:38:39,029 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:38:40,680 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:38:41,956 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:38:43,497 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:38:51,593 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:38:52,703 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:38:54,181 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:38:55,543 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:38:57,098 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:38:58,365 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:39:09,542 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:39:11,019 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:39:12,590 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:39:13,836 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:39:15,311 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:39:16,575 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:39:23,938 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:39:25,468 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:39:27,093 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:39:28,430 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:39:29,581 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:39:30,763 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:39:38,814 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:39:40,214 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:39:41,550 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:39:43,314 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:39:44,977 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:39:46,185 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:39:51,109 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:39:52,527 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:39:53,883 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:39:55,367 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:39:56,428 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:39:57,648 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:39:58,320 - nan + nan + nan + nan + nan = nan
+2024-10-26 18:39:58,331 - epoch loss:nan
+2024-10-26 18:39:58,331 - full_loss min:[3.7342092990875244, nan], max:nan, mean:nan
+2024-10-26 18:39:58,331 - ns1_loss min:[4.086685657501221, nan], max:nan, mean:nan
+2024-10-26 18:39:58,331 - ns2_loss min:[3.8604862689971924, nan], max:nan, mean:nan
+2024-10-26 18:39:58,331 - ps1_loss min:[31.347064971923828, nan], max:nan, mean:nan
+2024-10-26 18:39:58,331 - ps2_loss min:[28.542057037353516, nan], max:nan, mean:nan
+2024-10-26 18:39:58,331 - test
+2024-10-26 18:39:58,336 - net=ab_gcn_net
+2024-10-26 18:39:58,336 - test1...
+2024-10-26 18:40:00,624 - k = 10
+2024-10-26 18:40:00,648 - Acc@1=0/1000=0.0
+2024-10-26 18:40:00,648 - Acc@2=0/1000=0.0
+2024-10-26 18:40:00,649 - Acc@3=0/1000=0.0
+2024-10-26 18:40:00,649 - Acc@4=0/1000=0.0
+2024-10-26 18:40:00,650 - Acc@5=0/1000=0.0
+2024-10-26 18:40:00,650 - Acc@6=0/1000=0.0
+2024-10-26 18:40:00,651 - Acc@7=0/1000=0.0
+2024-10-26 18:40:00,651 - Acc@8=0/1000=0.0
+2024-10-26 18:40:00,651 - Acc@9=0/1000=0.0
+2024-10-26 18:40:00,652 - Acc@10=0/1000=0.0
+2024-10-26 18:40:00,653 - test2...
+2024-10-26 18:40:07,831 - k = 10
+2024-10-26 18:40:07,910 - Acc@1=0/3000=0.0
+2024-10-26 18:40:07,911 - Acc@2=0/3000=0.0
+2024-10-26 18:40:07,911 - Acc@3=0/3000=0.0
+2024-10-26 18:40:07,912 - Acc@4=0/3000=0.0
+2024-10-26 18:40:07,912 - Acc@5=0/3000=0.0
+2024-10-26 18:40:07,913 - Acc@6=0/3000=0.0
+2024-10-26 18:40:07,913 - Acc@7=0/3000=0.0
+2024-10-26 18:40:07,913 - Acc@8=0/3000=0.0
+2024-10-26 18:40:07,914 - Acc@9=0/3000=0.0
+2024-10-26 18:40:07,914 - Acc@10=0/3000=0.0

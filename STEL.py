@@ -1,7 +1,7 @@
 import logging
 from libTrajectory.config.config_parser import parse_config
 from libTrajectory.preprocessing.STEL.preprocessor import Preprocessor
-from libTrajectory.executor.STEL import Executor, BLExecutor
+from libTrajectory.executor.STEL import Executor, BLExecutor, AbExecutor
 
 
 def bl_pipeline():
@@ -67,9 +67,71 @@ def ab_pipeline():
     print(f"net: {config['executor']['net_name']}")
 
     train_tid, test_tid, enhance_tid = Preprocessor(config).get(method='load')
-    executor = Executor(log_path, config)
-    executor.train(train_tid, enhance_tid, test_tid)
-    # executor.infer(test_tid, "model")
+
+    # augment
+    if "augment" in name:
+        logging.info(f"augment")
+        print(f"augment")
+        executor = Executor(log_path, config)
+        executor.train(train_tid, enhance_tid, test_tid)
+
+    # graph
+    if "trajectory_graph" in name:
+        logging.info(f"trajectory_graph")
+        print(f"trajectory_graph")
+        executor = Executor(log_path, config)
+        executor.train(train_tid, enhance_tid, test_tid, graph_method='trajectory_graph')
+    if "visit_graph" in name:
+        logging.info(f"visit_graph")
+        print(f"visit_graph")
+        executor = Executor(log_path, config)
+        executor.train(train_tid, enhance_tid, test_tid, graph_method='visit_graph')
+
+    # net
+    if "gcn_net" in name:
+        logging.info(f"gcn_net")
+        print(f"gcn_net")
+        executor = Executor(log_path, config)
+        executor.train(train_tid, enhance_tid, test_tid, net_method='gcn_net')
+    if "graph_net" in name:
+        logging.info(f"graph_net")
+        print(f"graph_net")
+        executor = Executor(log_path, config)
+        executor.train(train_tid, enhance_tid, test_tid, net_method='graph_net')
+    if "gat_net" in name:
+        logging.info(f"gat_net")
+        print(f"gat_net")
+        executor = Executor(log_path, config)
+        executor.train(train_tid, enhance_tid, test_tid, net_method="gat_net")
+
+    # loss
+    if "cross_loss" in name:
+        logging.info(f"cross_loss")
+        print(f"cross_loss")
+        executor = AbExecutor(log_path, config)
+        executor.cross_loss(train_tid, enhance_tid, test_tid)
+    if "cosine_loss" in name:
+        logging.info(f"cosine_loss")
+        print(f"cosine_loss")
+        executor = AbExecutor(log_path, config)
+        executor.cosine_loss(train_tid, enhance_tid, test_tid)
+
+    # strategy
+    if "retention_strategy" in name:
+        logging.info(f"retention_strategy")
+        print(f"retention_strategy")
+        executor = Executor(log_path, config)
+        executor.train(train_tid, enhance_tid, test_tid)
+    if "deletion_strategy" in name:
+        logging.info(f"deletion_strategy")
+        print(f"deletion_strategy")
+        executor = Executor(log_path, config)
+        executor.train(train_tid, enhance_tid, test_tid)
+    if "no_strategy" in name:
+        logging.info(f"no_strategy")
+        print(f"no_strategy")
+        executor = Executor(log_path, config)
+        executor.train(train_tid, enhance_tid, test_tid)
 
 
 def pipeline():
@@ -110,8 +172,20 @@ if __name__ == "__main__":
     "STEL_ais_ab_augment_parameter_1_1_1", "STEL_taxi_ab_augment_parameter_1_1_1", 
     "STEL_ais_ab_augment_parameter_1_1_10", "STEL_taxi_ab_augment_parameter_1_1_10", 
     "STEL_ais_ab_augment_parameter_1_10_1", "STEL_taxi_ab_augment_parameter_1_10_1", 
+    
+    "STEL_ais_ab_trajectory_graph", "STEL_taxi_ab_trajectory_graph", 
+    "STEL_ais_ab_visit_graph", "STEL_taxi_ab_visit_graph", 
+    "STEL_ais_ab_gcn_net", "STEL_taxi_ab_gcn_net", 
+    "STEL_ais_ab_graph_net", "STEL_taxi_ab_graph_net", 
+    "STEL_ais_ab_gat_net", "STEL_taxi_ab_gat_net", 
+    "STEL_ais_ab_cross_loss", "STEL_taxi_ab_cross_loss", 
+    "STEL_ais_ab_cosine_loss", "STEL_taxi_ab_cosine_loss", 
+    "STEL_ais_ab_retention_strategy", "STEL_taxi_ab_retention_strategy", 
+    "STEL_ais_ab_deletion_strategy", "STEL_taxi_ab_deletion_strategy", 
+    "STEL_ais_ab_no_strategy", "STEL_taxi_ab_no_strategy", 
+    
     """
-    name = "STEL_taxi_ab_augment_parameter_1_10_1"
+    name = "STEL_taxi_ab_retention_strategy"
     config = parse_config(name)
     log_path = config['path'].replace("dataset", "logs/STEL")
     pipeline()

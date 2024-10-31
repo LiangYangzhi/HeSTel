@@ -150,6 +150,12 @@ def infer_coll(batch):
     return node, edge, edge_attr, global_spatial, global_temporal, tid1, tid2
 
 
+def infer_coll_tid(batch):
+    tids = [dic['tid'] for dic in batch]
+    node, edge, edge_attr, global_spatial, global_temporal, tid1, tid2 = infer_coll(batch)
+    return node, edge, edge_attr, global_spatial, global_temporal, tid1, tid2, tids
+
+
 def baseline_single_coll(batch):
     tid1, tid2 = [], []
     node = []

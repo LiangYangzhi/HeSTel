@@ -323,7 +323,7 @@ class NSGraphSaver(GraphSaver):
 
 
 class GraphLoader(Dataset):
-    def __init__(self, path: str, tid: list, train=True, enhance_tid=None, ns_num=None, ps_num=None, graph=None):
+    def __init__(self, path: str, tid: list, train=True, enhance_tid=None, ns_num=None, ps_num=None):
         """
         tid: trajectory id
         enhance_tid: 包含A tid 和 B tid的 enhance negative sample and enhance passive sample， train=True时起作用
@@ -336,7 +336,6 @@ class GraphLoader(Dataset):
         self.enhance_tid = enhance_tid
         self.ns_num = ns_num
         self.ps_num = ps_num
-        self.graph = graph
 
     def __len__(self):
         return self.tid.__len__()
@@ -351,56 +350,6 @@ class GraphLoader(Dataset):
         attr = graph['edge_attr'].tolist()
         space_range = graph['space_range'].tolist()
         time_range = graph['time_range'].tolist()
-
-        # 保留node
-        if self.graph == "node":
-            edge = [[], []]
-            attr = []
-            space_range = [1 for _ in space_range]
-            time_range = [1 for _ in time_range]
-
-        # 保留loop
-        if self.graph == "loop":
-            edge1 = [[], []]
-            attr1 = []
-            for i, j, z in zip(edge[0], edge[1], attr):
-                if i == 0:  # num edge
-                    edge1[0].append(i)
-                    edge1[1].append(j)
-                    attr1.append(z)
-                    continue
-                if i == j:
-                    edge1[0].append(i)
-                    edge1[1].append(j)
-                    attr1.append(z)
-            edge = edge1
-            attr = attr1
-            if "1" in folder:  # 去掉space_range注意力
-                space_range = [1 for _ in space_range]
-            elif "2" in folder:  # 去掉time_range注意力
-                time_range = [1 for _ in time_range]
-
-        # 保留edge
-        elif self.graph == "edge":
-            edge1 = [[], []]
-            attr1 = []
-            for i, j, z in zip(edge[0], edge[1], attr):
-                if i == 0:
-                    edge1[0].append(i)
-                    edge1[1].append(j)
-                    attr1.append(z)
-                    continue
-                if i != j:
-                    edge1[0].append(i)
-                    edge1[1].append(j)
-                    attr1.append(z)
-            edge = edge1
-            attr = attr1
-            if "1" in folder:  # 去掉space_range注意力
-                time_range = [1 for _ in time_range]
-            elif "2" in folder:  # 去掉time_range注意力
-                space_range = [1 for _ in space_range]
-
         return node, edge, attr, space_range, time_range
 
     def get_sample(self, index):
@@ -419,3 +368,51 @@ class GraphLoader(Dataset):
                 enhance = enhance_tid[name].values[0]
                 struct[name] = [self._load_graph(i, folder=folder) for i in enhance[: num]]
         return struct
+
+
+class AbTrajectoryGraphLoader(GraphLoader):
+    def _load_graph(self, tid, folder):
+        graph = np.load(f"{self.path}{folder}/{tid}.npz")
+        node = graph['node'].tolist()
+        edge = graph['edge'].tolist()
+        attr = graph['edge_attr'].tolist()
+        space_range = graph['space_range'].tolist()
+        time_range = graph['time_range'].tolist()
+        node[0] = [sum(pair) / len(pair) for pair in zip(*node[1:])]
+        edge1 = [[], []]
+        attr1 = []
+        for i, j, z in zip(edge[0], edge[1], attr):
+            if i == 0:  # num edge
+                edge1[0].append(i)
+                edge1[1].append(j)
+                attr1.append(z)
+                continue
+            if i != j:
+                edge1[0].append(i)
+                edge1[1].append(j)
+                attr1.append(1)
+        edge = edge1
+        attr = attr1
+        return node, edge, attr, space_range, time_range
+
+
+class AbVisitGraphLoader(GraphLoader):
+    def _load_graph(self, tid, folder):
+        graph = np.load(f"{self.path}{folder}/{tid}.npz")
+        node = graph['node'].tolist()
+        edge = graph['edge'].tolist()
+        attr = graph['edge_attr'].tolist()
+        space_range = graph['space_range'].tolist()
+        time_range = graph['time_range'].tolist()
+        node[0] = [sum(pair) / len(pair) for pair in zip(*node[1:])]
+        edge1 = [[], []]
+        attr1 = []
+        for i, j, z in zip(edge[0], edge[1], attr):
+            if i == 0:  # num edge
+                edge1[0].append(i)
+                edge1[1].append(j)
+                attr1.append(z)
+        edge = edge1
+        attr = attr1
+
+        return node, edge, attr, space_range, time_range

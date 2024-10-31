@@ -1,0 +1,26 @@
+{
+  "path": "./libTrajectory/dataset/small_ais/",
+  "preprocessing":{
+    "train": "train_tid",
+    "test": {"test1": "test1K.csv", "test2": "test3K.csv"}
+  },
+  "executor":{
+    "in_dim": 34,
+    "head": 4,
+    "out_dim": 32,
+    "cuda": 0,
+    "net_name": "ab_gcn_net",
+    "num_workers": 6,
+    "epoch_num": 1,
+    "batch_size": 128,
+    "ns_num": 16,
+    "ps_num": 8,
+    "lr": 0.001,
+    "penalty": 0.1,
+    "ratio_full": 50,
+    "ratio_ns2": 10,
+    "ratio_ns1": 10,
+    "ratio_ps1": 1,
+    "ratio_ps2": 1
+  }
+}
