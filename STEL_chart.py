@@ -19,25 +19,25 @@ if __name__ == "__main__":
     #            "./libTrajectory/logs/STEL/small_taxi/ab_trajectory_graph.json"],
     #           "./libTrajectory/logs/STEL/ab_graph.pdf")
 
-    # loss_bar(["./libTrajectory/logs/STEL/small_ais/model.json",
-    #           "./libTrajectory/logs/STEL/small_taxi/model.json",
-    #           "./libTrajectory/logs/STEL/small_ais/ab_cross_loss.json",
-    #           "./libTrajectory/logs/STEL/small_taxi/ab_cross_loss.json",
-    #           "./libTrajectory/logs/STEL/small_ais/ab_cosine_loss.json",
-    #           "./libTrajectory/logs/STEL/small_taxi/ab_cosine_loss.json"],
-    #          "./libTrajectory/logs/STEL/ab_loss.pdf")
+    loss_bar(["./libTrajectory/logs/STEL/small_ais/model.json",
+              "./libTrajectory/logs/STEL/small_taxi/model.json",
+              "./libTrajectory/logs/STEL/small_ais/ab_cross_loss.json",
+              "./libTrajectory/logs/STEL/small_taxi/ab_cross_loss.json",
+              "./libTrajectory/logs/STEL/small_ais/ab_cosine_loss.json",
+              "./libTrajectory/logs/STEL/small_taxi/ab_cosine_loss.json"],
+             "./libTrajectory/logs/STEL/ab_loss.pdf")
 
-    init_embedding1, init_embedding2, train_embedding1, train_embedding2 = [], [], [], []
-    for name in ["STEL_ais_embedding_compare"]:
-        config = parse_config(name)
-        print(config['test_file'])
-        ie1, ie2, te1, te2 = EmbeddingCompare(config).run()
-        init_embedding1.append(ie1)
-        init_embedding2.append(ie2)
-        train_embedding1.append(te1)
-        train_embedding2.append(te2)
-
-    embedding_scatter(init_embedding1, init_embedding2, train_embedding1, train_embedding2,
-                      title=['Distribution of the embedding before training',
-                             'Distribution of the embedding after training'],
-                      save_path="./libTrajectory/logs/STEL/embedding.pdf")
+    # init_embedding1, init_embedding2, train_embedding1, train_embedding2 = [], [], [], []
+    # for name in ["STEL_ais_embedding_compare"]:
+    #     config = parse_config(name)
+    #     print(config['test_file'])
+    #     ie1, ie2, te1, te2 = EmbeddingCompare(config).run()
+    #     init_embedding1.append(ie1)
+    #     init_embedding2.append(ie2)
+    #     train_embedding1.append(te1)
+    #     train_embedding2.append(te2)
+    #
+    # embedding_scatter(init_embedding1, init_embedding2, train_embedding1, train_embedding2,
+    #                   title=['Distribution of the embedding before training',
+    #                          'Distribution of the embedding after training'],
+    #                   save_path="./libTrajectory/logs/STEL/embedding.pdf")
