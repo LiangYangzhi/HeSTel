@@ -1,6 +1,7 @@
 from libTrajectory.config.config_parser import parse_config
-from libTrajectory.evaluator.chart import line, graph_bar, loss_bar, embedding_scatter
-from libTrajectory.evaluator.embedding_compare import EmbeddingCompare
+from libTrajectory.evaluator.chart import line, graph_bar, loss_bar, embedding_scatter, graph_bar2, merge_bar
+
+# from libTrajectory.evaluator.embedding_compare import EmbeddingCompare
 
 if __name__ == "__main__":
     # line(["./libTrajectory/logs/STEL/ais/model.json",
@@ -19,13 +20,28 @@ if __name__ == "__main__":
     #            "./libTrajectory/logs/STEL/small_taxi/ab_trajectory_graph.json"],
     #           "./libTrajectory/logs/STEL/ab_graph.pdf")
 
-    loss_bar(["./libTrajectory/logs/STEL/small_ais/model.json",
-              "./libTrajectory/logs/STEL/small_taxi/model.json",
-              "./libTrajectory/logs/STEL/small_ais/ab_cross_loss.json",
-              "./libTrajectory/logs/STEL/small_taxi/ab_cross_loss.json",
-              "./libTrajectory/logs/STEL/small_ais/ab_cosine_loss.json",
-              "./libTrajectory/logs/STEL/small_taxi/ab_cosine_loss.json"],
-             "./libTrajectory/logs/STEL/ab_loss.pdf")
+    # loss_bar(["./libTrajectory/logs/STEL/small_ais/model.json",
+    #           "./libTrajectory/logs/STEL/small_taxi/model.json",
+    #           "./libTrajectory/logs/STEL/small_ais/ab_cross_loss.json",
+    #           "./libTrajectory/logs/STEL/small_taxi/ab_cross_loss.json",
+    #           "./libTrajectory/logs/STEL/small_ais/ab_cosine_loss.json",
+    #           "./libTrajectory/logs/STEL/small_taxi/ab_cosine_loss.json"],
+    #          "./libTrajectory/logs/STEL/ab_loss.pdf")
+
+    merge_bar([["./libTrajectory/logs/STEL/small_ais/model.json",
+               "./libTrajectory/logs/STEL/small_taxi/model.json",
+               "./libTrajectory/logs/STEL/small_ais/ab_visit_graph.json",
+               "./libTrajectory/logs/STEL/small_taxi/ab_visit_graph.json",
+               "./libTrajectory/logs/STEL/small_ais/ab_trajectory_graph.json",
+               "./libTrajectory/logs/STEL/small_taxi/ab_trajectory_graph.json"],
+                ["./libTrajectory/logs/STEL/small_ais/model.json",
+                 "./libTrajectory/logs/STEL/small_taxi/model.json",
+                 "./libTrajectory/logs/STEL/small_ais/ab_cross_loss.json",
+                 "./libTrajectory/logs/STEL/small_taxi/ab_cross_loss.json",
+                 "./libTrajectory/logs/STEL/small_ais/ab_cosine_loss.json",
+                 "./libTrajectory/logs/STEL/small_taxi/ab_cosine_loss.json"]
+                ],
+               "./libTrajectory/logs/STEL/ab_graph&loss.pdf")
 
     # init_embedding1, init_embedding2, train_embedding1, train_embedding2 = [], [], [], []
     # for name in ["STEL_ais_embedding_compare"]:

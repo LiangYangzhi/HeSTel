@@ -52,8 +52,8 @@ def line(file_name, save_path):
     # 创建示例数据
 
     # 创建折线图
-    fig = plt.figure(figsize=(12, 10))
-    plt.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1, wspace=0.2, hspace=0.3)
+    fig = plt.figure(figsize=(12, 6))
+    plt.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1, wspace=0.5, hspace=0.5)
     plt.subplot(221)
     data = dataset['ais_test1']
     for dic in data:
@@ -121,7 +121,10 @@ def graph_bar_parse_json(file_name: list):
                 dic[f'{name}_taxi_{key}'] = acc_data
     dataset = {
         "colores": ['#0000FF', '#33FF57', '#FF8C00'],
-        "labels": ['Number 1000 of AIS', 'Number 3000 of AIS', 'Number 1000 of T-Drive', 'Number 3000 of T-Drive'],
+        # "labels": ['Number 1000 of AIS        ', 'Number 3000 of AIS        ',
+        #            'Number 1000 of T-Drive    ', 'Number 3000 of T-Drive    '],
+        "labels": ['AIS_1000', 'AIS_3000',
+                   'T-Drive_1000', 'T-Drive_3000'],
         "hatches": ['//', '\\\\', '--'],
         "data": [[dic[f"{i}_{j}"] for j in ['ais_test1', 'ais_test2', 'taxi_test1', 'taxi_test2']]
                  for i in file_method]
@@ -173,6 +176,65 @@ def graph_bar(file_name, save_path):
     plt.show()
 
 
+def graph_bar_parse_json2(file_name: list):
+    dataset = {"ais_test1": [], "ais_test2": [], "taxi_test1": [], "taxi_test2": []}
+    test = ['test1', 'test2']
+    acc = ['Acc@1', 'Acc@2', 'Acc@3', 'Acc@4', 'Acc@5']  #
+    colors = ['#0000FF', '#0000FF', '#0000FF', '#0000FF',
+              '#33FF57', '#33FF57', '#33FF57', '#33FF57',
+              '#FF8C00', '#FF8C00', '#FF8C00', '#FF8C00']
+    hatches = ['//', '//', '//', '//',
+               '\\\\', '\\\\', '\\\\', '\\\\',
+               '--', '--', '--', '--']
+    for path in file_name:
+        with open(path) as user_file:
+            data = user_file.read()
+        data = eval(data)
+        for key in test:
+            sub_data = data[key]
+            dic = {}
+            dic['x'] = acc
+            dic['y'] = [sub_data[i] for i in acc]
+            dic['color'] = colors.pop(0)
+            dic['hatch'] = hatches.pop(0)
+            label_dic = {"STEL": "STEL", "visit": "Visit Graph", "trajectory": "Trajectory Graph"}
+            for i in ['STEL', 'visit', 'trajectory']:
+                if i in path:
+                    dic['label'] = label_dic[i]
+            if "ais" in path:
+                dataset[f'ais_{key}'].append(dic)
+            elif "taxi" in path:
+                dataset[f'taxi_{key}'].append(dic)
+    return dataset
+
+
+def graph_bar2(file_name, save_path):
+    dataset = graph_bar_parse_json2(file_name)
+    print(dataset)
+
+    # 计算每组数据的位置
+    fig = plt.figure(figsize=(12, 3))
+    plt.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1, wspace=0.5, hspace=0.5)
+
+    plt.subplot(141)
+    data = dataset['ais_test1']
+    for dic in data:
+        plt.bar(dic['label'], dic['y'], label=dic['label'], color=dic["color"], hatch=dic['hatch'])
+    plt.subplot(142)
+    data = dataset['ais_test2']
+    for dic in data:
+        plt.bar(dic['label'], dic['y'], label=dic['label'], color=dic["color"], hatch=dic['hatch'])
+    plt.subplot(143)
+    data = dataset['taxi_test1']
+    for dic in data:
+        plt.bar(dic['label'], dic['y'], label=dic['label'], color=dic["color"], hatch=dic['hatch'])
+    plt.subplot(144)
+    data = dataset['taxi_test2']
+    for dic in data:
+        plt.bar(dic['label'], dic['y'], label=dic['label'], color=dic["color"], hatch=dic['hatch'])
+    plt.show()
+
+
 def loss_bar_parse_json(file_name: list):
     test = ['test1', 'test2']
     acc = 'Acc@1'  # 'Acc@1', 'Acc@2', 'Acc@3', 'Acc@4', 'Acc@5'
@@ -195,7 +257,10 @@ def loss_bar_parse_json(file_name: list):
                 dic[f'{name}_taxi_{key}'] = acc_data
     dataset = {
         "colores": ['#00FF00', '#00FF7F', '#EEEE00'],
-        "labels": ['Number 1000 of AIS', 'Number 3000 of AIS', 'Number 1000 of T-Drive', 'Number 3000 of T-Drive'],
+        # "labels": ['Number 1000 of AIS        ', 'Number 3000 of AIS        ',
+        #            'Number 1000 of T-Drive    ', 'Number 3000 of T-Drive    '],
+        "labels": ['AIS_1000', 'AIS_3000',
+                   'T-Drive_1000', 'T-Drive_3000'],
         "hatches": ['*', '//', 'xx'],
         "data": [[dic[f"{i}_{j}"] for j in ['ais_test1', 'ais_test2', 'taxi_test1', 'taxi_test2']]
                  for i in file_method]
@@ -238,11 +303,100 @@ def loss_bar(file_name, save_path):
 
     # 添加数据标签
     for i, v in enumerate(data[0]):
-        ax.text(i - 2 * bar_width, -v + 0.01, str(v), color='black', fontsize=7, ha='center')
+        ax.text(i - 2 * bar_width, v + 0.01, str(v), color='black', fontsize=7, ha='center')
     for i, v in enumerate(data[1]):
-        ax.text(i - 0.5 * bar_width, -v + 0.01, str(v), color='black', fontsize=7, ha='center')
+        ax.text(i - 0.5 * bar_width, v + 0.01, str(v), color='black', fontsize=7, ha='center')
     for i, v in enumerate(data[2]):
-        ax.text(i + 1 * bar_width, -v + 0.01, str(v), color='black', fontsize=7, ha='center')
+        ax.text(i + 1 * bar_width, v + 0.01, str(v), color='black', fontsize=7, ha='center')
+    plt.savefig(save_path, format='pdf')
+    plt.show()
+
+
+def merge_bar(file_name: list, save_path: str):
+    dataset = graph_bar_parse_json(file_name[0])
+    print(dataset)
+    colores = dataset['colores']
+    labels = dataset['labels']
+    hatches = dataset['hatches']
+    data = dataset['data']
+
+    # 设置条形图宽度
+    bar_width = 0.15
+    # 计算每组数据的位置
+    x = np.arange(len(labels))
+    # 创建一个Figure和一个Axes对象
+    fig, ax = plt.subplots(figsize=(12, 4))
+    ax.axis('off')
+
+    # 绘制多条形图，并自定义颜色和标签
+    ax1 = fig.add_subplot(1, 2, 1)
+    ax1.bar(x - 2 * bar_width, data[0], width=bar_width, label="STEL", color=colores[0],
+           hatch=hatches[0])
+    ax1.bar(x - 0.5 * bar_width, data[1], width=bar_width, label="Visit Graph", color=colores[1],
+           hatch=hatches[1])
+    ax1.bar(x + 1 * bar_width, data[2], width=bar_width, label="Trajectory Graph", color=colores[2],
+            hatch=hatches[2])
+
+    # 添加标签和标题
+    ax1.set_xlabel('Dataset')
+    ax1.set_ylabel('ACC')
+    ax1.set_title('(a) Ablation experiment of graph structure')
+    # 设置x轴刻度和标签
+    ax1.set_xticks(x)
+    ax1.set_xticklabels(labels)
+    # 添加图例
+    ax1.legend(loc='upper right', ncol=2)
+    ax1.set_ylim(0.3, 0.9)
+
+    # 添加数据标签
+    for i, v in enumerate(data[0]):
+        ax1.text(i - 2 * bar_width, v + 0.01, str(v), color='black', fontsize=5, ha='center')
+    for i, v in enumerate(data[1]):
+        ax1.text(i - 0.5 * bar_width, v + 0.01, str(v), color='black', fontsize=5, ha='center')
+    for i, v in enumerate(data[2]):
+        ax1.text(i + 1 * bar_width, v + 0.01, str(v), color='black', fontsize=5, ha='center')
+
+    dataset = loss_bar_parse_json(file_name[1])
+    print(dataset)
+    colores = dataset['colores']
+    labels = dataset['labels']
+    hatches = dataset['hatches']
+    data = dataset['data']
+
+    # 设置条形图宽度
+    bar_width = 0.15
+    # 计算每组数据的位置
+    x = np.arange(len(labels))
+
+    ax2 = fig.add_subplot(1, 2, 2)
+    # 绘制多条形图，并自定义颜色和标签
+    ax2.bar(x - 2 * bar_width, data[0], width=bar_width, label="STEL", color=colores[0],
+           alpha=0.7, edgecolor='black', linewidth=1.2, hatch=hatches[0])
+    ax2.bar(x - 0.5 * bar_width, data[1], width=bar_width, label="Cross Entropy", color=colores[1],
+           alpha=0.7, edgecolor='black', linewidth=1.2, hatch=hatches[1])
+    ax2.bar(x + 1 * bar_width, data[2], width=bar_width, label="Cosine Embedding", color=colores[2],
+           alpha=0.7, edgecolor='black', linewidth=1.2, hatch=hatches[2])
+
+    # 添加标签和标题
+    ax2.set_xlabel('Dataset')
+    ax2.set_ylabel('ACC')
+    ax2.set_title('(b) Ablation experiment of loss function')
+    # 设置x轴刻度和标签
+    ax2.set_xticks(x)
+    ax2.set_xticklabels(labels)
+    # 添加图例
+    ax2.legend(loc='upper right', ncol=2)
+    ax2.set_ylim(0.3, 0.9)
+
+    # 添加数据标签
+    for i, v in enumerate(data[0]):
+        ax2.text(i - 2 * bar_width, v + 0.01, str(v), color='black', fontsize=5, ha='center')
+    for i, v in enumerate(data[1]):
+        ax2.text(i - 0.5 * bar_width, v + 0.01, str(v), color='black', fontsize=5, ha='center')
+    for i, v in enumerate(data[2]):
+        ax2.text(i + 1 * bar_width, v + 0.01, str(v), color='black', fontsize=5, ha='center')
+
+    # plt.subplots_adjust(wspace=0.65)
     plt.savefig(save_path, format='pdf')
     plt.show()
 

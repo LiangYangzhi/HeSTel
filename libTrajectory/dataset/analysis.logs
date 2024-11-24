@@ -1,0 +1,55 @@
+2024-11-18 21:39:59,628 - path: ./ais/
+2024-11-18 21:39:59,628 - data loading...
+2024-11-18 21:42:20,330 - numbers of entity...
+2024-11-18 21:42:24,044 - data1 vessel num: 101400
+2024-11-18 21:42:25,754 - data2 vessel num: 101400
+2024-11-18 21:42:25,754 - time...
+2024-11-18 21:42:25,921 - data1 time min: 1672502400, time max: 1696089599, time duration: 23587199
+2024-11-18 21:42:53,833 - data1 trajectory time duration: 3302378.6705226824 s
+2024-11-18 21:43:00,995 - data1 trajectory time interval: 398824.23874734895 s
+2024-11-18 21:43:01,066 - data2 time min: 1672502400, time max: 1696089599, time duration: 23587199
+2024-11-18 21:43:16,023 - data2 trajectory time duration: 2495999.8263510847 s
+2024-11-18 21:43:20,129 - data2 trajectory time interval: 283482.20465699775 s
+2024-11-18 21:43:20,130 - length...
+2024-11-18 21:43:20,130 - data1 points num: 67099008
+2024-11-18 21:43:42,206 - data1 trajectory length: 661.7259171597633
+2024-11-18 21:43:42,206 - data2 points num: 30044963
+2024-11-18 21:43:52,205 - data2 trajectory length: 296.30141025641024
+2024-11-18 21:43:54,401 - ------------------------------
+2024-11-18 22:05:49,725 - path: ./taxi/
+2024-11-18 22:05:49,725 - data loading...
+2024-11-18 22:06:10,394 - numbers of entity...
+2024-11-18 22:06:10,956 - data1 vessel num: 67380
+2024-11-18 22:06:11,268 - data2 vessel num: 67380
+2024-11-18 22:06:11,268 - time...
+2024-11-18 22:06:11,286 - data1 time min: 1200720644, time max: 1203673159, time duration: 2952515
+2024-11-18 22:06:15,983 - data1 trajectory time duration: 63614.73046898189 s
+2024-11-18 22:06:17,564 - data1 trajectory time interval: 3917.855180287801 s
+2024-11-18 22:06:17,574 - data2 time min: 1200720644, time max: 1203673188, time duration: 2952544
+2024-11-18 22:06:20,215 - data2 trajectory time duration: 54692.75482338973 s
+2024-11-18 22:06:21,588 - data2 trajectory time interval: 3554.5305547199346 s
+2024-11-18 22:06:21,588 - length...
+2024-11-18 22:06:21,588 - data1 points num: 7634241
+2024-11-18 22:06:25,519 - data1 trajectory length: 113.3012911843277
+2024-11-18 22:06:25,519 - data2 points num: 3376737
+2024-11-18 22:06:27,435 - data2 trajectory length: 50.114826357969726
+2024-11-23 10:26:38,735 - ------------------------------
+2024-11-23 10:26:38,735 - path: ./small_ais/
+2024-11-23 10:26:38,736 - data loading...
+2024-11-23 10:26:49,766 - space...
+2024-11-23 10:26:49,859 - data1 trajectory lat min: -21.13727, lat max: 69.63978, lon min: -179.64352, lon max: 179.13914
+2024-11-23 10:56:36,961 - data1 trajectory space range: 51292135878.05096 m
+2024-11-23 10:56:37,558 - data1 trajectory space interval: 48681.4762938065 m
+2024-11-23 10:56:41,819 - data2 trajectory lat min: -20.99094, lat max: 69.6863, lon min: -179.39891, lon max: 178.54028
+2024-11-23 11:05:39,884 - data2 trajectory space range: 37400965578.4506 m
+2024-11-23 11:05:40,236 - data2 trajectory space interval: 44021.065915410014 m
+2024-11-23 11:05:40,530 - ------------------------------
+2024-11-23 11:05:40,530 - path: ./small_taxi/
+2024-11-23 11:05:40,530 - data loading...
+2024-11-23 11:05:42,040 - space...
+2024-11-23 11:05:42,055 - data1 trajectory lat min: 39.0007, lat max: 41.99872, lon min: 115.01389, lon max: 117.99892
+2024-11-23 11:10:22,854 - data1 trajectory space range: 1921864071.7255905 m
+2024-11-23 11:10:23,052 - data1 trajectory space interval: 2244.0314003654003 m
+2024-11-23 11:10:23,586 - data2 trajectory lat min: 39.015, lat max: 41.98387, lon min: 115.01693, lon max: 117.98492
+2024-11-23 11:12:07,956 - data2 trajectory space range: 1444218443.71801 m
+2024-11-23 11:12:08,117 - data2 trajectory space interval: 3311.605587072767 m
