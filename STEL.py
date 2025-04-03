@@ -185,7 +185,7 @@ if __name__ == "__main__":
     "STEL_ais_ab_no_strategy", "STEL_taxi_ab_no_strategy", 
     
     """
-    name = "STEL_taxi_ab_retention_strategy"
+    name = "STEL_ais"
     config = parse_config(name)
     log_path = config['path'].replace("dataset", "logs/STEL")
     pipeline()
