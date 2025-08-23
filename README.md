@@ -5,9 +5,7 @@
 HeSTel is a graph learning-based heterogeneous spatio-temporal entity linking framework that accounts for temporal and spatial heterogeneity in heterogeneous trajectories to enable associate the same moving objects across spatiotemporal trajectories captured by diverse sensors. This repository of HeSTel aims to facilitate research in the spatiotemporal entity linking by providing standardized data formats and easy-to-use tools for model evaluation and comparison.
 
 ## Overall Framework
-
-![repository of HeSTel](D:\paper\fig\repository of HeSTel.png)
-
+<img width="3335" height="1570" alt="repository of HeSTel" src="https://github.com/user-attachments/assets/5dfbcaca-31c1-4d02-90c3-3566e030bfc1" />
 Here is the overall framework of **HeSTel**, which consists of the following six main modules: 
 
 - **Data Module**: Responsible for loading datasets. Corresponding package name: **dataset**.
@@ -56,3 +54,4 @@ In the STEL.py file, program parameters are controlled by reading different conf
 ### Acknowledgements
 
 This work was supported by National Key Research and Development Program of China (2020YFA0712500), National Natural Science Foundation of China (No. 62006083), and Major Program of National Language Committee (WT145-39).
+
