@@ -20,29 +20,19 @@ This modular design ensures a clear structure for development, testing, and depl
 ## Requirements
 
 Python >=3.8
-
 PyTorch>=2.0.0
-
 numpy==1.22.4
-
 pandas==1.3.5
-
 torch==1.12.1
-
 tqdm==4.66.1
-
 geopy==2.3.0
-
 torch_geometric==2.3.1
-
 faiss-gpu==1.7.2
-
 scikit-learn==1.3.0
 
 ## Dataset
 
 The Automatic Identification System (AIS) dataset and T-Drive dataset are open-source datasets.
-
 We provide heterogeneous trajectory data from both datasets.
 
 ## Quick-Start
