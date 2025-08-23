@@ -2,9 +2,11 @@
 
 ## Introduction
 
-HeSTel is a graph learning-based heterogeneous spatio-temporal entity linking framework that accounts for temporal and spatial heterogeneity in heterogeneous trajectories to enable associate the same moving objects across spatiotemporal trajectories captured by diverse sensors.
+HeSTel is a graph learning-based heterogeneous spatio-temporal entity linking framework that accounts for temporal and spatial heterogeneity in heterogeneous trajectories to enable associate the same moving objects across spatiotemporal trajectories captured by diverse sensors. This repository of HeSTel aims to facilitate research in the spatiotemporal entity linking by providing standardized data formats and easy-to-use tools for model evaluation and comparison.
 
 ## Overall Framework
+
+![repository of HeSTel](D:\paper\fig\repository of HeSTel.png)
 
 Here is the overall framework of **HeSTel**, which consists of the following six main modules: 
 
@@ -17,27 +19,31 @@ Here is the overall framework of **HeSTel**, which consists of the following six
 
 This modular design ensures a clear structure for development, testing, and deployment.
 
-## Requirements
+## Feature
 
-Python >=3.8
-PyTorch>=2.0.0
-numpy==1.22.4
-pandas==1.3.5
-torch==1.12.1
-tqdm==4.66.1
-geopy==2.3.0
-torch_geometric==2.3.1
-faiss-gpu==1.7.2
-scikit-learn==1.3.0
+Unified Data Representation: All HeSTel datasets are represented in a unified format. This standardization allows for easy extension of new datasets into our benchmark.
 
-## Dataset
+Highly Efficient Pipeline: HeSTel leveraging its powerful tools and functionalities. Therefore, its code is concise. Specifically, we provide a small .py file and config folder to run all baselines in one click.
 
-The Automatic Identification System (AIS) dataset and T-Drive dataset are open-source datasets.
-We provide heterogeneous trajectory data from both datasets.
+Comprehensive Benchmark and Analysis: We conduct extensive benchmark experiments and perform a comprehensive analysis of HeSTel  methods, delving deep into various aspects such as the impact of different models, and the influence of different domain datasets. The DOI of our HeSTel datasets is 10.57760/sciencedb.29423 .
 
-## Quick-Start
+## Our Experiments 
 
-Before run models in LibCity, please make sure you download at dataset and put it in directory.
+Please check the experimental results and analysis from our paper.
+
+## Package Usage
+
+### Requirements
+
+You can quickly install the corresponding dependencies,
+
+```
+pip install -r requirements.txt
+```
+
+### Quick-Start
+
+Before run models in HeSTel, please make sure you download at dataset and put it in directory.
 
 Startup code:
 
@@ -46,3 +52,7 @@ python STEL.py
 ```
 
 In the STEL.py file, program parameters are controlled by reading different configuration files.
+
+### Acknowledgements
+
+This work was supported by National Key Research and Development Program of China (2020YFA0712500), National Natural Science Foundation of China (No. 62006083), and Major Program of National Language Committee (WT145-39).
