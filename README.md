@@ -6,7 +6,7 @@ HeSTel is a graph learning-based heterogeneous spatio-temporal entity linking fr
 
 ## Overall Framework
 <img width="3335" height="1570" alt="repository of HeSTel" src="https://github.com/user-attachments/assets/5dfbcaca-31c1-4d02-90c3-3566e030bfc1" />
-Here is the overall framework of **HeSTel**, which consists of the following six main modules: 
+Here is the overall framework of HeSTel, which consists of the following six main modules: 
 
 - **Data Module**: Responsible for loading datasets. Corresponding package name: **dataset**.
 - **Preprocessing Module**: Handles data preprocessing operations. Corresponding package name: **preprocessing**.
@@ -23,7 +23,7 @@ Unified Data Representation: All HeSTel datasets are represented in a unified fo
 
 Highly Efficient Pipeline: HeSTel leveraging its powerful tools and functionalities. Therefore, its code is concise. Specifically, we provide a small .py file and config folder to run all baselines in one click.
 
-Comprehensive Benchmark and Analysis: We conduct extensive benchmark experiments and perform a comprehensive analysis of HeSTel  methods, delving deep into various aspects such as the impact of different models, and the influence of different domain datasets. The DOI of our HeSTel datasets is 10.57760/sciencedb.29423 .
+Comprehensive Benchmark and Analysis: We conduct extensive benchmark experiments and perform a comprehensive analysis of HeSTel  methods, delving deep into various aspects such as the impact of different models, and the influence of different domain datasets. The DOI of our HeSTel datasets is 10.57760/sciencedb.29423.
 
 ## Our Experiments 
 
@@ -54,4 +54,5 @@ In the STEL.py file, program parameters are controlled by reading different conf
 ### Acknowledgements
 
 This work was supported by National Key Research and Development Program of China (2020YFA0712500), National Natural Science Foundation of China (No. 62006083), and Major Program of National Language Committee (WT145-39).
+
 
